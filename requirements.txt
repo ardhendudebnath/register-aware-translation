@@ -1,0 +1,28 @@
+# Core runtime — everything Setu needs to run the app and the register layer.
+#
+# Deliberately light. The register layer itself has no dependencies at all: it
+# is pure standard-library string processing, which is what lets it work offline
+# and is why it is not gated behind any of this.
+#
+# Heavy extras live in requirements-train.txt (fine-tuning) and
+# requirements-speech.txt (server-side Whisper). Install those only if you
+# need them; every stage degrades gracefully when they are absent.
+
+Flask>=3.0,<4.0
+Flask-SocketIO>=5.3,<6.0
+python-socketio>=5.8,<6.0
+simple-websocket>=1.0          # WebSocket transport for Flask-SocketIO
+
+# Data preparation and the classifier's inference-side helpers.
+pandas>=2.0
+scikit-learn>=1.3
+numpy>=1.24
+
+# Language identification (optional but small; there is a stop-word fallback).
+langdetect>=1.0.9
+
+# Text-to-speech. Falls back to the browser's speechSynthesis when absent.
+gTTS>=2.4
+
+# Tests
+pytest>=7.4

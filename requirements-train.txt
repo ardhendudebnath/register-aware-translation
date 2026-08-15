@@ -1,0 +1,18 @@
+# Fine-tuning the formality classifier, and local MarianMT translation.
+#
+#     pip install -r requirements.txt -r requirements-train.txt
+#     python -m classifier.train --max-rows 200000
+#
+# Several GB of downloads. Nothing in the app requires it — an absent model
+# falls back to the register engine and then to lexical scoring.
+
+torch>=2.0
+transformers>=4.40
+datasets>=2.18
+accelerate>=0.27       # required by transformers.Trainer
+sentencepiece>=0.2     # MarianMT and multilingual tokenisers
+sacremoses>=0.1        # MarianMT detokenisation
+
+# Semantic-preservation metric (blueprint 9). Without it, evaluation falls back
+# to a character-similarity ratio rather than skipping the metric.
+sentence-transformers>=2.6
