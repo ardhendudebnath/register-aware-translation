@@ -154,10 +154,22 @@ def _translate_local(text: str, source: str, target: str) -> Optional[Translatio
 @lru_cache(maxsize=8)
 def _load_marian(source: str, target: str):
     """
-    Cached MarianMT pipeline for one direction.
+    Cached MarianMT pipeline for one direction, from models already on disk.
 
-    Returns None — never raises — when transformers is absent or the model for
-    this pair does not exist, because the caller has a fallback.
+    ``local_files_only`` is the important part. Without it, "prefer local" means
+    "contact the Hugging Face Hub mid-translation to find out whether a model
+    exists" — which cost 28 seconds for en->bn, where opus-mt-en-bn does not
+    exist at all, before the fallback even started. The latency budget for this
+    whole stage is 200-500 ms.
+
+    So local means genuinely local: already downloaded, no network, no probe.
+    Fetch a pair deliberately if you want it:
+
+        python -c "from transformers import pipeline; \\
+                   pipeline('translation', model='Helsinki-NLP/opus-mt-en-de')"
+
+    Returns None — never raises — when transformers is absent or the model is
+    not cached, because the caller has a fallback.
     """
     try:
         from transformers import pipeline
@@ -166,8 +178,32 @@ def _load_marian(source: str, target: str):
 
     model_name = f"Helsinki-NLP/opus-mt-{source}-{target}"
     try:
-        return pipeline("translation", model=model_name)
+        return pipeline("translation", model=model_name, local_files_only=True)
     except Exception:
+        return None
+
+
+@lru_cache(maxsize=1)
+def _session():
+    """
+    A pooled HTTP session, so the TLS handshake is paid once rather than per
+    utterance.
+
+    Blueprint 7 puts this first among the real-world latency wins: "cold TLS
+    handshakes cost more than the entire translation". Falls back to urllib
+    when requests is unavailable, which costs a handshake per call but keeps
+    the dependency optional.
+    """
+    try:
+        import requests
+        from requests.adapters import HTTPAdapter
+
+        session = requests.Session()
+        adapter = HTTPAdapter(pool_connections=4, pool_maxsize=8, max_retries=0)
+        session.mount("https://", adapter)
+        session.headers.update({"User-Agent": _USER_AGENT})
+        return session
+    except ImportError:
         return None
 
 
@@ -186,10 +222,16 @@ def _translate_public(text: str, source: str, target: str) -> Translation:
         "q": text,
     }
     url = f"{_PUBLIC_ENDPOINT}?{urllib.parse.urlencode(params)}"
-    request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
 
-    with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as response:
-        raw = response.read().decode("utf-8", errors="replace")
+    session = _session()
+    if session is not None:
+        response = session.get(url, timeout=_TIMEOUT_S)
+        response.raise_for_status()
+        raw = response.text
+    else:
+        request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+        with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as handle:
+            raw = handle.read().decode("utf-8", errors="replace")
 
     try:
         payload = json.loads(raw)

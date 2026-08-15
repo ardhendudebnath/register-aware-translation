@@ -218,6 +218,8 @@ def iter_neutral(stats: Stats) -> Iterator[Tuple[str, str, str, str, str]]:
     """The hand-written neutral samples, if the file is present."""
     if not NEUTRAL_FILE.exists():
         return
+    # A bare `return` in a generator yields nothing, which is what we want when
+    # the optional file is absent.
     with NEUTRAL_FILE.open("r", encoding="utf-8", errors="replace", newline="") as fh:
         for line in fh:
             stats.rows_read += 1
@@ -285,6 +287,13 @@ def build(
             stats.record(split, final_label)
             stats.rows_kept += 1
 
+        # Read every file concurrently, round-robin, rather than one after
+        # another. The shuffle buffer only mixes what is inside it, so reading
+        # sequentially still leaves the output ordered by language pair — the
+        # first 4000 rows came from 3 pairs out of 224. Interleaving makes the
+        # stream globally mixed, so any prefix is representative of the whole
+        # corpus in both class and language.
+        readers = []
         for path_str in files:
             meta = parse_filename(path_str)
             if meta is None:
@@ -293,12 +302,22 @@ def build(
             stats.files += 1
             print(f"  {os.path.relpath(path_str, PROJECT_ROOT)}  [{src_lang}->{tgt_lang} {label}]",
                   flush=True)
-            for row in iter_rows(Path(path_str), src_lang, tgt_lang, label,
-                                 stats, max_rows_per_file):
-                emit(*row)
+            readers.append(
+                iter_rows(Path(path_str), src_lang, tgt_lang, label,
+                          stats, max_rows_per_file)
+            )
+        readers.append(iter_neutral(stats))
 
-        for row in iter_neutral(stats):
-            emit(*row)
+        print(f"\nInterleaving {len(readers)} sources...", flush=True)
+        while readers:
+            live = []
+            for reader in readers:
+                try:
+                    emit(*next(reader))
+                except StopIteration:
+                    continue
+                live.append(reader)
+            readers = live
 
     finally:
         for buffer in buffers.values():

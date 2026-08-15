@@ -155,6 +155,30 @@ def suggest_batch_size(info: dict) -> int:
     return 8
 
 
+def _supported_kwargs(cls, kwargs: Dict[str, object]) -> Dict[str, object]:
+    """
+    Drop arguments this version of ``cls`` does not accept.
+
+    ``TrainingArguments`` changes shape between transformers majors — v5 removed
+    ``warmup_ratio``, ``logging_dir`` and ``group_by_length``, and renamed
+    ``evaluation_strategy`` to ``eval_strategy``. Filtering against the real
+    signature keeps one script working across versions instead of pinning the
+    whole project to whichever major happened to be installed first.
+    """
+    import inspect
+
+    accepted = set(inspect.signature(cls.__init__).parameters)
+    kept, dropped = {}, []
+    for key, value in kwargs.items():
+        if key in accepted:
+            kept[key] = value
+        else:
+            dropped.append(key)
+    if dropped:
+        print(f"Note: this transformers version ignores {', '.join(sorted(dropped))}")
+    return kept
+
+
 def load_split(name: str, max_rows: Optional[int] = None):
     """
     Read one split. The builder writes a header, so columns are read by name
@@ -346,31 +370,32 @@ def main(argv: Optional[List[str]] = None) -> int:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
-    training_args = TrainingArguments(
-        output_dir=str(RESULTS_DIR),
-        eval_strategy="epoch",
-        save_strategy="epoch",
-        load_best_model_at_end=True,
-        metric_for_best_model="f1_macro",
-        learning_rate=args.learning_rate,
-        per_device_train_batch_size=batch_size,
-        per_device_eval_batch_size=batch_size * 2,   # no optimiser state at eval
-        gradient_accumulation_steps=args.grad_accum,
-        num_train_epochs=args.epochs,
-        weight_decay=0.01,
-        warmup_ratio=0.06,
-        logging_dir=str(LOGS_DIR),
-        logging_steps=50,
-        save_total_limit=2,
+    wanted = {
+        "output_dir": str(RESULTS_DIR),
+        "eval_strategy": "epoch",
+        "save_strategy": "epoch",
+        "load_best_model_at_end": True,
+        "metric_for_best_model": "f1_macro",
+        "learning_rate": args.learning_rate,
+        "per_device_train_batch_size": batch_size,
+        "per_device_eval_batch_size": batch_size * 2,  # no optimiser state at eval
+        "gradient_accumulation_steps": args.grad_accum,
+        "num_train_epochs": args.epochs,
+        "weight_decay": 0.01,
+        "warmup_ratio": 0.06,
+        "logging_dir": str(LOGS_DIR),
+        "logging_steps": 50,
+        "save_total_limit": 2,
         # bf16 where the card supports it: same exponent range as fp32, so no
         # loss scaling and no silent overflow to NaN partway through a long run.
-        bf16=(device == "cuda" and gpu["precision"] == "bf16"),
-        fp16=(device == "cuda" and gpu["precision"] == "fp16"),
-        dataloader_num_workers=workers,
-        dataloader_pin_memory=(device == "cuda"),
-        group_by_length=True,     # pairs with dynamic padding to cut wasted compute
-        report_to=[],
-    )
+        "bf16": (device == "cuda" and gpu["precision"] == "bf16"),
+        "fp16": (device == "cuda" and gpu["precision"] == "fp16"),
+        "dataloader_num_workers": workers,
+        "dataloader_pin_memory": (device == "cuda"),
+        "group_by_length": True,  # pairs with dynamic padding to cut wasted compute
+        "report_to": [],
+    }
+    training_args = TrainingArguments(**_supported_kwargs(TrainingArguments, wanted))
 
     trainer = Trainer(
         model=model,

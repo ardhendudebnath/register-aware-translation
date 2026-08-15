@@ -82,17 +82,49 @@ def test_formality_uses_the_register_engine(text, lang, expected_level):
     assert result.source == "register-engine"
 
 
+"""
+Note on ``use_model=False`` below.
+
+These tests pin the lexical path explicitly. Without that they are not hermetic:
+``classify_formality`` prefers a fine-tuned classifier when one exists at
+``models/formality-classifier/``, so the same assertion passes on a fresh
+checkout and fails the moment someone runs ``python -m classifier.train``. A
+test whose result depends on whether an untracked artefact happens to be on disk
+is worse than no test. The model path gets its own test below.
+"""
+
+
 def test_formality_lexical_fallback():
-    informal = classify_formality("yo lol idk tbh", language="en")
+    informal = classify_formality("yo lol idk tbh", language="en", use_model=False)
     formal = classify_formality(
-        "I am writing to enquire about the position advertised.", language="en"
+        "I am writing to enquire about the position advertised.",
+        language="en", use_model=False,
     )
     assert informal.percent < formal.percent
+    assert informal.source == "lexical"
 
 
 def test_formality_neutral_when_no_evidence():
-    result = classify_formality("The table is brown.", language="en")
+    """With nothing to go on, sit near the middle rather than pick a side."""
+    result = classify_formality("The table is brown.", language="en", use_model=False)
     assert 35 <= result.percent <= 75
+    assert result.source == "lexical"
+
+
+def test_formality_uses_trained_model_when_present():
+    """
+    When a fine-tuned classifier exists it takes precedence over the lexical
+    scorer. Skipped rather than failed when no model has been trained, since
+    the artefact is untracked.
+    """
+    from models.classifier import load_trained_classifier
+
+    if load_trained_classifier() is None:
+        pytest.skip("no trained classifier on disk")
+
+    result = classify_formality("The table is brown.", language="en", use_model=True)
+    assert result.source == "trained-model"
+    assert 0 <= result.percent <= 100
 
 
 def test_formality_handles_empty():

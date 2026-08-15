@@ -49,7 +49,7 @@ own APIs — no API key, no cost.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The three metrics that make the claim defensible. |
-| `tests/` | 206 tests. |
+| `tests/` | 207 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -171,6 +171,25 @@ pip install -r requirements-train.txt
 python -m classifier.train --max-rows 200000 --epochs 2
 ```
 
+The device is configured from the card that is actually present: bf16 where
+supported (same exponent range as fp32, so no loss scaling and no silent
+overflow to NaN partway through a long run), TF32 matmul, and a batch size
+sized to available VRAM.
+
+**On a new GPU, check the wheel first.** A PyTorch build only ships kernels for
+the architectures it was compiled for, and `torch.cuda.is_available()` returns
+True on a card it cannot actually run — you get *"no kernel image is available
+for execution on the device"* at the first forward pass, possibly an hour in.
+The script checks the architecture up front and refuses to start, printing the
+fix. For Blackwell (RTX 50-series, `sm_120`) that is:
+
+```bash
+pip install --force-reinstall torch --index-url https://download.pytorch.org/whl/cu128
+```
+
+Verified on an RTX 5070 Ti Laptop (12 GB, compute 12.0): 368 samples/s at
+batch 32, bf16.
+
 > **Note on labels.** The filename is ground truth. Slang detection is recorded
 > as a *feature column*, not a label override — overriding is opt-in behind
 > `--slang-overrides-label`, because doing it by default is what corrupted the
@@ -221,7 +240,7 @@ harness says so rather than reporting a flattering number over nothing.
 python -m pytest tests/ -q
 ```
 
-206 tests covering the rule tables, round-trip stability, third-person safety,
+207 tests covering the rule tables, round-trip stability, third-person safety,
 Indic boundary handling, the slang-detection regressions, and the pipeline with
 networking disabled.
 
