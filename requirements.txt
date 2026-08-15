@@ -18,6 +18,11 @@ pandas>=2.0
 scikit-learn>=1.3
 numpy>=1.24
 
+# Pooled HTTP for the MT endpoint. Keeping one connection alive turns a ~6 s
+# cold call into ~250 ms warm — blueprint 7 puts this first among the
+# real-world latency wins. There is a urllib fallback if it is absent.
+requests>=2.31
+
 # Language identification (optional but small; there is a stop-word fallback).
 langdetect>=1.0.9
 
