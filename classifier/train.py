@@ -219,17 +219,32 @@ def load_split(name: str, max_rows: Optional[int] = None):
     return df
 
 
-def build_label_map(train_df) -> Dict[str, int]:
+def build_label_map(train_df, min_count: int = 50) -> Dict[str, int]:
     """
-    Derive the label set from the data.
+    Derive the label set from the data, ignoring classes too rare to learn.
 
-    The old script hard-coded three classes. The corpus contains only a handful
-    of 'neutral' rows, so a third logit trains on noise and never fires. Classes
-    that do not appear are dropped, and the mapping is saved next to the model
-    so inference cannot disagree with training about what index means what.
+    The old script hard-coded three classes. The corpus contains 7 'neutral'
+    rows out of 11.2M, so a third logit trains on noise and never fires — the
+    run above scored f1_neutral 0.0 off a single training example.
+
+    Worse, deriving the set from whatever happens to appear makes the model
+    shape depend on ``--max-rows``: 20k rows gave two classes, 40k gave three.
+    A minimum count makes that deterministic. Rows in a dropped class are
+    excluded from training rather than silently relabelled.
+
+    The mapping is saved next to the model so inference cannot disagree with
+    training about which index means what.
     """
-    present = sorted(train_df["formality_label"].unique())
-    return {label: i for i, label in enumerate(present)}
+    counts = train_df["formality_label"].value_counts()
+    keep = sorted(label for label, n in counts.items() if n >= min_count)
+    dropped = {label: int(n) for label, n in counts.items() if n < min_count}
+
+    if dropped:
+        print(
+            f"Dropping class(es) with fewer than {min_count} training rows: "
+            + ", ".join(f"{k} ({v})" for k, v in sorted(dropped.items()))
+        )
+    return {label: i for i, label in enumerate(keep)}
 
 
 def compute_metrics_fn(label_map: Dict[str, int]):
@@ -271,6 +286,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                         help="Cap training rows. The full corpus is millions of "
                              "pairs; start small to verify the loop runs.")
     parser.add_argument("--output-dir", default=str(MODEL_DIR))
+    parser.add_argument("--min-class-count", type=int, default=50,
+                        help="Ignore classes with fewer than this many training "
+                             "rows. Stops the 7 'neutral' rows in 11.2M from "
+                             "adding a logit that only ever scores 0.")
     parser.add_argument("--cpu", action="store_true",
                         help="Force CPU even when a GPU is present.")
     parser.add_argument("--grad-accum", type=int, default=1,
@@ -325,7 +344,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     val_df = load_split("val", val_cap)
     test_df = load_split("test", val_cap)
 
-    label_map = build_label_map(train_df)
+    label_map = build_label_map(train_df, min_count=args.min_class_count)
     print(f"Labels      : {label_map}")
     if len(label_map) < 2:
         sys.exit("ERROR: need at least two classes to train a classifier.")
