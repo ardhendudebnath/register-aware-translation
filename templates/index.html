@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#12141c">
+<meta name="description" content="Speech translation that gets the register right.">
+<title>Setu — formality-aware translation</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/static/icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="mark">সে</span>
+    <div>
+      <h1>Setu</h1>
+      <p>A bridge carries you across — but it also decides how you arrive.</p>
+    </div>
+  </div>
+  <div class="status" id="status" data-state="connecting">Connecting…</div>
+</header>
+
+<main>
+  <!-- language pair -->
+  <section class="panel langs">
+    <div class="field">
+      <label for="sourceLang">From</label>
+      <select id="sourceLang"><option value="">Detect automatically</option></select>
+    </div>
+    <button id="swapLangs" class="swap" title="Swap languages" aria-label="Swap languages">⇄</button>
+    <div class="field">
+      <label for="targetLang">To</label>
+      <select id="targetLang"></select>
+    </div>
+  </section>
+
+  <!-- the dial: the product -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Register</h2>
+      <span class="hint" id="levelHint"></span>
+    </div>
+    <div class="chips" id="registerChips" role="radiogroup" aria-label="Register level"></div>
+
+    <details class="extras">
+      <summary>Who are you speaking to?</summary>
+      <p class="note">
+        Indian languages need a vocative that English simply does not have —
+        দাদা, भैया, அண்ணா. Machine translation drops it, which sounds abrupt.
+      </p>
+      <div class="chips small" id="addresseeChips" role="radiogroup" aria-label="Addressee"></div>
+      <label class="check">
+        <input type="checkbox" id="soften">
+        Add the politeness particle (দয়া করে, कृपया, bitte)
+      </label>
+    </details>
+  </section>
+
+  <!-- input -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Say or type something</h2>
+      <span class="hint" id="asrHint"></span>
+    </div>
+    <textarea id="sourceText" rows="3"
+      placeholder="Can you give me your book?"
+      aria-label="Text to translate"></textarea>
+    <div class="controls">
+      <button id="micBtn" class="mic" aria-label="Start listening">
+        <span class="dot"></span><span id="micLabel">Speak</span>
+      </button>
+      <button id="translateBtn" class="primary">Translate</button>
+      <button id="speakBtn" class="ghost" disabled>▶ Play</button>
+    </div>
+  </section>
+
+  <!-- warning -->
+  <div class="warning" id="warning" hidden></div>
+
+  <!-- result -->
+  <section class="panel result" id="resultPanel" hidden>
+    <div class="panel-head">
+      <h2>Translation</h2>
+      <div class="badges">
+        <span class="badge" id="badgeRegister"></span>
+        <span class="badge muted" id="badgeEngine"></span>
+        <span class="badge muted" id="badgeTiming"></span>
+      </div>
+    </div>
+    <p class="output" id="outputText" lang="" dir="auto"></p>
+    <p class="detected" id="detectedRegister"></p>
+
+    <details class="extras" id="traceWrap" hidden>
+      <summary>Show the rules that fired <span id="traceCount" class="count"></span></summary>
+      <ul class="trace" id="trace"></ul>
+    </details>
+  </section>
+
+  <!-- the ladder: the five-second demo -->
+  <section class="panel" id="ladderPanel" hidden>
+    <div class="panel-head">
+      <h2>The same sentence, four ways</h2>
+      <span class="hint">Tap one to hear it</span>
+    </div>
+    <ul class="ladder" id="ladder"></ul>
+  </section>
+
+  <footer class="foot">
+    <span id="phrasebookStats"></span>
+    <span class="sep">·</span>
+    <span>The register layer runs on-device and works offline.</span>
+  </footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+src_lang,tgt_lang,formality,source_sentence,expected_target
+"en","de","formal","Could you please send the report?","Könnten Sie bitte den Bericht senden?"
+"en","de","informal","Can you send the report?","Kannst du den Bericht schicken?"
+"en","fr","formal","I would like to schedule a meeting.","Je souhaiterais programmer une réunion."
+"en","fr","informal","Let’s set up a meeting.","On se cale une réunion."
+"en","es","formal","Please confirm receipt.","Por favor, confirme la recepción."
+"en","es","informal","Please confirm you got this.","Por favor, confirma que lo recibiste."
+"en","it","formal","Would you kindly review the document?","Vorresti gentilmente rivedere il documento?"
+"en","it","informal","Can you check the document?","Puoi controllare il documento?"

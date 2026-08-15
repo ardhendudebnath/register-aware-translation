@@ -1,0 +1,43 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --------------------------------------------------------------------------
+# Data. The FAME-MT corpus under data/dataset/ is ~4 GB and the generated
+# splits are another ~2.3 GB. Neither belongs in git — regenerate the splits
+# with:
+#     python -m data_preprocessing.build_splits
+# --------------------------------------------------------------------------
+data/dataset/
+data/splits/
+data/phrasebook.sqlite3
+
+# Keep the small, hand-maintained data that the code actually needs.
+!data/slang_dictionary.json
+!data/test_sentences.csv
+!data/neutral_samples_for_NMT_fine_tuning.tsv
+!data/gold/
+
+# Training artefacts
+results/
+logs/
+models/formality-classifier/
+*.ckpt
+*.safetensors
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp

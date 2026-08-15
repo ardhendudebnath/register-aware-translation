@@ -1,0 +1,16 @@
+# Server-side speech recognition.
+#
+#     pip install -r requirements.txt -r requirements-speech.txt
+#
+# Only needed when the browser cannot do speech recognition itself. Chrome and
+# Edge can, and that path is free; iOS Safari generally cannot, which per the
+# blueprint is the single most common surprise in this category of app.
+#
+# faster-whisper is the CTranslate2 build — noticeably quicker on CPU than the
+# reference implementation, which matters against a 200-400 ms ASR budget.
+# Both need ffmpeg on PATH to decode browser audio.
+
+faster-whisper>=1.0
+
+# Alternative reference implementation; install one or the other, not both.
+# openai-whisper>=20231117
