@@ -49,7 +49,7 @@ own APIs — no API key, no cost.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The three metrics that make the claim defensible. |
-| `tests/` | 205 tests. |
+| `tests/` | 206 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -152,7 +152,10 @@ python -m data_preprocessing.build_splits
 
 Streams ~11.2M rows and writes `data/splits/{train,val,test}.tsv` with a header.
 Split assignment is a stable hash of the row, so it needs no shuffle buffer and
-re-runs produce byte-identical splits.
+re-runs produce byte-identical splits. Rows then pass through a bounded shuffle
+buffer on the way out, so any *prefix* of the output is a fair mix — without it
+the head of `train.tsv` is one language pair and one class, and `--max-rows`
+cannot train at all.
 
 ```bash
 python -m data_preprocessing.build_splits --max-rows-per-file 5000
@@ -218,7 +221,7 @@ harness says so rather than reporting a flattering number over nothing.
 python -m pytest tests/ -q
 ```
 
-205 tests covering the rule tables, round-trip stability, third-person safety,
+206 tests covering the rule tables, round-trip stability, third-person safety,
 Indic boundary handling, the slang-detection regressions, and the pipeline with
 networking disabled.
 
