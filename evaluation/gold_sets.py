@@ -179,13 +179,22 @@ def load_gold_set(language: str) -> List[Case]:
             if missing:
                 raise ValueError(f"{path}:{line_no} is missing {sorted(missing)}")
 
+            # level may be null: those rows carry no second-person marker at
+            # all, and exist to check that detection abstains rather than
+            # guessing. A detector that invents a level for them would make
+            # Auto mode mirror noise.
+            raw_level = row["level"]
             cases.append(
                 Case(
                     language=row.get("language", language),
                     text=row["text"],
-                    level=int(row["level"]),
+                    level=None if raw_level is None else int(raw_level),
                     expected={int(k): v for k, v in (row.get("expected") or {}).items()},
                     note=row.get("note", ""),
+                    domain=row.get("domain", ""),
+                    construction=row.get("construction", ""),
+                    status=row.get("status", "draft"),
+                    case_id=row.get("id", f"{language}-{line_no:04d}"),
                 )
             )
     return cases

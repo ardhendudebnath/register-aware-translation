@@ -57,29 +57,18 @@ The wide slab is the point. It spans all three engine tiers rather than sitting
 inside any of them, so swapping what is underneath changes nothing above it.
 Regenerate with `python docs/make_diagrams.py`.
 
-```mermaid
-flowchart TB
-    subgraph CLIENT["🖥️  CLIENT — one codebase, PWA + wrapped mobile"]
-        direction TB
-        MIC["🎤 Audio capture"] --> VAD["Voice activity detection"]
-        VAD --> ASR["ASR"]
-        ASR --> PRE["① PRE-EDIT<br/><i>steer the source</i>"]
-        PRE --> MT{{"② TRANSLATE<br/><i>swappable</i>"}}
-        MT --> POST["③ REGISTER POST-EDIT<br/><b>the product</b> · ~1 ms · offline"]
-        POST --> TTS["🔊 TTS<br/><i>prosody from register</i>"]
-        TABLES[("Rule tables<br/>20 languages<br/>bundled, ~80 KB")] -.->|"no network"| POST
-        CACHE[("Phrasebook<br/>SQLite")] -.-> MT
-    end
+### The three stages
 
-    MT -.->|online| TIERA["☁️ TIER A — Cloud API<br/>best quality, needs key"]
-    MT -.->|online| TIERB["🆓 TIER B — Free public<br/>browser APIs + keyless MT"]
-    MT -.->|offline| TIERC["📦 TIER C — On-device<br/>Whisper + IndicTrans2"]
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/pipeline-dark.svg">
+    <img alt="The three-stage pipeline: speech in, pre-edit, translate, register post-edit, speech out. The translate stage is outlined as replaceable." src="docs/pipeline-light.svg" width="880">
+  </picture>
+</p>
 
-    style POST fill:#7c9cff,stroke:#3d5bd9,stroke-width:3px,color:#fff
-    style TABLES fill:#e8eaf2,stroke:#7c9cff,stroke-width:2px
-    style MT fill:#fff3cd,stroke:#b4690e
-    style CLIENT fill:#f7f8fc,stroke:#dfe3ee
-```
+Only the middle box is dashed, because it is the only one you would ever swap.
+Pre-edit steers the source before the engine sees it; post-edit is where
+register is actually applied, and it costs about a millisecond.
 
 **Fallback chain:** cached phrase → on-device model → premium API → free
 endpoint → *"I couldn't translate that, here's what I heard."* The user never
@@ -87,25 +76,36 @@ sees a dead end.
 
 ### The layer that makes it different
 
-```mermaid
-flowchart LR
-    IN["তুমি কি করছ?"] --> D["detect()"]
-    D --> L{{"Casual"}}
-    L --> R["rewrite()"]
-    R --> C0["Close<br/>তুই কি করছিস?"]
-    R --> C1["Casual<br/>তুমি কি করছ?"]
-    R --> C2["Polite<br/>আপনি কি করছেন?"]
-    R --> C3["Formal<br/>আপনি কি করছেন?"]
-    C2 --> TRACE["trace:<br/>তুমি → আপনি<br/>করছ → করছেন"]
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/ladder-dark.svg">
+    <img alt="The register ladder as a staircase: the same Bengali sentence at Close, Casual, Polite and Formal, with the top two rungs identical because Bengali uses one form for both." src="docs/ladder-light.svg" width="880">
+  </picture>
+</p>
 
-    style R fill:#7c9cff,color:#fff,stroke-width:2px
-    style TRACE fill:#e8f5e9,stroke:#17835c
-```
+A staircase is the honest shape: the levels are ordered and the rise is even.
+Where a language does not distinguish two levels the rungs carry the same text —
+Bengali uses আপনি for both Polite and Formal, and the diagram says so rather
+than inventing a difference.
 
 One symmetric dataset drives all three jobs — **upgrade, downgrade, detect** —
 because every rule is the same thing said four ways.
 
 ### Module structure
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/modules-dark.svg">
+    <img alt="Module structure stacked by dependency: register/ is the widest slab at the bottom with nothing beneath it, then models/, pipeline/ and app.py above." src="docs/modules-light.svg" width="880">
+  </picture>
+</p>
+
+`register/` is the widest slab and sits at the bottom with nothing under it,
+because it depends on nothing at all. That is what lets it run offline in about
+a millisecond and be lifted out as a component.
+
+<details>
+<summary>The same structure as text</summary>
 
 ```mermaid
 flowchart TD
@@ -151,8 +151,12 @@ flowchart TD
     style MOD fill:#fffaf0,stroke:#b4690e
 ```
 
-Note the dependency direction: `register/` depends on **nothing**. That is what
-lets it work offline, run in ~1 ms, and be lifted out as a component.
+</details>
+
+All four figures are generated, not hand-drawn — `python docs/make_diagrams.py`
+rebuilds them in both themes. The language count is read off the tables rather
+than typed in, so adding a language cannot leave a diagram quietly claiming the
+old number.
 
 ---
 

@@ -644,7 +644,9 @@ def politeness_warning(text: str, language: str, intended_level) -> Optional[str
     if not probe.edits:
         return None
 
-    polite_form = table.rules[0].forms[table.fold(POLITE)]
+    polite_form = _polite_pronoun(table)
+    if not polite_form:
+        return None
     if level == CLOSE:
         return (
             f"This will sound very familiar — {table.name} {level_name(level)} is "
@@ -659,6 +661,23 @@ def politeness_warning(text: str, language: str, intended_level) -> Optional[str
 # --------------------------------------------------------------------------
 # Internals
 # --------------------------------------------------------------------------
+
+
+def _polite_pronoun(table: LanguageTable) -> str:
+    """
+    The language's polite second-person pronoun, for the rudeness warning.
+
+    Looked up by rule name rather than taken from ``rules[0]``. The warning used
+    to read the first rule in the table and assumed it was the pronoun — which
+    silently became false the moment prohibitive rules were added to the front
+    of the Bengali table, and the warning started suggesting "করবেন না" (do not
+    do) where it meant আপনি.
+    """
+    for name in ("pron.2sg.nom", "pron.2sg.subj", "pron.2sg"):
+        for rule in table.rules:
+            if rule.name == name:
+                return rule.forms[table.fold(POLITE)]
+    return ""
 
 
 def _apply_softener(text: str, table: LanguageTable, level: int) -> str:
