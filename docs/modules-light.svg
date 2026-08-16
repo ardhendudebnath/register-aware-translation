@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" width="1000" height="560" role="img" aria-label="Setu module structure, stacked by dependency direction">
+<defs><marker id="arrowhead-light" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#8b93ab"/></marker><filter id="soft-light" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-opacity="0.16"/></filter></defs>
+<rect width="1000" height="560" fill="#ffffff"/>
+<text x="34" y="42" font-size="19" font-weight="700" fill="#1a1d28" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">Dependencies point downward</text>
+<text x="34" y="65" font-size="13" fill="#5f6780" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">register/ is at the bottom because it depends on nothing at all.</text>
+<polygon points="170.10,345.00 464.54,515.00 464.54,545.00 170.10,375.00" fill="#5f83f5" stroke="#c9cfe0" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="594.45,440.00 464.54,515.00 464.54,545.00 594.45,470.00" fill="#4a70ec" stroke="#c9cfe0" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="300.00,270.00 594.45,440.00 464.54,515.00 170.10,345.00" fill="#7c9cff" stroke="#c9cfe0" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
+<text x="382.27" y="389.00" font-size="12.5" fill="#ffffff" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">register/  —  zero dependencies</text>
+<text x="382.27" y="406.50" font-size="9.5" fill="#dbe3ff" font-weight="400" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">tables · engine · boundaries · gender · speaker · selectors</text>
+<polygon points="170.10,287.00 386.60,412.00 386.60,442.00 170.10,317.00" fill="#dfe3ee" stroke="#c9cfe0" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="516.51,337.00 386.60,412.00 386.60,442.00 516.51,367.00" fill="#cdd3e3" stroke="#c9cfe0" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="300.00,212.00 516.51,337.00 386.60,412.00 170.10,287.00" fill="#f0f2f8" stroke="#c9cfe0" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
+<text x="343.30" y="308.50" font-size="12.5" fill="#1a1d28" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">models/  —  swappable backends</text>
+<text x="343.30" y="326.00" font-size="9.5" fill="#5f6780" font-weight="400" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">stt · language_id · classifier · translator · tts</text>
+<polygon points="170.10,229.00 386.60,354.00 386.60,384.00 170.10,259.00" fill="#c2cdf5" stroke="#c9cfe0" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="516.51,279.00 386.60,354.00 386.60,384.00 516.51,309.00" fill="#aebbef" stroke="#c9cfe0" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="300.00,154.00 516.51,279.00 386.60,354.00 170.10,229.00" fill="#dfe6ff" stroke="#c9cfe0" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
+<text x="343.30" y="250.50" font-size="12.5" fill="#1a1d28" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">pipeline/  —  orchestration</text>
+<text x="343.30" y="268.00" font-size="9.5" fill="#5f6780" font-weight="400" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">core · conversation · relationships · learner</text>
+<polygon points="170.10,171.00 308.66,251.00 308.66,281.00 170.10,201.00" fill="#dfe3ee" stroke="#c9cfe0" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="438.56,176.00 308.66,251.00 308.66,281.00 438.56,206.00" fill="#cdd3e3" stroke="#c9cfe0" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="300.00,96.00 438.56,176.00 308.66,251.00 170.10,171.00" fill="#f0f2f8" stroke="#c9cfe0" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
+<text x="304.33" y="170.00" font-size="12.5" fill="#1a1d28" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">app.py</text>
+<text x="304.33" y="187.50" font-size="9.5" fill="#5f6780" font-weight="400" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">Flask · SocketIO · REST</text>
+<rect x="640" y="120" width="320" height="66" rx="10" fill="#f0f2f8" stroke="#c9cfe0"/>
+<text x="656.00" y="142.00" font-size="12.5" fill="#17835c" font-weight="700" text-anchor="start" letter-spacing="normal" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">evaluation/</text>
+<text x="656.00" y="159.00" font-size="10.5" fill="#1a1d28" font-weight="400" text-anchor="start" letter-spacing="normal" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">register · detection · semantic preservation</text>
+<text x="656.00" y="174.00" font-size="10" fill="#5f6780" font-weight="400" text-anchor="start" letter-spacing="normal" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">measures the layer, depends only on it</text>
+<rect x="640" y="212" width="320" height="66" rx="10" fill="#f0f2f8" stroke="#c9cfe0"/>
+<text x="656.00" y="234.00" font-size="12.5" fill="#5f6780" font-weight="700" text-anchor="start" letter-spacing="normal" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">classifier/</text>
+<text x="656.00" y="251.00" font-size="10.5" fill="#1a1d28" font-weight="400" text-anchor="start" letter-spacing="normal" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">fine-tunes on FAME-MT</text>
+<text x="656.00" y="266.00" font-size="10" fill="#5f6780" font-weight="400" text-anchor="start" letter-spacing="normal" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">optional — the engine works without it</text>
+<rect x="640" y="304" width="320" height="66" rx="10" fill="#f0f2f8" stroke="#c9cfe0"/>
+<text x="656.00" y="326.00" font-size="12.5" fill="#5f6780" font-weight="700" text-anchor="start" letter-spacing="normal" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">data_preprocessing/</text>
+<text x="656.00" y="343.00" font-size="10.5" fill="#1a1d28" font-weight="400" text-anchor="start" letter-spacing="normal" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">streams 11.2M rows into splits</text>
+<text x="656.00" y="358.00" font-size="10" fill="#5f6780" font-weight="400" text-anchor="start" letter-spacing="normal" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">hash-assigned, shuffled, interleaved</text>
+<text x="34.00" y="534.00" font-size="12" fill="#5f6780" font-weight="500" text-anchor="start" letter-spacing="normal" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">Nothing above the bottom slab can break it — which is why it still works with no network.</text>
+</svg>

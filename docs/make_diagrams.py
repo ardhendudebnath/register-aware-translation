@@ -96,11 +96,36 @@ DARK = Theme(
 )
 
 
+#: The origin currently in force. Each diagram places its block differently, so
+#: builders swap this with :func:`using_origin` rather than threading an origin
+#: argument through every helper.
+_ORIGIN = ORIGIN
+
+
+class using_origin:
+    """Temporarily move the projection origin, for one diagram."""
+
+    def __init__(self, x: float, y: float):
+        self._new = (x, y)
+        self._old = _ORIGIN
+
+    def __enter__(self):
+        global _ORIGIN
+        self._old = _ORIGIN
+        _ORIGIN = self._new
+        return self
+
+    def __exit__(self, *exc):
+        global _ORIGIN
+        _ORIGIN = self._old
+        return False
+
+
 def project(x: float, y: float, z: float) -> Tuple[float, float]:
     """World (x, y, z) -> screen. z is up."""
     sx = (x - y) * _COS30
     sy = (x + y) * _SIN30 - z
-    return ORIGIN[0] + sx * SCALE, ORIGIN[1] + sy * SCALE
+    return _ORIGIN[0] + sx * SCALE, _ORIGIN[1] + sy * SCALE
 
 
 def _poly(points: Sequence[Tuple[float, float]], fill: str, stroke: str,
@@ -193,6 +218,270 @@ def _assert_layout(span_w: float, span_d: float, top_z: float, W: float, H: floa
             f"x {min(xs):.0f}..{right:.0f}, y {min(ys):.0f}..{max(ys):.0f} "
             f"in {W:.0f}x{H:.0f}"
         )
+
+
+def _svg_open(W: float, H: float, theme: Theme, aria: str) -> List[str]:
+    """Opening tag, shared defs and background."""
+    return [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:.0f} {H:.0f}" '
+        f'width="{W:.0f}" height="{H:.0f}" role="img" aria-label="{_escape(aria)}">',
+        f'<defs>'
+        f'<marker id="arrowhead-{theme.name}" markerWidth="9" markerHeight="7" '
+        f'refX="8" refY="3.5" orient="auto">'
+        f'<polygon points="0 0, 9 3.5, 0 7" fill="{theme.arrow}"/></marker>'
+        f'<filter id="soft-{theme.name}" x="-25%" y="-25%" width="150%" height="150%">'
+        f'<feDropShadow dx="0" dy="6" stdDeviation="7" flood-opacity="0.16"/></filter>'
+        f'</defs>',
+        f'<rect width="{W:.0f}" height="{H:.0f}" fill="{theme.bg}"/>',
+    ]
+
+
+def _title(x: float, y: float, title: str, subtitle: str, theme: Theme) -> List[str]:
+    font = "system-ui,-apple-system,Segoe UI,Roboto,sans-serif"
+    return [
+        f'<text x="{x}" y="{y}" font-size="19" font-weight="700" fill="{theme.text}" '
+        f'font-family="{font}">{_escape(title)}</text>',
+        f'<text x="{x}" y="{y + 23}" font-size="13" fill="{theme.muted}" '
+        f'font-family="{font}">{_escape(subtitle)}</text>',
+    ]
+
+
+def _flat_text(x: float, y: float, text: str, size: float, colour: str,
+               weight: str = "400", anchor: str = "start",
+               spacing: str = "normal") -> str:
+    font = "system-ui,-apple-system,Segoe UI,Roboto,sans-serif"
+    return (
+        f'<text x="{x:.2f}" y="{y:.2f}" font-size="{size}" fill="{colour}" '
+        f'font-weight="{weight}" text-anchor="{anchor}" letter-spacing="{spacing}" '
+        f'font-family="{font}">{_escape(text)}</text>'
+    )
+
+
+# ==========================================================================
+# 2 — the three-stage pipeline, as a descending isometric run
+# ==========================================================================
+
+
+def build_pipeline(theme: Theme) -> str:
+    """
+    Speech in, speech out, with the three stages as stacked slabs.
+
+    Drawn as a descending run rather than a flat left-to-right chain so the
+    middle box reads as *replaceable* — it is the only stage with a different
+    fill, and the two either side of it are the ones this project owns.
+    """
+    W, H = 1000, 470
+    parts = _svg_open(W, H, theme,
+                      "Setu three-stage pipeline: pre-edit, translate, register post-edit")
+    parts += _title(34, 42, "Three stages — the middle one is swappable",
+                    "Pre-edit and post-edit are the product. Translation is a box you can replace.",
+                    theme)
+
+    # Advancing along +x alone pushes a slab *down*-right, so a five-stage
+    # chain walks straight off the bottom of the canvas. Stepping along the
+    # x/-y diagonal instead keeps (x + y) constant, and therefore screen-y
+    # constant, giving a level run across the page.
+    stage_w = stage_d = 86.0
+    stage_h = 24.0
+    step = 96.0
+
+    stages = [
+        ("SPEECH IN", "mic · VAD · ASR", theme.tier, theme.text, theme.muted, False),
+        ("① PRE-EDIT", "steer source", theme.client, theme.text, theme.muted, False),
+        ("② TRANSLATE", "any engine", theme.tier, theme.text, theme.muted, True),
+        ("③ POST-EDIT", "register here", theme.register, "#ffffff", "#dbe3ff", False),
+        ("SPEECH OUT", "register prosody", theme.client, theme.text, theme.muted, False),
+    ]
+
+    with using_origin(128.0, 236.0):
+        for i, (name, sub, colours, txt, sub_c, dashed) in enumerate(stages):
+            x, y = i * step, -i * step
+            parts.extend(slab(x, y, 0, stage_w, stage_d, stage_h, colours, theme))
+            if dashed:
+                # A dashed outline for the one box that is not ours.
+                pts = [project(x, y, stage_h), project(x + stage_w, y, stage_h),
+                       project(x + stage_w, y + stage_d, stage_h),
+                       project(x, y + stage_d, stage_h)]
+                pt_s = " ".join(f"{a:.2f},{b:.2f}" for a, b in pts)
+                parts.append(
+                    f'<polygon points="{pt_s}" fill="none" stroke="{theme.accent}" '
+                    f'stroke-width="2.2" stroke-dasharray="6 4" stroke-linejoin="round"/>'
+                )
+
+            parts.extend(label(
+                x + stage_w / 2, y + stage_d / 2, stage_h,
+                [(name, 11, txt, "700"), (sub, 9, sub_c, "400")],
+                theme,
+            ))
+
+        # Timing badges, because the point of the layer is that it is free.
+        badges = {1: ("< 1 ms", theme.ok), 2: ("200-500 ms", theme.muted),
+                  3: ("~1 ms · offline", theme.ok)}
+        for i, (text, colour) in badges.items():
+            px, py = project(i * step + stage_w / 2, -i * step + stage_d, 0)
+            parts.append(_flat_text(px, py + 26, text, 10.5, colour, "600", "middle"))
+
+    parts.append(_flat_text(
+        34, H - 30,
+        "The register layer never appears in the latency budget — it is a string pass.",
+        12, theme.muted, "500",
+    ))
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
+# ==========================================================================
+# 3 — the register ladder, as an actual staircase
+# ==========================================================================
+
+
+def build_ladder(theme: Theme) -> str:
+    """
+    The same sentence at four levels, drawn as rising steps.
+
+    This is the five-second demo, and a staircase is the honest shape for it:
+    the levels are ordered, the rise is uniform, and where a language does not
+    distinguish two levels the steps sit at the same height.
+    """
+    W, H = 1000, 560
+    parts = _svg_open(W, H, theme,
+                      "The register ladder: one Bengali sentence rendered at four politeness levels")
+    parts += _title(34, 42, "One sentence, four registers",
+                    "Because the rule table is symmetric, the same data upgrades, downgrades and detects.",
+                    theme)
+
+    rungs = [
+        ("CLOSE", "তুই কি করছিস?", "to a younger sibling"),
+        ("CASUAL", "তুমি কি করছ?", "to a friend"),
+        ("POLITE", "আপনি কি করছেন?", "to a stranger"),
+        ("FORMAL", "আপনি কি করছেন?", "same form in Bengali"),
+    ]
+
+    # Same diagonal step as the pipeline, plus a rise in z, so the rungs climb
+    # up-and-right instead of marching off the bottom of the canvas.
+    tread_w = tread_d = 118.0
+    tread_h = 18.0
+    step = 124.0
+    rise = 40.0
+
+    with using_origin(150.0, 330.0):
+        for i, (name, text, note) in enumerate(rungs):
+            x, y, z = i * step, -i * step, i * rise
+            # The top two rungs are identical in Bengali; tint them to say so
+            # rather than pretending they are separate levels.
+            colours = theme.register if i >= 2 else theme.client
+            parts.extend(slab(x, y, z, tread_w, tread_d, tread_h, colours, theme))
+
+            txt = "#ffffff" if i >= 2 else theme.text
+            sub = "#dbe3ff" if i >= 2 else theme.muted
+            parts.extend(label(
+                x + tread_w / 2, y + tread_d / 2, z + tread_h,
+                [(name, 10.5, sub, "700"), (text, 14, txt, "600"), (note, 9, sub, "400")],
+                theme,
+            ))
+
+    # The three jobs one table does, in a row *under* the stairs. They used to
+    # sit beside them, which collided: the staircase spans almost the full
+    # width once isometric projection has spread it out.
+    jobs = [
+        ("upgrade", "casual → formal", theme.accent),
+        ("downgrade", "formal → casual", theme.accent),
+        ("detect", "read the speaker's own level", theme.ok),
+    ]
+    row_y = 476
+    parts.append(_flat_text(34, row_y - 14, "ONE TABLE, THREE JOBS", 11,
+                            theme.muted, "700", spacing="0.08em"))
+    box_w, gap = 296.0, 16.0
+    for i, (name, sub, colour) in enumerate(jobs):
+        x = 34 + i * (box_w + gap)
+        parts.append(
+            f'<rect x="{x:.0f}" y="{row_y}" width="{box_w:.0f}" height="42" rx="9" '
+            f'fill="{theme.tier[0]}" stroke="{theme.edge}"/>'
+        )
+        parts.append(_flat_text(x + 14, row_y + 18, name, 12.5, colour, "700"))
+        parts.append(_flat_text(x + 14, row_y + 33, sub, 10.5, theme.muted))
+
+    parts.append(_flat_text(
+        34, H - 22,
+        f"{LANGUAGE_COUNT} languages. Adding one means adding a table, not writing code — "
+        "and every edit is shown to the user.",
+        12, theme.muted, "500",
+    ))
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
+# ==========================================================================
+# 4 — module structure, as dependency layers
+# ==========================================================================
+
+
+def build_modules(theme: Theme) -> str:
+    """
+    The packages, stacked by what depends on what.
+
+    The shape carries the argument: ``register/`` is the widest slab and sits at
+    the bottom with nothing under it, because it depends on nothing. That is
+    what lets it run offline in ~1 ms and be lifted out as a component.
+    """
+    W, H = 1000, 560
+    parts = _svg_open(W, H, theme, "Setu module structure, stacked by dependency direction")
+    parts += _title(34, 42, "Dependencies point downward",
+                    "register/ is at the bottom because it depends on nothing at all.",
+                    theme)
+
+    layers = [
+        # (z, width, colours, title, contents)
+        (0.0, 340.0, theme.register, "register/  —  zero dependencies",
+         "tables · engine · boundaries · gender · speaker · selectors"),
+        (58.0, 250.0, theme.tier, "models/  —  swappable backends",
+         "stt · language_id · classifier · translator · tts"),
+        (116.0, 250.0, theme.client, "pipeline/  —  orchestration",
+         "core · conversation · relationships · learner"),
+        (174.0, 160.0, theme.tier, "app.py",
+         "Flask · SocketIO · REST"),
+    ]
+
+    depth = 150.0
+    with using_origin(300.0, 300.0):
+        for z, width, colours, name, contents in layers:
+            parts.extend(slab(0, 0, z, width, depth, 30.0, colours, theme))
+            is_reg = colours is theme.register
+            txt = "#ffffff" if is_reg else theme.text
+            sub = "#dbe3ff" if is_reg else theme.muted
+            parts.extend(label(
+                width / 2, depth / 2, z + 30.0,
+                [(name, 12.5, txt, "700"), (contents, 9.5, sub, "400")],
+                theme,
+            ))
+
+    # Callouts on the right.
+    notes = [
+        ("evaluation/", "register · detection · semantic preservation",
+         "measures the layer, depends only on it", theme.ok),
+        ("classifier/", "fine-tunes on FAME-MT",
+         "optional — the engine works without it", theme.muted),
+        ("data_preprocessing/", "streams 11.2M rows into splits",
+         "hash-assigned, shuffled, interleaved", theme.muted),
+    ]
+    bx = 640
+    for i, (name, what, why, colour) in enumerate(notes):
+        y = 120 + i * 92
+        parts.append(
+            f'<rect x="{bx}" y="{y}" width="320" height="66" rx="10" '
+            f'fill="{theme.tier[0]}" stroke="{theme.edge}"/>'
+        )
+        parts.append(_flat_text(bx + 16, y + 22, name, 12.5, colour, "700"))
+        parts.append(_flat_text(bx + 16, y + 39, what, 10.5, theme.text))
+        parts.append(_flat_text(bx + 16, y + 54, why, 10, theme.muted))
+
+    parts.append(_flat_text(
+        34, H - 26,
+        "Nothing above the bottom slab can break it — which is why it still works with no network.",
+        12, theme.muted, "500",
+    ))
+    parts.append("</svg>")
+    return "\n".join(parts)
 
 
 def build(theme: Theme) -> str:
@@ -355,13 +644,81 @@ def build(theme: Theme) -> str:
     return "\n".join(parts)
 
 
+#: Every diagram the README embeds. Each is written twice, light and dark, and
+#: the README picks between them with a <picture> element so the figures follow
+#: GitHub's theme.
+DIAGRAMS = (
+    ("architecture", build),
+    ("pipeline", build_pipeline),
+    ("ladder", build_ladder),
+    ("modules", build_modules),
+)
+
+
+def _in_defs(root, element) -> bool:
+    """True when the element lives inside <defs> (marker/filter coordinate space)."""
+    for defs in root.iter():
+        if defs.tag.rsplit("}", 1)[-1] == "defs":
+            for child in defs.iter():
+                if child is element:
+                    return True
+    return False
+
+
+def _check_bounds(svg: str, name: str) -> None:
+    """
+    Catch content drawn outside the canvas.
+
+    An SVG with an element at x=1400 in a 1000-wide viewBox is silently clipped
+    — it renders, it just quietly loses half a label. Cheap to check, and the
+    isometric builders make it easy to overshoot.
+    """
+    import re
+    import xml.etree.ElementTree as ET
+
+    root = ET.fromstring(svg)
+    vb = [float(v) for v in (root.get("viewBox") or "0 0 0 0").split()]
+    if len(vb) != 4:
+        raise AssertionError(f"{name}: missing viewBox")
+    _, _, width, height = vb
+
+    worst = []
+    for el in root.iter():
+        tag = el.tag.rsplit("}", 1)[-1]
+        if tag == "text":
+            x, y = float(el.get("x", 0)), float(el.get("y", 0))
+            if not (-2 <= x <= width + 2) or not (-2 <= y <= height + 2):
+                worst.append(f"{tag} '{(el.text or '')[:24]}' at ({x:.0f},{y:.0f})")
+        elif tag == "polygon":
+            # SVG allows commas and/or whitespace between numbers, and the
+            # arrowhead marker uses "0 0, 9 3.5, 0 7" while the slabs use
+            # "x,y x,y". Pull the numbers out and pair them rather than
+            # assuming a separator.
+            # Marker geometry lives in its own tiny coordinate space.
+            if _in_defs(root, el):
+                continue
+            nums = [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", el.get("points") or "")]
+            for px, py in zip(nums[0::2], nums[1::2]):
+                if not (-2 <= px <= width + 2) or not (-2 <= py <= height + 2):
+                    worst.append(f"polygon point ({px:.0f},{py:.0f})")
+                    break
+    if worst:
+        raise AssertionError(
+            f"{name}: {len(worst)} element(s) outside the {width:.0f}x{height:.0f} "
+            f"canvas — first: {worst[0]}"
+        )
+
+
 def main() -> int:
     DOCS.mkdir(parents=True, exist_ok=True)
-    for theme, filename in ((LIGHT, "architecture-light.svg"),
-                            (DARK, "architecture-dark.svg")):
-        path = DOCS / filename
-        path.write_text(build(theme), encoding="utf-8")
-        print(f"wrote {path.relative_to(DOCS.parent)}  ({path.stat().st_size:,} bytes)")
+    for name, builder in DIAGRAMS:
+        for theme in (LIGHT, DARK):
+            svg = builder(theme)
+            _check_bounds(svg, f"{name}-{theme.name}")
+            path = DOCS / f"{name}-{theme.name}.svg"
+            path.write_text(svg, encoding="utf-8")
+            print(f"wrote {path.relative_to(DOCS.parent)}  "
+                  f"({path.stat().st_size:,} bytes)")
     return 0
 
 

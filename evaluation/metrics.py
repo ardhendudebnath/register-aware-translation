@@ -25,6 +25,7 @@ from register import (
     LEVELS,
     coerce_level,
     detect,
+    get_table,
     has_table,
     level_name,
     rewrite,
@@ -37,6 +38,7 @@ __all__ = [
     "register_accuracy",
     "detection_accuracy",
     "semantic_preservation",
+    "rewrite_exactness",
     "evaluate",
 ]
 
@@ -47,11 +49,21 @@ class Case:
 
     language: str
     text: str
-    #: The register a native speaker says this sentence is in.
-    level: int
-    #: Optional: the expected surface form at each level, when the gold set has it.
+    #: The register a native speaker says this sentence is in. None means the
+    #: sentence carries no second-person marker, and detection must abstain.
+    level: Optional[int]
+    #: Optional: the expected surface form at each level, when the gold set has
+    #: it. Contrastive triads supply this, which is what makes it possible to
+    #: grade the rewriter against a gold rendering instead of against the
+    #: engine's own detector.
     expected: Dict[int, str] = field(default_factory=dict)
     note: str = ""
+    domain: str = ""
+    construction: str = ""
+    #: "draft" until a native speaker has checked it. The harness refuses to
+    #: describe a set as a benchmark while any row is still draft.
+    status: str = "draft"
+    case_id: str = ""
 
 
 @dataclass
@@ -81,22 +93,36 @@ class EvaluationReport:
     register: MetricResult
     detection: MetricResult
     semantic: MetricResult
+    exactness: Optional[MetricResult] = None
+    #: True only when every case has been checked by a native speaker.
+    verified: bool = False
+    draft_count: int = 0
 
     def as_dict(self) -> dict:
-        return {
+        out = {
             "language": self.language,
+            "verified": self.verified,
+            "draft_rows": self.draft_count,
             "register_accuracy": self.register.as_dict(),
             "detection_accuracy": self.detection.as_dict(),
             "semantic_preservation": self.semantic.as_dict(),
         }
+        if self.exactness is not None:
+            out["rewrite_exactness"] = self.exactness.as_dict()
+        return out
 
     def summary(self) -> str:
-        return (
+        line = (
             f"{self.language:<4} "
             f"register {self.register.score:6.1%} ({self.register.total:>4})  "
             f"detection {self.detection.score:6.1%} ({self.detection.total:>4})  "
             f"semantic {self.semantic.score:6.1%} ({self.semantic.total:>4})"
         )
+        if self.exactness is not None and self.exactness.total:
+            line += f"  exact {self.exactness.score:6.1%} ({self.exactness.total:>4})"
+        if self.draft_count:
+            line += "  [draft]"
+        return line
 
 
 # --------------------------------------------------------------------------
@@ -161,25 +187,85 @@ def _indistinguishable(text: str, language: str, a: int, b: int) -> bool:
 
 
 def detection_accuracy(cases: Sequence[Case]) -> MetricResult:
-    """Does Auto mode read the register the annotator says is there?"""
+    """
+    Does Auto mode read the register the annotator says is there?
+
+    Cases annotated with level None carry no second-person marker at all, and
+    the correct answer is to abstain. Scoring those is not pedantry: Auto mode
+    mirrors whatever the detector reports, so a detector that invents a level
+    for an unmarked sentence makes the product confidently wrong.
+    """
+    from register import get_table
+
     result = MetricResult("detection_accuracy")
     for case in cases:
         if not has_table(case.language):
             continue
         result.total += 1
         reading = detect(case.text, case.language)
-        from register import get_table
+
+        if case.level is None:
+            if reading.level is None:
+                result.correct += 1
+            else:
+                result.failures.append({
+                    "id": case.case_id,
+                    "text": case.text,
+                    "expected": "no marker",
+                    "got": level_name(reading.level),
+                    "confidence": round(reading.confidence, 3),
+                })
+            continue
 
         expected = get_table(case.language).fold(case.level)
         if reading.level == expected:
             result.correct += 1
         else:
             result.failures.append({
+                "id": case.case_id,
                 "text": case.text,
                 "expected": level_name(expected),
                 "got": level_name(reading.level) if reading.level is not None else None,
                 "confidence": round(reading.confidence, 3),
             })
+    return result
+
+
+def rewrite_exactness(cases: Sequence[Case]) -> MetricResult:
+    """
+    Of cases that carry a gold rendering, how many does the rewriter reproduce
+    exactly?
+
+    This is the strictest and most useful metric available, and it only works
+    because the gold set is contrastive: each row knows what the same sentence
+    should look like at every level. The other metrics grade the rewriter with
+    the engine's own detector, which cannot catch a rewrite that is
+    self-consistent but not what a Bengali speaker would say — for instance
+    changing the pronoun and leaving the verb behind.
+    """
+    result = MetricResult("rewrite_exactness")
+    for case in cases:
+        if not has_table(case.language) or not case.expected:
+            continue
+        table = get_table(case.language)
+        for level, gold in sorted(case.expected.items()):
+            # Skip levels this language folds away — asking for Formal in a
+            # language that does not distinguish it is not a fair test.
+            if table.fold(level) != level:
+                continue
+            result.total += 1
+            got = rewrite(case.text, case.language, level).text
+            if got == gold:
+                result.correct += 1
+            else:
+                result.failures.append({
+                    "id": case.case_id,
+                    "from": case.text,
+                    "level": level_name(level),
+                    "got": got,
+                    "want": gold,
+                    "construction": case.construction,
+                })
     return result
 
 
@@ -223,14 +309,18 @@ def semantic_preservation(
 
 
 def evaluate(cases: Sequence[Case], language: Optional[str] = None) -> EvaluationReport:
-    """Run all three metrics over one language's cases."""
+    """Run every metric over one language's cases."""
     lang = language or (cases[0].language if cases else "")
     subset = [c for c in cases if not language or c.language == language]
+    drafts = sum(1 for c in subset if c.status != "verified")
     return EvaluationReport(
         language=lang,
         register=register_accuracy(subset),
         detection=detection_accuracy(subset),
         semantic=semantic_preservation(subset),
+        exactness=rewrite_exactness(subset),
+        verified=bool(subset) and drafts == 0,
+        draft_count=drafts,
     )
 
 

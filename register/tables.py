@@ -149,9 +149,238 @@ class LanguageTable:
 # Indo-Aryan
 # --------------------------------------------------------------------------
 
-# A second-person pronoun within a few words to the left. Used to tell a
-# present-tense reading from an imperative where Bengali spells them the same.
-_BN_2P_CONTEXT = r"(?:তুই|তুমি|আপনি)(?:\s+\S+){0,4}\s+"
+# A second-person pronoun somewhere to the left. Used to tell a present-tense
+# reading from an imperative where Bengali spells them the same.
+#
+# The window is deliberately generous. It was {0,4} and that was too tight for
+# ordinary sentences: in "আপনি কি আমাকে আপনার বই দিতে পারেন?" the pronoun is six
+# words before the verb, so the guard blocked a correct rewrite and পারেন
+# survived into the Close rendering.
+_BN_2P_CONTEXT = r"(?:তুই|তুমি|আপনি)(?:\s+\S+){0,10}\s+"
+
+# --------------------------------------------------------------------------
+# Bengali verb paradigms.
+#
+# Register in Bengali runs through the *whole* conjugation, not just the
+# present. Writing rules by hand covered the tenses someone happened to think
+# of, and the gold set found the rest: of 1,776 graded rewrites, the engine
+# reproduced only 68.8% exactly, and almost every failure was the same shape —
+# the pronoun moved and the verb stayed behind. "তুমি কোথায় যাচ্ছ?" upgraded to
+# "আপনি কোথায় যাচ্ছ?" instead of "আপনি কোথায় যাচ্ছেন?".
+#
+# So the paradigm is data now. Each entry is (তুই, তুমি, আপনি); Formal reuses
+# the আপনি column, since what separates Polite from Formal in Bengali is
+# lexical rather than inflectional.
+# --------------------------------------------------------------------------
+
+_BN_PARADIGMS: Dict[str, Dict[str, Tuple[str, str, str]]] = {
+    "kora": {  # to do
+        "pres": ("করিস", "করো", "করেন"),
+        "cont": ("করছিস", "করছ", "করছেন"),
+        "perf": ("করেছিস", "করেছ", "করেছেন"),
+        "past": ("করলি", "করলে", "করলেন"),
+        "pastcont": ("করছিলি", "করছিলে", "করছিলেন"),
+        "habitual": ("করতিস", "করতে", "করতেন"),
+        "future": ("করবি", "করবে", "করবেন"),
+        "perfneg": ("করিসনি", "করোনি", "করেননি"),
+        "prohibitive": ("করিস না", "কোরো না", "করবেন না"),
+        "imp": ("কর", "করো", "করুন"),
+    },
+    "jaoa": {  # to go
+        "pres": ("যাস", "যাও", "যান"),
+        "cont": ("যাচ্ছিস", "যাচ্ছ", "যাচ্ছেন"),
+        "perf": ("গেছিস", "গেছ", "গেছেন"),
+        "past": ("গেলি", "গেলে", "গেলেন"),
+        "pastcont": ("যাচ্ছিলি", "যাচ্ছিলে", "যাচ্ছিলেন"),
+        "habitual": ("যেতিস", "যেতে", "যেতেন"),
+        "future": ("যাবি", "যাবে", "যাবেন"),
+        "perfneg": ("যাসনি", "যাওনি", "যাননি"),
+        "prohibitive": ("যাস না", "যেও না", "যাবেন না"),
+        "imp": ("যা", "যাও", "যান"),
+    },
+    "asa": {  # to come
+        "pres": ("আসিস", "আসো", "আসেন"),
+        "cont": ("আসছিস", "আসছ", "আসছেন"),
+        "perf": ("এসেছিস", "এসেছ", "এসেছেন"),
+        "past": ("এলি", "এলে", "এলেন"),
+        "pastcont": ("আসছিলি", "আসছিলে", "আসছিলেন"),
+        "habitual": ("আসতিস", "আসতে", "আসতেন"),
+        "future": ("আসবি", "আসবে", "আসবেন"),
+        "perfneg": ("আসিসনি", "আসোনি", "আসেননি"),
+        "prohibitive": ("আসিস না", "এসো না", "আসবেন না"),
+        "imp": ("আয়", "এসো", "আসুন"),
+    },
+    "khaoa": {  # to eat
+        "pres": ("খাস", "খাও", "খান"),
+        "cont": ("খাচ্ছিস", "খাচ্ছ", "খাচ্ছেন"),
+        "perf": ("খেয়েছিস", "খেয়েছ", "খেয়েছেন"),
+        "past": ("খেলি", "খেলে", "খেলেন"),
+        "future": ("খাবি", "খাবে", "খাবেন"),
+        "perfneg": ("খাসনি", "খাওনি", "খাননি"),
+        "imp": ("খা", "খাও", "খান"),
+    },
+    "bola": {  # to say
+        "pres": ("বলিস", "বলো", "বলেন"),
+        "cont": ("বলছিস", "বলছ", "বলছেন"),
+        "perf": ("বলেছিস", "বলেছ", "বলেছেন"),
+        "past": ("বললি", "বললে", "বললেন"),
+        "future": ("বলবি", "বলবে", "বলবেন"),
+        "prohibitive": ("বলিস না", "বোলো না", "বলবেন না"),
+        "imp": ("বল", "বলো", "বলুন"),
+    },
+    "deoa": {  # to give
+        "pres": ("দিস", "দাও", "দেন"),
+        "perf": ("দিয়েছিস", "দিয়েছ", "দিয়েছেন"),
+        "future": ("দিবি", "দেবে", "দেবেন"),
+        "imp": ("দে", "দাও", "দিন"),
+    },
+    "neoa": {  # to take
+        "pres": ("নিস", "নাও", "নেন"),
+        "perf": ("নিয়েছিস", "নিয়েছ", "নিয়েছেন"),
+        "future": ("নিবি", "নেবে", "নেবেন"),
+        "imp": ("নে", "নাও", "নিন"),
+    },
+    "thaka": {  # to stay
+        "pres": ("থাকিস", "থাকো", "থাকেন"),
+        "perf": ("থেকেছিস", "থেকেছ", "থেকেছেন"),
+        "future": ("থাকবি", "থাকবে", "থাকবেন"),
+    },
+    "para": {  # to be able
+        "pres": ("পারিস", "পারো", "পারেন"),
+        "future": ("পারবি", "পারবে", "পারবেন"),
+    },
+    "dekha": {  # to see
+        "pres": ("দেখিস", "দেখো", "দেখেন"),
+        "perf": ("দেখেছিস", "দেখেছ", "দেখেছেন"),
+        "imp": ("দেখ", "দেখো", "দেখুন"),
+    },
+    "suna": {  # to hear
+        "pres": ("শুনিস", "শোনো", "শোনেন"),
+        "imp": ("শোন", "শোনো", "শুনুন"),
+    },
+    "achhe": {  # to be, existential
+        "pres": ("আছিস", "আছ", "আছেন"),
+        "past": ("ছিলি", "ছিলে", "ছিলেন"),
+    },
+    "pora": {  # to read/study
+        "pres": ("পড়িস", "পড়ো", "পড়েন"),
+        "perf": ("পড়েছিস", "পড়েছ", "পড়েছেন"),
+    },
+    "paoa": {  # to get
+        "pres": ("পাস", "পাও", "পান"),
+        "cont": ("পাচ্ছিস", "পাচ্ছ", "পাচ্ছেন"),
+        "perf": ("পেয়েছিস", "পেয়েছ", "পেয়েছেন"),
+    },
+    "bojha": {  # to understand
+        "pres": ("বুঝিস", "বোঝো", "বোঝেন"),
+        "perf": ("বুঝেছিস", "বুঝেছ", "বুঝেছেন"),
+    },
+    "ghumano": {  # to sleep
+        "pres": ("ঘুমাস", "ঘুমাও", "ঘুমান"),
+        "perf": ("ঘুমিয়েছিস", "ঘুমিয়েছ", "ঘুমিয়েছেন"),
+    },
+    "pathano": {"perf": ("পাঠিয়েছিস", "পাঠিয়েছ", "পাঠিয়েছেন")},
+    "otha": {"perf": ("উঠেছিস", "উঠেছ", "উঠেছেন")},
+    "chena": {"pres": ("চিনিস", "চেনো", "চেনেন")},
+    "chaoa": {"pres": ("চাস", "চাও", "চান")},
+    "jana": {"pres": ("জানিস", "জানো", "জানেন")},
+    "hooa": {"pres": ("হোস", "হও", "হন")},
+    "bhoga": {"cont": ("ভুগছিস", "ভুগছ", "ভুগছেন")},
+    "khoja": {"cont": ("খুঁজছিস", "খুঁজছ", "খুঁজছেন")},
+    "phera": {"future": ("ফিরবি", "ফিরবে", "ফিরবেন")},
+    "lekha": {
+        "pres": ("লিখিস", "লেখো", "লেখেন"),
+        "imp": ("লেখ", "লেখো", "লিখুন"),
+    },
+    # Imperative-only entries, for verbs that appear in commands far more often
+    # than in second-person statements.
+    # নাম is also the ordinary noun "name", which is vastly more common than
+    # the imperative "get down". The gold set caught this reading "আপনার নাম কী?"
+    # as Close. An imperative ends its clause; the noun does not — see
+    # _BN_CLAUSE_FINAL below.
+    "nama": {"imp": ("নাম", "নামো", "নামুন")},
+    "daka": {"imp": ("ডাক", "ডাকো", "ডাকুন")},
+    "khola": {"imp": ("খোল", "খোলো", "খুলুন")},
+    "chala": {"imp": ("চল", "চলো", "চলুন")},
+    "bosa": {"imp": ("বোস", "বসো", "বসুন")},
+    "ana": {"imp": ("আন", "আনো", "আনুন")},
+    "sara": {"imp": ("সর", "সরো", "সরুন")},
+    "rakha": {"imp": ("রাখ", "রাখো", "রাখুন")},
+    "bhaba": {"imp": ("ভাব", "ভাবো", "ভাবুন")},
+    "ghora": {"imp": ("ঘোর", "ঘোরো", "ঘুরুন")},
+    "darano": {"imp": ("দাঁড়া", "দাঁড়াও", "দাঁড়ান")},
+    "soa": {"imp": ("শো", "শোও", "শুয়ে পড়ুন")},
+    "kamano": {"imp": ("কমা", "কমাও", "কমান")},
+    "sekhano": {"imp": ("শেখা", "শেখাও", "শেখান")},
+}
+
+#: Declaration order. Present tense must come before the imperative: Bengali
+#: spells "you do" and "do!" identically as করো, the matcher breaks equal-length
+#: ties by declaration order, and only the present-tense rule carries the
+#: pronoun guard that tells them apart.
+_BN_TENSE_ORDER = (
+    "prohibitive", "perfneg", "pastcont", "habitual", "cont",
+    "perf", "past", "future", "pres", "imp",
+)
+
+#: Tenses whose তুমি form collides with the imperative, so the present-tense
+#: reading has to prove there is a second-person pronoun nearby.
+_BN_NEEDS_PRONOUN = {"pres"}
+
+#: An imperative closes its clause. Required by verbs whose imperative is also
+#: a common noun, so the noun reading is left alone.
+_BN_CLAUSE_FINAL = r"\s*(?:[।!?.,]|$)"
+
+#: Verbs whose imperative form collides with an ordinary noun.
+_BN_NOUN_COLLIDING_IMPERATIVES = {"nama"}   # নাম = "name" / "get down!"
+
+#: The habitual-past তুমি form is spelled exactly like the infinitive: করতে is
+#: both "you used to do" and the "to do" in "করতে পারিস". An infinitive is
+#: followed by an auxiliary, a habitual past is not — so block the habitual
+#: reading in front of one. Without this, "সাহায্য করতে পারিস" downgraded to the
+#: nonsense "সাহায্য করতিস পারিস".
+_BN_AUXILIARY_FOLLOWS = (
+    r"\s+(?:পার|পারি|পারিস|পারো|পারেন|পারব|পারবি|পারবে|পারবেন|"
+    r"চাই|চাস|চাও|চান|হবে|হয়|হল|দাও|দে|দিন|দিতে|যাব|থাক|লাগ)"
+)
+
+
+def _bn_verb_rules() -> Tuple[Rule, ...]:
+    out = []
+    for tense in _BN_TENSE_ORDER:
+        for verb, paradigm in _BN_PARADIGMS.items():
+            forms = paradigm.get(tense)
+            if not forms:
+                continue
+            close, casual, polite = forms
+            if len({close, casual, polite}) == 1:
+                continue  # carries no register information
+            # The pronoun requirement exists purely to separate a present-tense
+            # reading from an identically spelled imperative. A verb with no
+            # imperative — or one whose imperative differs — has nothing to be
+            # confused with, so making it prove a nearby pronoun only loses
+            # correct rewrites. পারা ("be able") is the case that matters: you
+            # cannot command it, and it appears in almost every polite request.
+            imperative = paradigm.get("imp")
+            collides = bool(imperative) and imperative[1] == casual
+            before = (
+                _BN_2P_CONTEXT
+                if tense in _BN_NEEDS_PRONOUN and collides
+                else ""
+            )
+            after = (
+                _BN_CLAUSE_FINAL
+                if tense == "imp" and verb in _BN_NOUN_COLLIDING_IMPERATIVES
+                else ""
+            )
+            guard_after = _BN_AUXILIARY_FOLLOWS if tense == "habitual" else ""
+            out.append(
+                Rule(f"v.{verb}.{tense}", (close, casual, polite, polite),
+                     f"{verb} ({tense})",
+                     require_before=before, require_after=after,
+                     guard_after=guard_after)
+            )
+    return tuple(out)
 
 BENGALI = LanguageTable(
     code="bn",
@@ -166,57 +395,42 @@ BENGALI = LanguageTable(
         "peer": ("", "ভাই", "দাদা", "স্যার"),
         "official": ("", "স্যার", "স্যার", "স্যার"),
     },
-    rules=(
+    rules=_bn_verb_rules() + (
         Rule("pron.2sg.nom", ("তুই", "তুমি", "আপনি", "আপনি"), "you"),
         Rule("pron.2sg.gen", ("তোর", "তোমার", "আপনার", "আপনার"), "your"),
         Rule("pron.2sg.acc", ("তোকে", "তোমাকে", "আপনাকে", "আপনাকে"), "you (obj)"),
         Rule("pron.2sg.loc", ("তোতে", "তোমাতে", "আপনাতে", "আপনাতে"), "in/at you"),
-        # Present-tense readings are declared before the imperatives they
-        # collide with, and require a nearby second-person pronoun. Bengali
-        # spells "you say" and "say!" identically as বলো; the pronoun is what
-        # separates them, and without this "তুমি বলো" upgrades to the
-        # imperative বলুন instead of the statement বলেন.
-        Rule("v.para.pres", ("পারিস", "পারো", "পারেন", "পারেন"), "you can"),
-        Rule("v.chaoa.pres", ("চাস", "চাও", "চান", "চান"), "you want",
-             require_before=_BN_2P_CONTEXT),
-        Rule("v.jana.pres", ("জানিস", "জানো", "জানেন", "জানেন"), "you know"),
-        Rule("v.bojha.pres", ("বুঝিস", "বোঝো", "বোঝেন", "বোঝেন"), "you understand"),
-        Rule("v.paoa.pres", ("পাস", "পাও", "পান", "পান"), "you get",
-             require_before=_BN_2P_CONTEXT),
-        Rule("v.thaka.pres", ("থাকিস", "থাকো", "থাকেন", "থাকেন"), "you stay"),
-        Rule("v.hooa.pres", ("হোস", "হও", "হন", "হন"), "you become"),
-        Rule("v.dekha.pres", ("দেখিস", "দেখো", "দেখেন", "দেখেন"), "you see",
-             require_before=_BN_2P_CONTEXT),
-        Rule("v.suna.pres", ("শুনিস", "শোনো", "শোনেন", "শোনেন"), "you hear",
-             require_before=_BN_2P_CONTEXT),
-        Rule("v.khaoa.pres", ("খাস", "খাও", "খান", "খান"), "you eat",
-             require_before=_BN_2P_CONTEXT),
-        Rule("v.bola.pres", ("বলিস", "বলো", "বলেন", "বলেন"), "you say",
-             require_before=_BN_2P_CONTEXT),
-        Rule("v.kora.perf", ("করেছিস", "করেছ", "করেছেন", "করেছেন"), "you have done"),
-        Rule("v.jaoa.perf", ("গেছিস", "গেছ", "গেছেন", "গেছেন"), "you have gone"),
-        Rule("v.asa.perf", ("এসেছিস", "এসেছ", "এসেছেন", "এসেছেন"), "you have come"),
-        Rule("v.bola.past", ("বললি", "বললে", "বললেন", "বললেন"), "you said"),
-        Rule("v.kora.pres", ("করিস", "করো", "করেন", "করেন"), "you do"),
-        Rule("v.kora.imp", ("কর", "করো", "করুন", "করুন"), "do!"),
-        Rule("v.kora.prog", ("করছিস", "করছ", "করছেন", "করছেন"), "you are doing"),
-        Rule("v.kora.past", ("করলি", "করলে", "করলেন", "করলেন"), "you did"),
-        Rule("v.kora.fut", ("করবি", "করবে", "করবেন", "করবেন"), "you will do"),
-        Rule("v.jaoa.pres", ("যাস", "যাও", "যান", "যান"), "you go"),
-        Rule("v.jaoa.imp", ("যা", "যাও", "যান", "যান"), "go!"),
-        Rule("v.asa.imp", ("আয়", "এসো", "আসুন", "আসুন"), "come!"),
-        Rule("v.asa.pres", ("আসিস", "আসো", "আসেন", "আসেন"), "you come"),
-        Rule("v.bola.imp", ("বল", "বলো", "বলুন", "বলুন"), "say!"),
-        Rule("v.khaoa.imp", ("খা", "খাও", "খান", "খান"), "eat!"),
-        Rule("v.dekha.imp", ("দেখ", "দেখো", "দেখুন", "দেখুন"), "look!"),
-        Rule("v.neoa.imp", ("নে", "নাও", "নিন", "নিন"), "take!"),
-        Rule("v.deoa.imp", ("দে", "দাও", "দিন", "দিন"), "give!"),
-        Rule("v.bosa.imp", ("বোস", "বসো", "বসুন", "বসুন"), "sit!"),
-        Rule("v.achhe.pres", ("আছিস", "আছ", "আছেন", "আছেন"), "you are"),
-        Rule("v.suna.imp", ("শোন", "শোনো", "শুনুন", "শুনুন"), "listen!"),
+        Rule("pron.2pl.nom", ("তোরা", "তোমরা", "আপনারা", "আপনারা"), "you (pl)"),
+        Rule("pron.2pl.gen", ("তোদের", "তোমাদের", "আপনাদের", "আপনাদের"), "your (pl)"),
         Rule("greet.hello", ("কি রে", "হ্যালো", "নমস্কার", "নমস্কার"), "hello"),
-        Rule("greet.thanks", ("থ্যাঙ্কস", "ধন্যবাদ", "ধন্যবাদ", "অনেক ধন্যবাদ"), "thanks"),
+        # ধন্যবাদ is register-neutral — you say it to a sibling and to a
+        # magistrate alike. The earlier table put থ্যাঙ্কস in the Close slot,
+        # which made downgrading rewrite a perfectly good Bengali word into a
+        # code-switched one nobody asked for. Only the Formal slot differs.
+        Rule("greet.thanks", ("ধন্যবাদ", "ধন্যবাদ", "ধন্যবাদ", "অসংখ্য ধন্যবাদ"), "thanks"),
         Rule("greet.sorry", ("সরি", "সরি", "দুঃখিত", "আমি ক্ষমাপ্রার্থী"), "sorry"),
+        # Polite and Formal share আপনি, so what separates them is lexical. Until
+        # these were rules, every Formal sentence in the gold set read back as
+        # Polite — the engine had no way to see the difference it was being
+        # asked about.
+        #
+        # Only the Formal slot is filled. The first attempt put a Polite-level
+        # alternative in each (একটু for দয়া করে, অনেক for অসংখ্য) and made things
+        # worse: those are ordinary intensifiers meaning "a little" and "a lot",
+        # they appear all over neutral speech, and treating them as register
+        # markers dragged unrelated sentences toward Polite. A marker earns its
+        # place only if its *presence* is evidence; একটু is not.
+        Rule("courtesy.please", ("", "", "", "দয়া করে"), "please (formal)"),
+        Rule("courtesy.kindly", ("", "", "", "অনুগ্রহ করে"), "kindly (formal)"),
+        Rule("courtesy.sir", ("", "", "", "মহোদয়"), "sir (formal address)"),
+        Rule("courtesy.grateful", ("", "", "", "কৃতজ্ঞ"), "grateful (formal)"),
+        Rule("courtesy.many", ("", "", "", "অসংখ্য"), "innumerable (formal)"),
+        Rule("courtesy.accepted", ("", "", "", "গৃহীত"), "accepted (formal)"),
+        Rule("courtesy.consider", ("", "", "", "বিবেচনা"), "consideration (formal)"),
+        Rule("courtesy.docs", ("", "", "", "নথিপত্র"), "documents (formal)"),
+        Rule("courtesy.signature", ("", "", "", "স্বাক্ষর"), "signature (formal)"),
+        Rule("courtesy.cooperation", ("", "", "", "সহযোগিতা"), "cooperation (formal)"),
+        Rule("courtesy.identity", ("", "", "", "পরিচয়পত্র"), "identity card (formal)"),
     ),
 )
 
