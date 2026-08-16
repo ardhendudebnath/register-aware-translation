@@ -206,6 +206,43 @@ for level, result in ladder("তুমি কি করছ?", "bn").items():
 
 Adding a language means adding a table, not writing code.
 
+### Coverage
+
+**20 languages, 399 rules.** Thirteen of them are Indian, which is the point:
+CoCoA-MT gave Hindi a *binary* formality benchmark in 2022 and every other
+Indian language got nothing at all.
+
+| Code | Language | Levels | Rules | Vocatives | Second person |
+|---|---|:-:|:-:|:-:|---|
+| `bn` | Bengali | 4 | 39 | ✓ | তুই / তুমি / আপনি |
+| `hi` | Hindi | 4 | 22 | ✓ | तू / तुम / आप |
+| `mr` | Marathi | 4 | 19 | ✓ | तू / तुम्ही / आपण |
+| `gu` | Gujarati | 3 | 15 | ✓ | તું / તમે / આપ |
+| `pa` | Punjabi | 3 | 15 | ✓ | ਤੂੰ / ਤੁਸੀਂ |
+| `ur` | Urdu \* | 4 | 15 | ✓ | تو / تم / آپ |
+| `or` | Odia \* | 4 | 13 | ✓ | ତୁ / ତୁମେ / ଆପଣ |
+| `as` | Assamese \* | 4 | 13 | ✓ | তই / তুমি / আপুনি |
+| `ne` | Nepali \* | 4 | 13 | ✓ | तँ / तिमी / तपाईं / हजुर |
+| `ta` | Tamil | 3 | 16 | ✓ | நீ / நீங்கள் |
+| `te` | Telugu | 3 | 15 | ✓ | నువ్వు / మీరు |
+| `kn` | Kannada | 3 | 15 | ✓ | ನೀನು / ನೀವು |
+| `ml` | Malayalam | 3 | 13 | ✓ | നീ / നിങ്ങൾ / താങ്കൾ |
+| `de` | German | 3 | 67 | — | du / Sie |
+| `fr` | French | 3 | 33 | — | tu / vous |
+| `es` | Spanish | 3 | 19 | — | tú / usted |
+| `it` | Italian | 3 | 15 | — | tu / Lei |
+| `pt` | Portuguese | 3 | 13 | — | tu / você / o senhor |
+| `ja` | Japanese | 3 | 15 | — | plain / です・ます / 敬語 |
+| `en` | English | 3 | 14 | — | *(no grammatical T/V)* |
+
+**Levels** is how many of the four the language actually realises — the rest
+fold onto the nearest real one. **Vocatives** marks the languages that require
+an address term (দাদা, भैया, அண்ணா) which English leaves empty.
+
+\* Compiled from standard grammars and **not yet reviewed by a native speaker**.
+Their gold-set entries are tagged `unverified`. Corrections welcome; run
+`python -m evaluation.run --lang ur` after any change.
+
 ### Why post-editing rather than prompting an LLM to "be formal"
 
 It is free, instant, offline-capable and *auditable* — you can show the user
