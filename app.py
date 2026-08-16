@@ -19,7 +19,15 @@ from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_socketio import SocketIO, emit
 
 from models import backend_report
-from pipeline import translate_audio, translate_text
+from pipeline import (
+    RELATIONSHIPS,
+    Conversation,
+    Participant,
+    RelationshipBook,
+    assess,
+    translate_audio,
+    translate_text,
+)
 from pipeline.core import _phrasebook
 from register import (
     AUTO,
@@ -46,6 +54,10 @@ ALLOW_NETWORK = os.environ.get("SETU_ALLOW_NETWORK", "1").lower() not in ("0", "
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+#: On-device only. Who you are deferential to is about as sensitive as a
+#: contact list gets, so there is no sync and no export endpoint.
+_relationships = RelationshipBook()
 
 
 # --------------------------------------------------------------------------
@@ -188,6 +200,126 @@ def api_phrasebook():
     return jsonify(_phrasebook.stats())
 
 
+# --- conversation mode: a register per direction (blueprint 13.2 #2) --------
+
+#: In-process only. Conversations are ephemeral by design — the durable thing
+#: is the relationship, below.
+_conversations: Dict[str, Conversation] = {}
+
+
+@app.route("/api/conversation", methods=["POST"])
+def api_conversation_create():
+    payload = _json_body()
+    try:
+        a = _participant(payload.get("a") or {}, "a")
+        b = _participant(payload.get("b") or {}, "b")
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    conversation = Conversation(a, b, phrasebook=_phrasebook)
+    _conversations[conversation.id] = conversation
+    return jsonify(conversation.as_dict()), 201
+
+
+@app.route("/api/conversation/<conversation_id>", methods=["GET"])
+def api_conversation_get(conversation_id):
+    conversation = _conversations.get(conversation_id)
+    if conversation is None:
+        return jsonify({"error": "no such conversation"}), 404
+    return jsonify(conversation.as_dict())
+
+
+@app.route("/api/conversation/<conversation_id>/say", methods=["POST"])
+def api_conversation_say(conversation_id):
+    conversation = _conversations.get(conversation_id)
+    if conversation is None:
+        return jsonify({"error": "no such conversation"}), 404
+
+    payload = _json_body()
+    text = (payload.get("text") or "").strip()
+    speaker = payload.get("speaker") or ""
+    if not text:
+        return jsonify({"error": "text is required"}), 400
+
+    try:
+        result = conversation.say(
+            speaker, text,
+            allow_network=ALLOW_NETWORK,
+            with_audio=bool(payload.get("audio")),
+        )
+    except KeyError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:  # noqa: BLE001
+        log.exception("conversation turn failed")
+        return jsonify({"error": f"turn failed: {exc}"}), 500
+
+    return jsonify({
+        "result": result.as_dict(),
+        "conversation": conversation.as_dict(),
+    })
+
+
+# --- learner mode (blueprint 13.2 #9) --------------------------------------
+
+
+@app.route("/api/learner/relationships")
+def api_learner_relationships():
+    return jsonify({
+        "relationships": [
+            {"key": key, "label": value["label"],
+             "expected": [level_name(lvl) for lvl in value["expected"]],
+             "why": value["why"]}
+            for key, value in RELATIONSHIPS.items()
+        ]
+    })
+
+
+@app.route("/api/learner/assess", methods=["POST"])
+def api_learner_assess():
+    payload = _json_body()
+    text = (payload.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "text is required"}), 400
+    feedback = assess(
+        text,
+        payload.get("language") or "",
+        payload.get("relationship") or "stranger",
+    )
+    return jsonify(feedback.as_dict())
+
+
+# --- relationship memory (blueprint 13.2 #6) -------------------------------
+
+
+@app.route("/api/relationships", methods=["GET"])
+def api_relationships_list():
+    return jsonify({"relationships": [r.as_dict() for r in _relationships.all()]})
+
+
+@app.route("/api/relationships", methods=["POST"])
+def api_relationships_upsert():
+    payload = _json_body()
+    name = (payload.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+
+    saved = _relationships.remember(
+        name,
+        language=payload.get("language") or "",
+        register=payload.get("register"),
+        addressee=payload.get("addressee"),
+        note=payload.get("note") or "",
+    )
+    if saved is None:
+        return jsonify({"error": "could not save"}), 500
+    return jsonify(saved.as_dict())
+
+
+@app.route("/api/relationships/<path:name>", methods=["DELETE"])
+def api_relationships_delete(name):
+    return jsonify({"deleted": _relationships.forget(name)})
+
+
 @app.errorhandler(404)
 def not_found(_):
     return jsonify({"error": "not found"}), 404
@@ -269,6 +401,19 @@ def handle_audio_chunk(data):
 
 def _json_body() -> Dict[str, Any]:
     return request.get_json(silent=True) or {}
+
+
+def _participant(payload: Dict[str, Any], fallback_name: str) -> Participant:
+    language = (payload.get("language") or "").strip()
+    if not language:
+        raise ValueError(f"participant {fallback_name!r} needs a language")
+    return Participant(
+        name=(payload.get("name") or fallback_name).strip() or fallback_name,
+        language=language,
+        register=_parse_level(payload.get("register", AUTO)),
+        addressee=payload.get("addressee") or None,
+        gender=payload.get("gender") or None,
+    )
 
 
 def _parse_level(value):

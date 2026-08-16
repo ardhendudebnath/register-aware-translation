@@ -223,6 +223,7 @@ def translate_text(
     register_level=AUTO,
     *,
     addressee: Optional[str] = None,
+    speaker_gender: Optional[str] = None,
     soften: bool = False,
     with_ladder: bool = True,
     with_audio: bool = False,
@@ -299,7 +300,8 @@ def translate_text(
     # --- stage 3: post-edit into the requested register -------------------
     t0 = time.perf_counter()
     rewritten: RewriteResult = register_rewrite(
-        mt_text, tgt, target_level, soften=soften, addressee=addressee
+        mt_text, tgt, target_level, soften=soften, addressee=addressee,
+        speaker_gender=speaker_gender,
     )
     timings["register_post_edit"] = _ms(t0)
 
@@ -314,7 +316,8 @@ def translate_text(
     # --- the ladder: same sentence at every level -------------------------
     if with_ladder and mt_text:
         t0 = time.perf_counter()
-        rungs = register_ladder(mt_text, tgt, soften=soften, addressee=addressee)
+        rungs = register_ladder(mt_text, tgt, soften=soften, addressee=addressee,
+                                speaker_gender=speaker_gender)
         result.ladder = {level_name(lvl): res.text for lvl, res in rungs.items()}
         timings["ladder"] = _ms(t0)
 

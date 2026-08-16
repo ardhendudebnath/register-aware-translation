@@ -69,6 +69,13 @@ class Rule:
     guard_after: str = ""
     require_before: str = ""
     require_after: str = ""
+    #: Name of a selector in :mod:`register.selectors`, for rules whose
+    #: replacement cannot be read straight out of the tuple because it depends
+    #: on surrounding words. French ``votre`` carries no gender, so downgrading
+    #: it needs the gender of the noun that follows: ``votre maison`` -> ``ta
+    #: maison`` but ``votre livre`` -> ``ton livre``. Referenced by name rather
+    #: than as a callable so the tables stay plain data.
+    select: str = ""
 
     def __post_init__(self) -> None:
         if len(self.forms) != 4:
@@ -291,7 +298,13 @@ MARATHI = LanguageTable(
 GUJARATI = LanguageTable(
     code="gu",
     name="Gujarati",
-    canon=(0, 1, 2, 3),
+    # Three levels, not four: તું (intimate) / તમે (polite) / આપ (deferential).
+    # The table previously put તમે at both Casual and Polite, which made every
+    # તમે sentence a permanent tie the detector had to break arbitrarily — it
+    # read "તમે કેમ છો?" as Polite while the annotator called it Casual, and no
+    # amount of tie-breaking could satisfy both. Collapsing Close and Casual
+    # onto તું removes the ambiguity instead of arbitrating it.
+    canon=(1, 1, 2, 3),
     please=("", "", "જરા ", "કૃપા કરીને "),
     address_terms={
         "older_man": ("", "ભાઈ", "ભાઈ", "સાહેબ"),
@@ -306,19 +319,19 @@ GUJARATI = LanguageTable(
         # subject pronoun is followed by the rest of its clause, whereas the
         # bare imperative ends the utterance — so a trailing આપ is the verb.
         # Without this, rewriting the command આપ to Close produced the pronoun તું.
-        Rule("pron.2sg.nom", ("તું", "તમે", "તમે", "આપ"), "you",
+        Rule("pron.2sg.nom", ("તું", "તું", "તમે", "આપ"), "you",
              guard_after=r"\s*(?:[।.!?,;:]|$)"),
-        Rule("pron.2sg.dat", ("તને", "તમને", "તમને", "આપને"), "to you"),
-        Rule("pron.2sg.gen", ("તારું", "તમારું", "તમારું", "આપનું"), "your"),
-        Rule("cop.pres", ("છે", "છો", "છો", "છો"), "you are"),
-        Rule("v.karvu.imp", ("કર", "કરો", "કરો", "કરજો"), "do!"),
-        Rule("v.avvu.imp", ("આવ", "આવો", "આવો", "આવજો"), "come!"),
-        Rule("v.javu.imp", ("જા", "જાઓ", "જાઓ", "જજો"), "go!"),
-        Rule("v.besvu.imp", ("બેસ", "બેસો", "બેસો", "બેસજો"), "sit!"),
-        Rule("v.bolvu.imp", ("બોલ", "બોલો", "બોલો", "બોલજો"), "speak!"),
-        Rule("v.levu.imp", ("લે", "લો", "લો", "લેજો"), "take!"),
-        Rule("v.apvu.imp", ("આપ", "આપો", "આપો", "આપજો"), "give!"),
-        Rule("v.jovu.imp", ("જો", "જુઓ", "જુઓ", "જોજો"), "look!"),
+        Rule("pron.2sg.dat", ("તને", "તને", "તમને", "આપને"), "to you"),
+        Rule("pron.2sg.gen", ("તારું", "તારું", "તમારું", "આપનું"), "your"),
+        Rule("cop.pres", ("છે", "છે", "છો", "છો"), "you are"),
+        Rule("v.karvu.imp", ("કર", "કર", "કરો", "કરજો"), "do!"),
+        Rule("v.avvu.imp", ("આવ", "આવ", "આવો", "આવજો"), "come!"),
+        Rule("v.javu.imp", ("જા", "જા", "જાઓ", "જજો"), "go!"),
+        Rule("v.besvu.imp", ("બેસ", "બેસ", "બેસો", "બેસજો"), "sit!"),
+        Rule("v.bolvu.imp", ("બોલ", "બોલ", "બોલો", "બોલજો"), "speak!"),
+        Rule("v.levu.imp", ("લે", "લે", "લો", "લેજો"), "take!"),
+        Rule("v.apvu.imp", ("આપ", "આપ", "આપો", "આપજો"), "give!"),
+        Rule("v.jovu.imp", ("જો", "જો", "જુઓ", "જોજો"), "look!"),
         Rule("greet.hello", ("એ", "હેલો", "નમસ્તે", "નમસ્કાર"), "hello"),
         Rule("greet.thanks", ("થેંક્સ", "આભાર", "આભાર", "ખૂબ આભાર"), "thanks"),
         Rule("greet.sorry", ("સોરી", "સોરી", "માફ કરશો", "ક્ષમા કરશો"), "sorry"),
@@ -683,7 +696,13 @@ FRENCH = LanguageTable(
         # Tonic "vous": after a preposition, where it becomes "toi".
         Rule("pron.2sg.tonic", ("toi", "toi", "vous", "vous"), "you (tonic)",
              require_before=_FR_PREP_CONTEXT),
-        Rule("poss.m", ("ton", "ton", "votre", "votre"), "your (m)"),
+        # Both singular possessives collapse to "votre" going up. Coming back
+        # down, the selector consults the following noun's gender, so
+        # "votre maison" -> "ta maison" rather than the wrong "ton maison".
+        # poss.m is declared first, so it is the rule that matches "votre" and
+        # therefore the one that carries the selector.
+        Rule("poss.m", ("ton", "ton", "votre", "votre"), "your (m)",
+             select="fr_possessive"),
         Rule("poss.f", ("ta", "ta", "votre", "votre"), "your (f)"),
         Rule("poss.pl", ("tes", "tes", "vos", "vos"), "your (pl)"),
         Rule("greet.hello", ("Coucou", "Salut", "Bonjour", "Bonjour"), "hello"),

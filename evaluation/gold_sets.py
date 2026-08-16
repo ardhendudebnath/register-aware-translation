@@ -82,6 +82,45 @@ SEED_CASES: List[Case] = [
     Case("ja", "これをする。", CASUAL),
     Case("ja", "これをします。", POLITE),
     Case("ja", "これをいたします。", FORMAL),
+
+    # Marathi
+    Case("mr", "तू काय करतोस?", CASUAL),
+    Case("mr", "तुम्ही कसे आहात?", POLITE),
+    Case("mr", "आपण कसे आहात?", FORMAL),
+
+    # Gujarati — તું / તમે / આપ, so તમે is the polite form, not the casual one
+    Case("gu", "તું શું કરે છે?", CASUAL),
+    Case("gu", "તમે કેમ છો?", POLITE),
+    Case("gu", "આપ કેમ છો?", FORMAL),
+
+    # Punjabi
+    Case("pa", "ਤੂੰ ਕੀ ਕਰਦਾ ਹੈਂ?", CASUAL),
+    Case("pa", "ਤੁਸੀਂ ਕਿਵੇਂ ਹੋ?", POLITE),
+
+    # Telugu
+    Case("te", "నువ్వు ఎలా ఉన్నావు?", CASUAL),
+    Case("te", "మీరు ఎలా ఉన్నారు?", POLITE),
+    Case("te", "మీరు చెప్పండి", POLITE),
+
+    # Kannada
+    Case("kn", "ನೀನು ಹೇಗಿದ್ದೀಯ?", CASUAL),
+    Case("kn", "ನೀವು ಹೇಗಿದ್ದೀರಿ?", POLITE),
+    Case("kn", "ನೀವು ಹೇಳಿ", POLITE),
+
+    # Malayalam
+    Case("ml", "നീ എങ്ങനെ ഉണ്ട്?", CASUAL),
+    Case("ml", "നിങ്ങൾ എങ്ങനെ ഉണ്ട്?", POLITE),
+    Case("ml", "താങ്കൾ എങ്ങനെ ഉണ്ട്?", FORMAL),
+
+    # Portuguese — tu / você / o senhor
+    Case("pt", "Tu és muito simpático.", CLOSE),
+    Case("pt", "Você é muito simpático.", CASUAL),
+    Case("pt", "O senhor é muito simpático.", POLITE),
+
+    # English — weak register, but the contrast is real
+    Case("en", "hey, can you gimme a hand?", CASUAL),
+    Case("en", "hello, could you help me?", POLITE),
+    Case("en", "good day, could you kindly assist me?", FORMAL),
 ]
 
 
