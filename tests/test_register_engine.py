@@ -40,7 +40,7 @@ from register import (
 
 
 def test_all_tables_load():
-    assert len(TABLES) == 16
+    assert len(TABLES) == 20
     for code in supported_languages():
         assert has_table(code)
 

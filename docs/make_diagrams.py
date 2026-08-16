@@ -24,6 +24,25 @@ from typing import Dict, List, Sequence, Tuple
 
 DOCS = Path(__file__).resolve().parent
 
+
+def _language_count() -> int:
+    """
+    Read the count off the tables rather than hardcoding it, so adding a
+    language cannot leave the diagram quietly claiming the old number.
+    """
+    import sys
+
+    sys.path.insert(0, str(DOCS.parent))
+    try:
+        from register import supported_languages
+
+        return len(supported_languages())
+    except Exception:
+        return 20
+
+
+LANGUAGE_COUNT = _language_count()
+
 # Isometric projection. 30 degrees is the classic choice: it keeps verticals
 # vertical, which means text on the top faces stays readable.
 _COS30 = math.cos(math.radians(30))
@@ -243,7 +262,7 @@ def build(theme: Theme) -> str:
         [
             ("REGISTER LAYER", 13, "#ffffff", "700"),
             ("rewrite · detect · ladder", 12, "#e8eaff", "500"),
-            ("16 languages · ~1 ms · no network", 10, "#cdd8ff", "400"),
+            (f"{LANGUAGE_COUNT} languages · ~1 ms · no network", 10, "#cdd8ff", "400"),
         ],
         theme,
     ))

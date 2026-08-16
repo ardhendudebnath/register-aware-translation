@@ -874,6 +874,142 @@ ENGLISH = LanguageTable(
 )
 
 
+# --------------------------------------------------------------------------
+# Blueprint phase 3 — the scheduled languages with nothing built for them.
+#
+# CoCoA-MT gave Hindi a binary formality benchmark in 2022 and the rest of India
+# got nothing. These four are the next ones by speaker count, and none of them
+# has a register-controlled MT resource of any kind.
+#
+# Confidence note: the Bengali, Hindi and Marathi tables above are checked
+# against native intuition. These four are compiled from standard grammars and
+# have NOT been reviewed by a native speaker. Treat the forms as a starting
+# point and run `python -m evaluation.run --lang ur` after any correction.
+# --------------------------------------------------------------------------
+
+URDU = LanguageTable(
+    code="ur",
+    name="Urdu",
+    canon=(0, 1, 2, 3),
+    please=("", "", "ذرا ", "براہ کرم "),
+    address_terms={
+        "older_man": ("", "بھائی", "بھائی صاحب", "سر"),
+        "older_woman": ("", "باجی", "باجی", "میڈم"),
+        "elder_man": ("", "انکل", "انکل جی", "سر"),
+        "elder_woman": ("", "آنٹی", "آنٹی جی", "میڈم"),
+        "peer": ("", "یار", "بھائی", "سر"),
+        "official": ("", "صاحب", "صاحب", "سر"),
+    },
+    rules=(
+        Rule("pron.2sg.nom", ("تو", "تم", "آپ", "آپ"), "you"),
+        Rule("pron.2sg.acc", ("تجھے", "تمہیں", "آپ کو", "آپ کو"), "to you"),
+        Rule("pron.2sg.gen", ("تیرا", "تمہارا", "آپ کا", "آپ کا"), "your"),
+        Rule("cop.pres", ("ہے", "ہو", "ہیں", "ہیں"), "you are"),
+        Rule("v.karna.imp", ("کر", "کرو", "کیجیے", "کیجیے"), "do!"),
+        Rule("v.jana.imp", ("جا", "جاؤ", "جائیے", "جائیے"), "go!"),
+        Rule("v.ana.imp", ("آ", "آؤ", "آئیے", "آئیے"), "come!"),
+        Rule("v.baithna.imp", ("بیٹھ", "بیٹھو", "بیٹھیے", "بیٹھیے"), "sit!"),
+        Rule("v.bolna.imp", ("بول", "بولو", "بولیے", "بولیے"), "speak!"),
+        Rule("v.dekhna.imp", ("دیکھ", "دیکھو", "دیکھیے", "دیکھیے"), "look!"),
+        Rule("v.sunna.imp", ("سن", "سنو", "سنیے", "سنیے"), "listen!"),
+        Rule("v.batana.imp", ("بتا", "بتاؤ", "بتائیے", "بتائیے"), "tell!"),
+        Rule("greet.hello", ("اوے", "ہیلو", "السلام علیکم", "السلام علیکم"), "hello"),
+        Rule("greet.thanks", ("تھینکس", "شکریہ", "شکریہ", "بہت شکریہ"), "thanks"),
+        Rule("greet.sorry", ("سوری", "سوری", "معاف کیجیے", "معذرت چاہتا ہوں"), "sorry"),
+    ),
+)
+
+ODIA = LanguageTable(
+    code="or",
+    name="Odia",
+    canon=(0, 1, 2, 3),
+    please=("", "", "ଟିକେ ", "ଦୟାକରି "),
+    address_terms={
+        "older_man": ("", "ଭାଇ", "ଭାଇନା", "ସାର୍"),
+        "older_woman": ("", "ନାନୀ", "ଆପା", "ମାଡାମ୍"),
+        "elder_man": ("", "କାକା", "କାକା", "ସାର୍"),
+        "elder_woman": ("", "ମାଉସୀ", "ମାଉସୀ", "ମାଡାମ୍"),
+        "peer": ("", "ସାଙ୍ଗ", "ଭାଇ", "ସାର୍"),
+        "official": ("", "ସାର୍", "ସାର୍", "ସାର୍"),
+    },
+    rules=(
+        Rule("pron.2sg.nom", ("ତୁ", "ତୁମେ", "ଆପଣ", "ଆପଣ"), "you"),
+        Rule("pron.2sg.gen", ("ତୋର", "ତୁମର", "ଆପଣଙ୍କର", "ଆପଣଙ୍କର"), "your"),
+        Rule("pron.2sg.acc", ("ତୋତେ", "ତୁମକୁ", "ଆପଣଙ୍କୁ", "ଆପଣଙ୍କୁ"), "to you"),
+        Rule("cop.pres", ("ଅଛୁ", "ଅଛ", "ଅଛନ୍ତି", "ଅଛନ୍ତି"), "you are"),
+        Rule("v.kara.imp", ("କର", "କରନ୍ତୁ", "କରନ୍ତୁ", "କରନ୍ତୁ"), "do!"),
+        Rule("v.jaa.imp", ("ଯା", "ଯାଅ", "ଯାଆନ୍ତୁ", "ଯାଆନ୍ତୁ"), "go!"),
+        Rule("v.aasa.imp", ("ଆସ", "ଆସ", "ଆସନ୍ତୁ", "ଆସନ୍ତୁ"), "come!"),
+        Rule("v.kaha.imp", ("କହ", "କୁହ", "କୁହନ୍ତୁ", "କୁହନ୍ତୁ"), "say!"),
+        Rule("v.dekha.imp", ("ଦେଖ", "ଦେଖ", "ଦେଖନ୍ତୁ", "ଦେଖନ୍ତୁ"), "look!"),
+        Rule("v.basa.imp", ("ବସ", "ବସ", "ବସନ୍ତୁ", "ବସନ୍ତୁ"), "sit!"),
+        Rule("greet.hello", ("ଏ", "ହେଲୋ", "ନମସ୍କାର", "ନମସ୍କାର"), "hello"),
+        Rule("greet.thanks", ("ଥ୍ୟାଙ୍କ୍ସ", "ଧନ୍ୟବାଦ", "ଧନ୍ୟବାଦ", "ବହୁତ ଧନ୍ୟବାଦ"), "thanks"),
+        Rule("greet.sorry", ("ସରି", "ସରି", "କ୍ଷମା କରନ୍ତୁ", "କ୍ଷମା କରନ୍ତୁ"), "sorry"),
+    ),
+)
+
+ASSAMESE = LanguageTable(
+    code="as",
+    name="Assamese",
+    canon=(0, 1, 2, 3),
+    please=("", "", "অলপ ", "অনুগ্ৰহ কৰি "),
+    address_terms={
+        "older_man": ("", "দাদা", "ডাঙৰীয়া", "চাৰ"),
+        "older_woman": ("", "বাইদেউ", "বাইদেউ", "মেডাম"),
+        "elder_man": ("", "খুৰা", "খুৰা", "চাৰ"),
+        "elder_woman": ("", "খুৰী", "খুৰী", "মেডাম"),
+        "peer": ("", "বন্ধু", "দাদা", "চাৰ"),
+        "official": ("", "চাৰ", "চাৰ", "চাৰ"),
+    },
+    rules=(
+        Rule("pron.2sg.nom", ("তই", "তুমি", "আপুনি", "আপুনি"), "you"),
+        Rule("pron.2sg.gen", ("তোৰ", "তোমাৰ", "আপোনাৰ", "আপোনাৰ"), "your"),
+        Rule("pron.2sg.acc", ("তোক", "তোমাক", "আপোনাক", "আপোনাক"), "to you"),
+        Rule("cop.pres", ("আছ", "আছা", "আছে", "আছে"), "you are"),
+        Rule("v.kara.pres", ("কৰ", "কৰা", "কৰে", "কৰে"), "you do"),
+        Rule("v.kara.imp", ("কৰ", "কৰা", "কৰক", "কৰক"), "do!"),
+        Rule("v.jaa.imp", ("যা", "যোৱা", "যাওক", "যাওক"), "go!"),
+        Rule("v.aha.imp", ("আয়", "আহা", "আহক", "আহক"), "come!"),
+        Rule("v.kaba.imp", ("ক", "কোৱা", "কওক", "কওক"), "say!"),
+        Rule("v.baha.imp", ("বহ", "বহা", "বহক", "বহক"), "sit!"),
+        Rule("greet.hello", ("এই", "হেলো", "নমস্কাৰ", "নমস্কাৰ"), "hello"),
+        Rule("greet.thanks", ("থেংকছ", "ধন্যবাদ", "ধন্যবাদ", "বহুত ধন্যবাদ"), "thanks"),
+        Rule("greet.sorry", ("চৰি", "চৰি", "ক্ষমা কৰিব", "ক্ষমা কৰিব"), "sorry"),
+    ),
+)
+
+NEPALI = LanguageTable(
+    code="ne",
+    name="Nepali",
+    canon=(0, 1, 2, 3),
+    please=("", "", "अलिकति ", "कृपया "),
+    address_terms={
+        "older_man": ("", "दाइ", "दाइ", "सर"),
+        "older_woman": ("", "दिदी", "दिदी", "म्याडम"),
+        "elder_man": ("", "काका", "काका", "सर"),
+        "elder_woman": ("", "काकी", "काकी", "म्याडम"),
+        "peer": ("", "साथी", "दाइ", "सर"),
+        "official": ("", "हजुर", "हजुर", "सर"),
+    },
+    rules=(
+        Rule("pron.2sg.nom", ("तँ", "तिमी", "तपाईं", "हजुर"), "you"),
+        Rule("pron.2sg.gen", ("तेरो", "तिम्रो", "तपाईंको", "हजुरको"), "your"),
+        Rule("pron.2sg.acc", ("तँलाई", "तिमीलाई", "तपाईंलाई", "हजुरलाई"), "to you"),
+        Rule("cop.pres", ("होस्", "हौ", "हुनुहुन्छ", "हुनुहुन्छ"), "you are"),
+        Rule("v.garnu.imp", ("गर्", "गर", "गर्नुहोस्", "गर्नुहोस्"), "do!"),
+        Rule("v.janu.imp", ("जा", "जाऊ", "जानुहोस्", "जानुहोस्"), "go!"),
+        Rule("v.aunu.imp", ("आइज", "आऊ", "आउनुहोस्", "आउनुहोस्"), "come!"),
+        Rule("v.bhannu.imp", ("भन्", "भन", "भन्नुहोस्", "भन्नुहोस्"), "say!"),
+        Rule("v.basnu.imp", ("बस्", "बस", "बस्नुहोस्", "बस्नुहोस्"), "sit!"),
+        Rule("v.hernu.imp", ("हेर्", "हेर", "हेर्नुहोस्", "हेर्नुहोस्"), "look!"),
+        Rule("greet.hello", ("ए", "हेलो", "नमस्ते", "नमस्कार"), "hello"),
+        Rule("greet.thanks", ("थ्याङ्क्स", "धन्यवाद", "धन्यवाद", "धेरै धन्यवाद"), "thanks"),
+        Rule("greet.sorry", ("सरी", "सरी", "माफ गर्नुहोस्", "क्षमा गर्नुहोस्"), "sorry"),
+    ),
+)
+
+
 TABLES: Dict[str, LanguageTable] = {
     t.code: t
     for t in (
@@ -882,6 +1018,10 @@ TABLES: Dict[str, LanguageTable] = {
         MARATHI,
         GUJARATI,
         PUNJABI,
+        URDU,
+        ODIA,
+        ASSAMESE,
+        NEPALI,
         TAMIL,
         TELUGU,
         KANNADA,

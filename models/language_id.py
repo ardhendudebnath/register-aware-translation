@@ -49,6 +49,19 @@ _SCRIPT_RANGES: Tuple[Tuple[int, int, str], ...] = (
     (0x0590, 0x05FF, "Hebrew"),
 )
 
+#: Assamese and Bengali share a script but not their whole alphabet: Assamese
+#: writes ra as ৰ and has an extra letter ৱ (wa), where Bengali uses র and ব.
+#: Either character settles it outright.
+_ASSAMESE_ONLY_CHARS = "ৰৱ"
+
+#: …but plenty of Assamese sentences contain neither, so also check a handful of
+#: high-frequency function words that differ from their Bengali counterparts:
+#: মই/আমি (I), আপুনি/আপনি (you), কেনে/কেমন (how), নহয়/নয় (is not).
+_ASSAMESE_MARKERS = (
+    "মই", "আপুনি", "কেনে", "আছোঁ", "নহয়", "হৈছে", "কিয়", "তেওঁ",
+    "ইয়াত", "নাই বুলি", "মোৰ", "তোমালোক", "আমাৰ",
+)
+
 #: Scripts used by exactly one language we support.
 SCRIPT_TO_LANGUAGE: Dict[str, str] = {
     "Bengali": "bn",
@@ -147,6 +160,9 @@ def detect_language(text: str, default: str = "en") -> str:
 
     script = detect_script(text)
 
+    if script == "Bengali" and _looks_assamese(text):
+        return "as"
+
     direct = SCRIPT_TO_LANGUAGE.get(script)
     if direct:
         return direct
@@ -159,6 +175,19 @@ def detect_language(text: str, default: str = "en") -> str:
     if guess:
         return guess
     return _stopword_vote(text, candidates) or candidates[0]
+
+
+def _looks_assamese(text: str) -> bool:
+    """
+    Tell Assamese from Bengali inside the shared script.
+
+    Cheap and deliberately conservative: Bengali is by far the larger language,
+    so a false "as" is the costlier error. Both signals have to be Assamese-only
+    forms, never anything the two share.
+    """
+    if any(ch in _ASSAMESE_ONLY_CHARS for ch in text):
+        return True
+    return any(marker in text for marker in _ASSAMESE_MARKERS)
 
 
 def _statistical_guess(text: str, candidates: Tuple[str, ...]) -> Optional[str]:
