@@ -31,6 +31,24 @@ part that turns this from a demo into a product.
 *The whole 1.8 GB TSV was loaded into pandas at once.* Rows are now read with a
 row cap and an explicit dtype, and the label set is derived from what is
 actually present rather than assumed to be three classes.
+
+Which side to classify
+----------------------
+The default is ``target_text``, and that is not a detail.
+
+FAME-MT's label describes the *target* sentence's register. In
+``en-de.formal.tsv`` the German target says "Drücken Sie"; in
+``en-de.informal.tsv`` it says "du". The English source in both files is
+formality-neutral, because English has no grammatical T/V distinction to mark.
+
+Training on ``source_text`` therefore asks the model to predict a property the
+input does not contain. It can only latch onto weak stylistic correlations —
+formal targets tend to come from instructional or technical sources — which is
+why that setup plateaus around 71% no matter how much data you give it.
+
+Classifying the target is both the correct supervised task and the one the
+product actually needs: the pipeline calls the classifier to read the register
+of text in a language that marks it.
 """
 
 from __future__ import annotations
@@ -206,7 +224,7 @@ def load_split(name: str, max_rows: Optional[int] = None):
         on_bad_lines="warn",
     )
 
-    missing = {"source_text", "formality_label"} - set(df.columns)
+    missing = {"source_text", "target_text", "formality_label"} - set(df.columns)
     if missing:
         sys.exit(
             f"ERROR: {path} is missing column(s) {sorted(missing)}.\n"
@@ -214,9 +232,10 @@ def load_split(name: str, max_rows: Optional[int] = None):
             "Rebuild it:\n    python -m data_preprocessing.build_splits\n"
         )
 
-    df = df.dropna(subset=["source_text", "formality_label"])
-    df = df[df["source_text"].str.strip().astype(bool)].reset_index(drop=True)
-    return df
+    df = df.dropna(subset=["source_text", "target_text", "formality_label"])
+    for column in ("source_text", "target_text"):
+        df = df[df[column].str.strip().astype(bool)]
+    return df.reset_index(drop=True)
 
 
 def build_label_map(train_df, min_count: int = 50) -> Dict[str, int]:
@@ -286,6 +305,12 @@ def main(argv: Optional[List[str]] = None) -> int:
                         help="Cap training rows. The full corpus is millions of "
                              "pairs; start small to verify the loop runs.")
     parser.add_argument("--output-dir", default=str(MODEL_DIR))
+    parser.add_argument(
+        "--text-column", choices=["target_text", "source_text"], default="target_text",
+        help="Which side to classify. Defaults to the target, because that is "
+             "what the label describes — see the note in this module's docstring. "
+             "Pass source_text to reproduce the old, much weaker setup.",
+    )
     parser.add_argument("--min-class-count", type=int, default=50,
                         help="Ignore classes with fewer than this many training "
                              "rows. Stops the 7 'neutral' rows in 11.2M from "
@@ -354,11 +379,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"  {name:<5} {len(df):>10,}  {counts}")
     print()
 
+    column = args.text_column
+    print(f"Classifying  : {column}")
+
     def prepare(df):
         df = df[df["formality_label"].isin(label_map)].copy()
         df["labels"] = df["formality_label"].map(label_map)
+        df = df.rename(columns={column: "text"})
         return Dataset.from_pandas(
-            df[["source_text", "labels"]].reset_index(drop=True),
+            df[["text", "labels"]].reset_index(drop=True),
             preserve_index=False,
         )
 
@@ -375,11 +404,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     def tokenize(batch):
         # No padding here — the collator pads each batch to its own longest
         # sequence, which is where the 4x saving comes from.
-        return tokenizer(batch["source_text"], truncation=True,
-                         max_length=args.max_length)
+        return tokenizer(batch["text"], truncation=True, max_length=args.max_length)
 
     print("Tokenising...")
-    remove = ["source_text"]
+    remove = ["text"]
     train_ds = train_ds.map(tokenize, batched=True, remove_columns=remove)
     val_ds = val_ds.map(tokenize, batched=True, remove_columns=remove)
     test_ds = test_ds.map(tokenize, batched=True, remove_columns=remove)

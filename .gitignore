@@ -21,6 +21,12 @@ data/dataset/
 data/splits/
 data/phrasebook.sqlite3
 
+# Relationship memory is personal — who you know and how you speak to them.
+# Blueprint 13.2 #6: this data should never leave the device, and it certainly
+# should never leave it via a git push.
+data/relationships.sqlite3
+data/*.sqlite3
+
 # Keep the small, hand-maintained data that the code actually needs.
 !data/slang_dictionary.json
 !data/test_sentences.csv

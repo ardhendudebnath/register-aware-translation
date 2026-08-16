@@ -39,6 +39,8 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .boundaries import delimited
+from .selectors import get_selector
+from .speaker import apply_speaker_gender, supports_speaker_gender
 from .levels import (
     AUTO,
     CASUAL,
@@ -418,6 +420,7 @@ def rewrite(
     *,
     soften: bool = False,
     addressee: Optional[str] = None,
+    speaker_gender: Optional[str] = None,
 ) -> RewriteResult:
     """
     Move ``text`` to ``target_level``. Works in both directions off the same
@@ -427,6 +430,9 @@ def rewrite(
     ``soften`` prepends the language's politeness particle at Polite/Formal
     (Hindi कृपया, Bengali দয়া করে). ``addressee`` inserts the vocative that
     Indian languages require when opening with a stranger (blueprint 13.2 #3).
+    ``speaker_gender`` fixes first-person verb agreement in Hindi, Marathi,
+    Punjabi and Gujarati, where the verb agrees with who is *speaking* — MT
+    defaults to masculine and so misgenders half its users.
     """
     if not isinstance(text, str):
         raise TypeError(f"text must be str, got {type(text).__name__}")
@@ -460,6 +466,16 @@ def rewrite(
 
     for hit in _find_hits(text, matcher):
         replacement = hit.rule.forms[level]
+
+        # A few rules cannot answer from the tuple alone — French "votre" needs
+        # the gender of the noun after it. Those defer to a selector.
+        if hit.rule.select:
+            selector = get_selector(hit.rule.select)
+            if selector is not None:
+                chosen = selector(hit.surface, level, text, hit.start, hit.end)
+                if chosen:
+                    replacement = chosen
+
         if not replacement:
             continue
         if not hit.cased:
@@ -490,6 +506,21 @@ def rewrite(
     # been edited; hand back exactly what came in.
     if not edits:
         result = original
+
+    if speaker_gender:
+        result, gender_edits = apply_speaker_gender(result, table.code, speaker_gender)
+        for edit in gender_edits:
+            edits.append(
+                Edit(
+                    rule="speaker.gender",
+                    gloss=f"first-person agreement ({speaker_gender})",
+                    before=edit.before,
+                    after=edit.after,
+                    start=edit.start,
+                    from_levels=(),
+                    to_level=level,
+                )
+            )
 
     if soften:
         result = _apply_softener(result, table, level)

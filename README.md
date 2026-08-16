@@ -39,17 +39,134 @@ own APIs — no API key, no cost.
 
 ---
 
+## How it fits together
+
+The whole design rests on one decision: **the register layer sits above the
+translation engine, not inside it.** Everything else follows from that — the
+engine is swappable, re-levelling needs no network, and the layer can be lifted
+out and sold to anyone already doing translation.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture-dark.svg">
+    <img alt="Setu architecture: the register layer is a single slab spanning all three engine tiers, with the client on top" src="docs/architecture-light.svg" width="820">
+  </picture>
+</p>
+
+The wide slab is the point. It spans all three engine tiers rather than sitting
+inside any of them, so swapping what is underneath changes nothing above it.
+Regenerate with `python docs/make_diagrams.py`.
+
+```mermaid
+flowchart TB
+    subgraph CLIENT["🖥️  CLIENT — one codebase, PWA + wrapped mobile"]
+        direction TB
+        MIC["🎤 Audio capture"] --> VAD["Voice activity detection"]
+        VAD --> ASR["ASR"]
+        ASR --> PRE["① PRE-EDIT<br/><i>steer the source</i>"]
+        PRE --> MT{{"② TRANSLATE<br/><i>swappable</i>"}}
+        MT --> POST["③ REGISTER POST-EDIT<br/><b>the product</b> · ~1 ms · offline"]
+        POST --> TTS["🔊 TTS<br/><i>prosody from register</i>"]
+        TABLES[("Rule tables<br/>16 languages<br/>bundled, ~80 KB")] -.->|"no network"| POST
+        CACHE[("Phrasebook<br/>SQLite")] -.-> MT
+    end
+
+    MT -.->|online| TIERA["☁️ TIER A — Cloud API<br/>best quality, needs key"]
+    MT -.->|online| TIERB["🆓 TIER B — Free public<br/>browser APIs + keyless MT"]
+    MT -.->|offline| TIERC["📦 TIER C — On-device<br/>Whisper + IndicTrans2"]
+
+    style POST fill:#7c9cff,stroke:#3d5bd9,stroke-width:3px,color:#fff
+    style TABLES fill:#e8eaf2,stroke:#7c9cff,stroke-width:2px
+    style MT fill:#fff3cd,stroke:#b4690e
+    style CLIENT fill:#f7f8fc,stroke:#dfe3ee
+```
+
+**Fallback chain:** cached phrase → on-device model → premium API → free
+endpoint → *"I couldn't translate that, here's what I heard."* The user never
+sees a dead end.
+
+### The layer that makes it different
+
+```mermaid
+flowchart LR
+    IN["তুমি কি করছ?"] --> D["detect()"]
+    D --> L{{"Casual"}}
+    L --> R["rewrite()"]
+    R --> C0["Close<br/>তুই কি করছিস?"]
+    R --> C1["Casual<br/>তুমি কি করছ?"]
+    R --> C2["Polite<br/>আপনি কি করছেন?"]
+    R --> C3["Formal<br/>আপনি কি করছেন?"]
+    C2 --> TRACE["trace:<br/>তুমি → আপনি<br/>করছ → করছেন"]
+
+    style R fill:#7c9cff,color:#fff,stroke-width:2px
+    style TRACE fill:#e8f5e9,stroke:#17835c
+```
+
+One symmetric dataset drives all three jobs — **upgrade, downgrade, detect** —
+because every rule is the same thing said four ways.
+
+### Module structure
+
+```mermaid
+flowchart TD
+    APP["app.py<br/><i>Flask + SocketIO + REST</i>"]
+
+    subgraph PIPE["pipeline/ — orchestration"]
+        CORE["core.py<br/>3-stage pipeline<br/>phrasebook"]
+        CONV["conversation.py<br/>a register per direction"]
+        REL["relationships.py<br/>per-contact memory"]
+        LEARN["learner.py<br/>inverted pipeline"]
+    end
+
+    subgraph REG["register/ — the IP · zero dependencies"]
+        TAB["tables.py<br/>16 rule tables"]
+        ENG["engine.py<br/>rewrite · detect · ladder"]
+        BOUND["boundaries.py<br/>Indic-safe word edges"]
+        GEN["gender.py<br/>FR noun gender"]
+        SPK["speaker.py<br/>first-person agreement"]
+        SEL["selectors.py<br/>context-sensitive forms"]
+    end
+
+    subgraph MOD["models/ — swappable backends"]
+        STT["stt.py"]
+        LID["language_id.py"]
+        CLF["classifier.py"]
+        MT2["translator.py"]
+        TTS2["tts.py"]
+    end
+
+    subgraph EVAL["evaluation/ — proof"]
+        MET["metrics.py<br/>register · detection · semantic"]
+        GOLD["gold_sets.py"]
+    end
+
+    APP --> PIPE
+    PIPE --> REG
+    PIPE --> MOD
+    EVAL --> REG
+    ENG --> TAB & BOUND & GEN & SPK & SEL
+
+    style REG fill:#eef2ff,stroke:#3d5bd9,stroke-width:3px
+    style ENG fill:#7c9cff,color:#fff
+    style MOD fill:#fffaf0,stroke:#b4690e
+```
+
+Note the dependency direction: `register/` depends on **nothing**. That is what
+lets it work offline, run in ~1 ms, and be lifted out as a component.
+
+---
+
 ## What's here
 
 | Path | What it is |
 |---|---|
-| `register/` | **The register engine.** Rule tables for 16 languages, plus rewrite / detect / ladder. Zero dependencies, works offline, ~1 ms. |
-| `pipeline/` | The three-stage pipeline: pre-edit → translate → post-edit, with the phrasebook cache. |
+| `register/` | **The register engine.** Rule tables for 16 languages, plus rewrite / detect / ladder, noun gender, speaker agreement. Zero dependencies, works offline, ~1 ms. |
+| `pipeline/` | Three-stage pipeline, phrasebook cache, asymmetric conversations, relationship memory, learner mode. |
 | `models/` | Swappable backends: STT, language ID, formality classification, MT, TTS. |
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The three metrics that make the claim defensible. |
-| `tests/` | 207 tests. |
+| `tests/` | 255 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -121,6 +238,91 @@ Pronouns and verbs move together, so `Sie sind sehr nett` becomes
 **Known limitation:** Italian sentence-initial `Lei` is irreducibly ambiguous —
 polite *you* and *she* both capitalise there and both take third-person verbs.
 The engine reads it as polite. Mid-sentence casing is handled correctly.
+
+---
+
+## Things no other translation product does
+
+### Conversations are asymmetric
+
+Your uncle says তুই to you. You say আপনি back. Both are correct, and neither is
+the other's mirror — this is how most Indian conversations across a generation
+gap actually work. Every product on the market applies one register to a whole
+session and gets this exactly wrong.
+
+```python
+from pipeline import Conversation, Participant
+from register import AUTO, POLITE
+
+uncle = Participant("uncle", "bn", register=AUTO)               # speaks down
+you   = Participant("you", "bn", register=POLITE,               # speaks up
+                    addressee="elder_man")
+
+convo = Conversation(uncle, you)
+convo.say("uncle", "তুই কোথায় যাস?")
+convo.say("you",   "তুমি কেমন আছ?")     # → "কাকু, আপনি কেমন আছেন?"
+
+convo.is_asymmetric()          # True
+convo.observed_registers()     # {'uncle': 0, 'you': 1}
+```
+
+The vocative — কাকু — is inserted automatically. English has no such slot, so
+MT either drops it (sounding abrupt) or emits a stiff "sir" nobody says.
+
+### Register attached to a person
+
+```python
+from pipeline import RelationshipBook
+
+book = RelationshipBook()
+book.remember("Rahul's father", language="bn",
+              register=POLITE, addressee="elder_man")
+```
+
+The second conversation needs no configuration. Nobody else has this — not
+because it is hard, but because you cannot attach a register to a contact until
+register is a first-class object. This data never leaves the device: local
+SQLite, no sync, no export endpoint.
+
+### Learner mode — the pipeline run backwards
+
+Duolingo teaches vocabulary and grammar. None of them teach *register*, which
+is what actually determines whether a learner sounds rude.
+
+```python
+from pipeline import assess
+
+assess("তুই কেমন আছিস?", "bn", "stranger").message
+# 'You used Close with someone you have just met. That will sound too
+#  familiar — native speakers would use Polite here.'
+```
+
+It accepts more than one answer where the language genuinely does. Family
+elders are the contested case — high respect *and* high closeness — so both
+তুমি and আপনি pass, because insisting on one would teach something false.
+
+### Gender that MT throws away
+
+`votre` carries no gender, so downgrading it has to guess — and every engine
+guesses masculine, producing the wrong *ton maison*:
+
+| | |
+|---|---|
+| `votre maison` → | `ta maison` (feminine noun) |
+| `votre livre` → | `ton livre` (masculine noun) |
+| `votre amie` → | `ton amie` (feminine, but vowel-initial) |
+
+And in Hindi, Marathi, Punjabi and Gujarati the verb agrees with **who is
+speaking**, so MT's masculine default misgenders half its users:
+
+```python
+rewrite("मैं काम करता हूँ", "hi", CASUAL, speaker_gender="female").text
+# 'मैं काम करती हूँ'
+```
+
+Only first-person sentences are touched — Hindi has ordinary nouns ending in
+ता (पिता, माता, नेता) and rewriting those would be far worse than leaving a
+verb masculine.
 
 ---
 
@@ -228,9 +430,17 @@ Gold sets live in `data/gold/<lang>.jsonl`, one JSON object per line:
 python -m evaluation.run --write-template bn
 ```
 
-The built-in seed cases are enough to exercise the harness and **are not a
-benchmark**. Eight of the sixteen tables have no gold data at all, and the
-harness says so rather than reporting a flattering number over nothing.
+All 16 tables are now measured and pass at 100% on the seed cases. That is a
+regression net, **not a benchmark** — the seed set is a few sentences per
+language, and the harness says so on every run rather than reporting a
+flattering number over nothing.
+
+Making it a benchmark is the highest-leverage work left. CoCoA-MT gave Hindi a
+*binary* formality benchmark in 2022; Bengali — 228 million speakers, three
+grammatical registers — has nothing, and nor does Tamil, Telugu, Kannada,
+Malayalam, Gujarati, Marathi, Punjabi, Odia or Assamese. A few hundred
+annotated sentences per language is a few weeks and a few thousand rupees, and
+it is the one asset a well-funded competitor cannot shortcut.
 
 ---
 
@@ -240,9 +450,10 @@ harness says so rather than reporting a flattering number over nothing.
 python -m pytest tests/ -q
 ```
 
-207 tests covering the rule tables, round-trip stability, third-person safety,
-Indic boundary handling, the slang-detection regressions, and the pipeline with
-networking disabled.
+255 tests covering the rule tables, round-trip stability, third-person safety,
+Indic boundary handling, French noun gender, speaker agreement, asymmetric
+conversations, learner feedback, the slang-detection regressions, and the
+pipeline with networking disabled.
 
 ---
 
@@ -266,6 +477,10 @@ networking disabled.
 | `POST /api/detect` | Read the register of a sentence. |
 | `GET /api/languages` | Tables, levels, rule counts, address terms. |
 | `GET /api/health` | Which backends are actually available. |
+| `POST /api/conversation` | Start a two-party conversation with a register per direction. |
+| `POST /api/conversation/<id>/say` | One turn, translated at the *speaker's* register. |
+| `POST /api/learner/assess` | Judge a learner's sentence against who they are addressing. |
+| `GET/POST /api/relationships` | Per-contact register memory (on-device). |
 
 ```bash
 curl -s localhost:5000/api/translate -H 'Content-Type: application/json' -d '{"text":"Can you give me your book?","source_lang":"en","target_lang":"bn","register":"polite"}'
