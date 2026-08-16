@@ -407,8 +407,34 @@ pip install -r requirements-train.txt
 ```
 
 ```bash
-python -m classifier.train --max-rows 200000 --epochs 2
+python -m classifier.train --max-rows 400000 --epochs 2 --batch-size 64
 ```
+
+### Classify the target, not the source
+
+This is the single decision that matters most for accuracy, and it is easy to
+get wrong. FAME-MT's label describes the **target** sentence's register: in
+`en-de.formal.tsv` the German target says *Drücken Sie*, and in the informal
+file it says *du*. The English source in both is formality-neutral, because
+English has no grammatical T/V distinction to mark.
+
+Training on `source_text` therefore asks the model to predict a property its
+input does not contain. It can only latch onto weak stylistic correlations, and
+it plateaus around 71% no matter how much data you feed it:
+
+| Column | Rows | Epochs | Accuracy | F1 macro |
+|---|--:|--:|--:|--:|
+| `source_text` | 40k | 1 | 0.706 | 0.706 |
+| `target_text` | 40k | 1 | 0.943 | 0.943 |
+| `target_text` | 400k | 2 | **0.970** | **0.970** |
+
+`--text-column` defaults to `target_text`. The 400k run scores
+precision/recall of 0.971/0.969 formal and 0.968/0.971 informal — balanced,
+rather than the lopsided model the old setup produced.
+
+**The classifier is a fallback, not the main event.** For the 20 languages with
+a rule table, the register engine reads grammar directly and takes precedence;
+the model only answers when no register marker is present at all.
 
 The device is configured from the card that is actually present: bf16 where
 supported (same exponent range as fp32, so no loss scaling and no silent
@@ -426,8 +452,8 @@ fix. For Blackwell (RTX 50-series, `sm_120`) that is:
 pip install --force-reinstall torch --index-url https://download.pytorch.org/whl/cu128
 ```
 
-Verified on an RTX 5070 Ti Laptop (12 GB, compute 12.0): 368 samples/s at
-batch 32, bf16.
+Verified on an RTX 5070 Ti Laptop (12 GB, compute 12.0): **934 samples/s** at
+batch 64 in bf16 — 400k rows × 2 epochs in about 14 minutes.
 
 > **Note on labels.** The filename is ground truth. Slang detection is recorded
 > as a *feature column*, not a label override — overriding is opt-in behind
