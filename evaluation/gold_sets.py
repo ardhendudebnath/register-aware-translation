@@ -121,6 +121,30 @@ SEED_CASES: List[Case] = [
     Case("en", "hey, can you gimme a hand?", CASUAL),
     Case("en", "hello, could you help me?", POLITE),
     Case("en", "good day, could you kindly assist me?", FORMAL),
+
+    # ---- blueprint phase 3: the scheduled languages with nothing built ----
+    # Compiled from standard grammars, NOT yet reviewed by a native speaker.
+    # Flagged here so nobody mistakes these for annotated gold data.
+
+    # Urdu — تو / تم / آپ
+    Case("ur", "تو کیسے ہے", CLOSE, note="unverified"),
+    Case("ur", "تم کیسے ہو", CASUAL, note="unverified"),
+    Case("ur", "آپ کیسے ہیں", POLITE, note="unverified"),
+
+    # Odia — ତୁ / ତୁମେ / ଆପଣ
+    Case("or", "ତୁ କେମିତି ଅଛୁ", CLOSE, note="unverified"),
+    Case("or", "ତୁମେ କେମିତି ଅଛ", CASUAL, note="unverified"),
+    Case("or", "ଆପଣ କେମିତି ଅଛନ୍ତି", POLITE, note="unverified"),
+
+    # Assamese — তই / তুমি / আপুনি
+    Case("as", "তই কেনে আছ", CLOSE, note="unverified"),
+    Case("as", "তুমি কেনে আছা", CASUAL, note="unverified"),
+    Case("as", "আপুনি কেনে আছে", POLITE, note="unverified"),
+
+    # Nepali — तँ / तिमी / तपाईं
+    Case("ne", "तँ कस्तो होस्", CLOSE, note="unverified"),
+    Case("ne", "तिमी कस्तो हौ", CASUAL, note="unverified"),
+    Case("ne", "तपाईं कस्तो हुनुहुन्छ", POLITE, note="unverified"),
 ]
 
 

@@ -1,4 +1,4 @@
-# Setu — Real-Time Formality-Aware Speech-to-Speech Translation
+﻿# Setu — Real-Time Formality-Aware Speech-to-Speech Translation
 
 Every speech translator answers *"what did they say?"* None of them answer
 *"how did they say it — and how should I say it back?"*
@@ -67,7 +67,7 @@ flowchart TB
         PRE --> MT{{"② TRANSLATE<br/><i>swappable</i>"}}
         MT --> POST["③ REGISTER POST-EDIT<br/><b>the product</b> · ~1 ms · offline"]
         POST --> TTS["🔊 TTS<br/><i>prosody from register</i>"]
-        TABLES[("Rule tables<br/>16 languages<br/>bundled, ~80 KB")] -.->|"no network"| POST
+        TABLES[("Rule tables<br/>20 languages<br/>bundled, ~80 KB")] -.->|"no network"| POST
         CACHE[("Phrasebook<br/>SQLite")] -.-> MT
     end
 
@@ -119,7 +119,7 @@ flowchart TD
     end
 
     subgraph REG["register/ — the IP · zero dependencies"]
-        TAB["tables.py<br/>16 rule tables"]
+        TAB["tables.py<br/>20 rule tables"]
         ENG["engine.py<br/>rewrite · detect · ladder"]
         BOUND["boundaries.py<br/>Indic-safe word edges"]
         GEN["gender.py<br/>FR noun gender"]
@@ -160,13 +160,13 @@ lets it work offline, run in ~1 ms, and be lifted out as a component.
 
 | Path | What it is |
 |---|---|
-| `register/` | **The register engine.** Rule tables for 16 languages, plus rewrite / detect / ladder, noun gender, speaker agreement. Zero dependencies, works offline, ~1 ms. |
+| `register/` | **The register engine.** Rule tables for 20 languages, plus rewrite / detect / ladder, noun gender, speaker agreement. Zero dependencies, works offline, ~1 ms. |
 | `pipeline/` | Three-stage pipeline, phrasebook cache, asymmetric conversations, relationship memory, learner mode. |
 | `models/` | Swappable backends: STT, language ID, formality classification, MT, TTS. |
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The three metrics that make the claim defensible. |
-| `tests/` | 255 tests. |
+| `tests/` | 311 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -450,7 +450,7 @@ it is the one asset a well-funded competitor cannot shortcut.
 python -m pytest tests/ -q
 ```
 
-255 tests covering the rule tables, round-trip stability, third-person safety,
+311 tests covering the rule tables, round-trip stability, third-person safety,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
 conversations, learner feedback, the slang-detection regressions, and the
 pipeline with networking disabled.
