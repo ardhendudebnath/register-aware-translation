@@ -30,7 +30,15 @@ _COS30 = math.cos(math.radians(30))
 _SIN30 = math.sin(math.radians(30))
 
 SCALE = 1.0
-ORIGIN = (470.0, 250.0)
+#: Isometric projection spreads a block sideways: a 300-wide, 190-deep box
+#: occupies ~425 px of screen width, centred on the origin's x. The origin is
+#: therefore well left of centre so the block clears the pipeline column on the
+#: right. :func:`_assert_no_overlap` checks this rather than trusting it.
+ORIGIN = (250.0, 300.0)
+
+#: Where the flat three-stage pipeline column starts.
+PIPELINE_X = 620.0
+PIPELINE_W = 300.0
 
 
 class Theme:
@@ -137,8 +145,39 @@ def arrow(p0: Tuple[float, float], p1: Tuple[float, float], theme: Theme,
     )
 
 
+def _assert_layout(span_w: float, span_d: float, top_z: float, W: float, H: float) -> None:
+    """
+    Fail loudly if the isometric block runs into the pipeline column or off the
+    canvas.
+
+    Isometric projection spreads a block sideways by roughly
+    ``(width + depth) * cos30``, which is easy to underestimate — the first
+    version of this diagram had the block overlapping the pipeline text by
+    134 px, and the overlap is invisible until something is rendered.
+    """
+    xs, ys = [], []
+    for z in (0.0, top_z):
+        for x, y in ((0, 0), (span_w, 0), (span_w, span_d), (0, span_d)):
+            px, py = project(x, y, z)
+            xs.append(px)
+            ys.append(py)
+
+    right = max(xs)
+    if right > PIPELINE_X - 12:
+        raise AssertionError(
+            f"isometric block reaches x={right:.0f} but the pipeline column "
+            f"starts at x={PIPELINE_X:.0f}. Move ORIGIN left or shrink the block."
+        )
+    if min(xs) < 8 or max(ys) > H - 8 or min(ys) < 80:
+        raise AssertionError(
+            f"isometric block escapes the canvas: "
+            f"x {min(xs):.0f}..{right:.0f}, y {min(ys):.0f}..{max(ys):.0f} "
+            f"in {W:.0f}x{H:.0f}"
+        )
+
+
 def build(theme: Theme) -> str:
-    W, H = 940, 560
+    W, H = 1000, 580
     parts: List[str] = []
 
     parts.append(
@@ -173,6 +212,7 @@ def build(theme: Theme) -> str:
     span_w, span_d = 300.0, 190.0
     tier_w, tier_d = 92.0, 190.0
     gap = 12.0
+    _assert_layout(span_w, span_d, 184.0, W, H)
 
     # ---- bottom row: the three engine tiers --------------------------
     tiers = [
@@ -221,19 +261,21 @@ def build(theme: Theme) -> str:
     ))
 
     # ---- side annotations ---------------------------------------------
+    # Kept short on purpose: they sit between the isometric block and the
+    # pipeline column, and long labels collide with the latter.
     notes = [
         (cli_z + 46, "one codebase", theme.muted),
-        (reg_z + 54, "your IP — engine-agnostic", theme.accent),
+        (reg_z + 54, "your IP", theme.accent),
         (34, "swappable", theme.muted),
     ]
     for z, text, colour in notes:
         px, py = project(span_w, span_d / 2, z)
         parts.append(
-            f'<line x1="{px + 6:.2f}" y1="{py:.2f}" x2="{px + 46:.2f}" y2="{py:.2f}" '
+            f'<line x1="{px + 6:.2f}" y1="{py:.2f}" x2="{px + 40:.2f}" y2="{py:.2f}" '
             f'stroke="{theme.edge}" stroke-width="1.4"/>'
         )
         parts.append(
-            f'<text x="{px + 54:.2f}" y="{py + 4:.2f}" font-size="12" fill="{colour}" '
+            f'<text x="{px + 46:.2f}" y="{py + 4:.2f}" font-size="12" fill="{colour}" '
             f'font-weight="600" '
             f'font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">'
             f'{_escape(text)}</text>'
@@ -245,10 +287,10 @@ def build(theme: Theme) -> str:
         ("② translate", "swappable engine", theme.muted),
         ("③ post-edit", "register applied here", theme.accent),
     ]
-    base_x, base_y = 596, 132
+    base_x, base_y = PIPELINE_X, 132
     for i, (title, sub, colour) in enumerate(stages):
         y = base_y + i * 68
-        boxw = 250
+        boxw = PIPELINE_W
         fill = theme.register[0] if i == 2 else theme.tier[0]
         txt = "#ffffff" if i == 2 else theme.text
         sub_c = "#dbe3ff" if i == 2 else theme.muted

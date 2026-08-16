@@ -1,57 +1,57 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 560" width="940" height="560" role="img" aria-label="Setu architecture: the register layer spans all three engine tiers">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 580" width="1000" height="580" role="img" aria-label="Setu architecture: the register layer spans all three engine tiers">
 <defs><marker id="arrowhead-dark" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#6b7391"/></marker><filter id="soft-dark" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-opacity="0.16"/></filter></defs>
-<rect width="940" height="560" fill="#0e1016"/>
+<rect width="1000" height="580" fill="#0e1016"/>
 <text x="34" y="42" font-size="19" font-weight="700" fill="#e8eaf2" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">Setu — the register layer sits above the engine</text>
 <text x="34" y="65" font-size="13" fill="#949bb3" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">Swap anything in the bottom row; everything above it is untouched.</text>
-<polygon points="305.46,319.00 385.13,365.00 385.13,391.00 305.46,345.00" fill="#191d2a" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
-<polygon points="549.67,270.00 385.13,365.00 385.13,391.00 549.67,296.00" fill="#141822" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
-<polygon points="470.00,224.00 549.67,270.00 385.13,365.00 305.46,319.00" fill="#1e2231" stroke="#39405a" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
-<text x="427.56" y="282.00" font-size="11" fill="#949bb3" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">TIER A</text>
-<text x="427.56" y="298.00" font-size="12" fill="#e8eaf2" font-weight="600" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">Cloud API</text>
-<text x="427.56" y="315.00" font-size="9" fill="#949bb3" font-weight="400" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">best quality</text>
-<polygon points="395.52,371.00 475.20,417.00 475.20,443.00 395.52,397.00" fill="#191d2a" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
-<polygon points="639.74,322.00 475.20,417.00 475.20,443.00 639.74,348.00" fill="#141822" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
-<polygon points="560.07,276.00 639.74,322.00 475.20,417.00 395.52,371.00" fill="#1e2231" stroke="#39405a" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
-<text x="517.63" y="334.00" font-size="11" fill="#949bb3" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">TIER B</text>
-<text x="517.63" y="350.00" font-size="12" fill="#e8eaf2" font-weight="600" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">Free public</text>
-<text x="517.63" y="367.00" font-size="9" fill="#949bb3" font-weight="400" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">browser + keyless</text>
-<polygon points="485.59,423.00 565.26,469.00 565.26,495.00 485.59,449.00" fill="#191d2a" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
-<polygon points="729.81,374.00 565.26,469.00 565.26,495.00 729.81,400.00" fill="#141822" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
-<polygon points="650.13,328.00 729.81,374.00 565.26,469.00 485.59,423.00" fill="#1e2231" stroke="#39405a" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
-<text x="607.70" y="386.00" font-size="11" fill="#949bb3" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">TIER C</text>
-<text x="607.70" y="402.00" font-size="12" fill="#e8eaf2" font-weight="600" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">On-device</text>
-<text x="607.70" y="419.00" font-size="9" fill="#949bb3" font-weight="400" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">Whisper + IndicTrans2</text>
+<polygon points="85.46,369.00 165.13,415.00 165.13,441.00 85.46,395.00" fill="#191d2a" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="329.67,320.00 165.13,415.00 165.13,441.00 329.67,346.00" fill="#141822" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="250.00,274.00 329.67,320.00 165.13,415.00 85.46,369.00" fill="#1e2231" stroke="#39405a" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
+<text x="207.56" y="332.00" font-size="11" fill="#949bb3" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">TIER A</text>
+<text x="207.56" y="348.00" font-size="12" fill="#e8eaf2" font-weight="600" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">Cloud API</text>
+<text x="207.56" y="365.00" font-size="9" fill="#949bb3" font-weight="400" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">best quality</text>
+<polygon points="175.52,421.00 255.20,467.00 255.20,493.00 175.52,447.00" fill="#191d2a" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="419.74,372.00 255.20,467.00 255.20,493.00 419.74,398.00" fill="#141822" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="340.07,326.00 419.74,372.00 255.20,467.00 175.52,421.00" fill="#1e2231" stroke="#39405a" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
+<text x="297.63" y="384.00" font-size="11" fill="#949bb3" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">TIER B</text>
+<text x="297.63" y="400.00" font-size="12" fill="#e8eaf2" font-weight="600" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">Free public</text>
+<text x="297.63" y="417.00" font-size="9" fill="#949bb3" font-weight="400" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">browser + keyless</text>
+<polygon points="265.59,473.00 345.26,519.00 345.26,545.00 265.59,499.00" fill="#191d2a" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="509.81,424.00 345.26,519.00 345.26,545.00 509.81,450.00" fill="#141822" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="430.13,378.00 509.81,424.00 345.26,519.00 265.59,473.00" fill="#1e2231" stroke="#39405a" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
+<text x="387.70" y="436.00" font-size="11" fill="#949bb3" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">TIER C</text>
+<text x="387.70" y="452.00" font-size="12" fill="#e8eaf2" font-weight="600" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">On-device</text>
+<text x="387.70" y="469.00" font-size="9" fill="#949bb3" font-weight="400" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">Whisper + IndicTrans2</text>
 <g filter="url(#soft-dark)">
-<polygon points="305.46,227.00 565.26,377.00 565.26,417.00 305.46,267.00" fill="#5f83f5" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
-<polygon points="729.81,282.00 565.26,377.00 565.26,417.00 729.81,322.00" fill="#4a70ec" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
-<polygon points="470.00,132.00 729.81,282.00 565.26,377.00 305.46,227.00" fill="#7c9cff" stroke="#39405a" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="85.46,277.00 345.26,427.00 345.26,467.00 85.46,317.00" fill="#5f83f5" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="509.81,332.00 345.26,427.00 345.26,467.00 509.81,372.00" fill="#4a70ec" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="250.00,182.00 509.81,332.00 345.26,427.00 85.46,277.00" fill="#7c9cff" stroke="#39405a" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
 </g>
-<text x="517.63" y="242.50" font-size="13" fill="#ffffff" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">REGISTER LAYER</text>
-<text x="517.63" y="260.50" font-size="12" fill="#e8eaff" font-weight="500" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">rewrite · detect · ladder</text>
-<text x="517.63" y="277.50" font-size="10" fill="#cdd8ff" font-weight="400" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">16 languages · ~1 ms · no network</text>
-<polygon points="305.46,161.00 565.26,311.00 565.26,343.00 305.46,193.00" fill="#232a44" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
-<polygon points="729.81,216.00 565.26,311.00 565.26,343.00 729.81,248.00" fill="#1c2238" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
-<polygon points="470.00,66.00 729.81,216.00 565.26,311.00 305.46,161.00" fill="#2b3350" stroke="#39405a" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
-<text x="517.63" y="183.50" font-size="12" fill="#949bb3" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">CLIENT</text>
-<text x="517.63" y="200.50" font-size="12" fill="#e8eaf2" font-weight="600" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">PWA · mic · dial · ladder</text>
-<line x1="653.54" y1="249.50" x2="693.54" y2="249.50" stroke="#39405a" stroke-width="1.4"/>
-<text x="701.54" y="253.50" font-size="12" fill="#949bb3" font-weight="600" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">one codebase</text>
-<line x1="653.54" y1="315.50" x2="693.54" y2="315.50" stroke="#39405a" stroke-width="1.4"/>
-<text x="701.54" y="319.50" font-size="12" fill="#7c9cff" font-weight="600" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">your IP — engine-agnostic</text>
-<line x1="653.54" y1="413.50" x2="693.54" y2="413.50" stroke="#39405a" stroke-width="1.4"/>
-<text x="701.54" y="417.50" font-size="12" fill="#949bb3" font-weight="600" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">swappable</text>
-<rect x="596" y="132" width="250" height="50" rx="10" fill="#1e2231" stroke="#39405a" stroke-width="1.2"/>
-<text x="612" y="153" font-size="13" font-weight="700" fill="#e8eaf2" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">① pre-edit</text>
-<text x="612" y="170" font-size="11" fill="#949bb3" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">steer the source</text>
-<line x1="721.00" y1="182.00" x2="721.00" y2="198.00" stroke="#6b7391" stroke-width="1.8" marker-end="url(#arrowhead-dark)"/>
-<rect x="596" y="200" width="250" height="50" rx="10" fill="#1e2231" stroke="#39405a" stroke-width="1.2"/>
-<text x="612" y="221" font-size="13" font-weight="700" fill="#e8eaf2" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">② translate</text>
-<text x="612" y="238" font-size="11" fill="#949bb3" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">swappable engine</text>
-<line x1="721.00" y1="250.00" x2="721.00" y2="266.00" stroke="#6b7391" stroke-width="1.8" marker-end="url(#arrowhead-dark)"/>
-<rect x="596" y="268" width="250" height="50" rx="10" fill="#7c9cff" stroke="#39405a" stroke-width="1.2"/>
-<text x="612" y="289" font-size="13" font-weight="700" fill="#ffffff" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">③ post-edit</text>
-<text x="612" y="306" font-size="11" fill="#dbe3ff" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">register applied here</text>
-<text x="596" y="116" font-size="11" font-weight="700" fill="#949bb3" letter-spacing="0.08em" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">THREE-STAGE PIPELINE</text>
-<text x="596" y="364" font-size="11.5" fill="#5ad19a" font-weight="600" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">A phrase cached at Polite re-renders at Formal</text>
-<text x="596" y="381" font-size="11.5" fill="#5ad19a" font-weight="600" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">with no network at all.</text>
+<text x="297.63" y="292.50" font-size="13" fill="#ffffff" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">REGISTER LAYER</text>
+<text x="297.63" y="310.50" font-size="12" fill="#e8eaff" font-weight="500" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">rewrite · detect · ladder</text>
+<text x="297.63" y="327.50" font-size="10" fill="#cdd8ff" font-weight="400" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">16 languages · ~1 ms · no network</text>
+<polygon points="85.46,211.00 345.26,361.00 345.26,393.00 85.46,243.00" fill="#232a44" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="509.81,266.00 345.26,361.00 345.26,393.00 509.81,298.00" fill="#1c2238" stroke="#39405a" stroke-width="1.0" stroke-linejoin="round" opacity="1.0"/>
+<polygon points="250.00,116.00 509.81,266.00 345.26,361.00 85.46,211.00" fill="#2b3350" stroke="#39405a" stroke-width="1.2" stroke-linejoin="round" opacity="1.0"/>
+<text x="297.63" y="233.50" font-size="12" fill="#949bb3" font-weight="700" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">CLIENT</text>
+<text x="297.63" y="250.50" font-size="12" fill="#e8eaf2" font-weight="600" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">PWA · mic · dial · ladder</text>
+<line x1="433.54" y1="299.50" x2="467.54" y2="299.50" stroke="#39405a" stroke-width="1.4"/>
+<text x="473.54" y="303.50" font-size="12" fill="#949bb3" font-weight="600" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">one codebase</text>
+<line x1="433.54" y1="365.50" x2="467.54" y2="365.50" stroke="#39405a" stroke-width="1.4"/>
+<text x="473.54" y="369.50" font-size="12" fill="#7c9cff" font-weight="600" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">your IP</text>
+<line x1="433.54" y1="463.50" x2="467.54" y2="463.50" stroke="#39405a" stroke-width="1.4"/>
+<text x="473.54" y="467.50" font-size="12" fill="#949bb3" font-weight="600" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">swappable</text>
+<rect x="620.0" y="132" width="300.0" height="50" rx="10" fill="#1e2231" stroke="#39405a" stroke-width="1.2"/>
+<text x="636.0" y="153" font-size="13" font-weight="700" fill="#e8eaf2" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">① pre-edit</text>
+<text x="636.0" y="170" font-size="11" fill="#949bb3" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">steer the source</text>
+<line x1="770.00" y1="182.00" x2="770.00" y2="198.00" stroke="#6b7391" stroke-width="1.8" marker-end="url(#arrowhead-dark)"/>
+<rect x="620.0" y="200" width="300.0" height="50" rx="10" fill="#1e2231" stroke="#39405a" stroke-width="1.2"/>
+<text x="636.0" y="221" font-size="13" font-weight="700" fill="#e8eaf2" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">② translate</text>
+<text x="636.0" y="238" font-size="11" fill="#949bb3" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">swappable engine</text>
+<line x1="770.00" y1="250.00" x2="770.00" y2="266.00" stroke="#6b7391" stroke-width="1.8" marker-end="url(#arrowhead-dark)"/>
+<rect x="620.0" y="268" width="300.0" height="50" rx="10" fill="#7c9cff" stroke="#39405a" stroke-width="1.2"/>
+<text x="636.0" y="289" font-size="13" font-weight="700" fill="#ffffff" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">③ post-edit</text>
+<text x="636.0" y="306" font-size="11" fill="#dbe3ff" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">register applied here</text>
+<text x="620.0" y="116" font-size="11" font-weight="700" fill="#949bb3" letter-spacing="0.08em" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">THREE-STAGE PIPELINE</text>
+<text x="620.0" y="364" font-size="11.5" fill="#5ad19a" font-weight="600" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">A phrase cached at Polite re-renders at Formal</text>
+<text x="620.0" y="381" font-size="11.5" fill="#5ad19a" font-weight="600" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">with no network at all.</text>
 </svg>
