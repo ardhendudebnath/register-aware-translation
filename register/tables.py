@@ -169,18 +169,23 @@ class LanguageTable:
     insert_subject: Tuple[str, str, str, str] = ("", "", "", "")
     #: Which side of the verb the inserted subject goes on.
     #:
-    #: Portuguese puts it before ("Você é simpático", "Onde você mora?").
-    #: Spanish puts it after ("Es usted muy amable", "¿Dónde vive usted?") —
-    #: the pronoun is emphatic there, and fronting it reads as a contrast
-    #: nobody asked for.
+    #: ``before`` is the default. ``after`` is Spanish, which wants it there
+    #: in every sentence type ("Es usted muy amable", "¿Dónde vive usted?");
+    #: fronting it reads as a contrast nobody asked for.
+    #:
+    #: ``wh_inverted`` is European Portuguese, which does both and picks by
+    #: sentence type: subject-first in statements and yes/no questions ("Você
+    #: é muito simpático", "Você tem tempo?"), inverted after a question word
+    #: ("Onde mora o senhor?", "Como está você?").
     subject_position: str = "before"
 
     def __post_init__(self) -> None:
         if len(self.canon) != 4:
             raise ValueError(f"{self.code}: canon must have 4 entries")
-        if self.subject_position not in ("before", "after"):
+        if self.subject_position not in ("before", "after", "wh_inverted"):
             raise ValueError(
-                f"{self.code}: subject_position must be 'before' or 'after'"
+                f"{self.code}: subject_position must be 'before', 'after' "
+                f"or 'wh_inverted'"
             )
         if any(c not in (0, 1, 2, 3) for c in self.canon):
             raise ValueError(f"{self.code}: canon entries must be levels 0..3")
@@ -2441,12 +2446,23 @@ _PT_3P_SUBJECT = r"\b(?:ele|ela|eles|elas|quem|que)\s+"
 #: — and only in their polite form, which is why this is a per-form guard.
 _PT_IMPERSONAL = (
     r"\b(?:ele|ela|eles|elas|quem|que|isto|isso|aquilo|tudo|nada)\s+"
-    r"|\b(?:o|a|os|as|um|uma|uns|umas|este|esta|esse|essa|aquele|aquela)\s+\w+\s+"
+    # "o senhor" looks exactly like a determiner and a noun, and it is the
+    # polite *second* person — the one subject in this shape that must not be
+    # blocked. Without the exception "O senhor é muito simpático" kept its
+    # third-person verb all the way down to "Tu é muito simpático".
+    r"|\b(?:o|a|os|as|um|uma|uns|umas|este|esta|esse|essa|aquele|aquela)\s+"
+    r"(?!senhor(?:a|es|as)?\b)\w+\s+"
     r"|\b(?:hoje|ontem|amanhã|aqui|ali|lá|agora|ainda|já|também)\s*"
     r"|^\s*"
 )
 
 _PT_SYNCRETIC = {"ser": "é", "estar": "está"}
+
+#: Prepositions taking the tonic pronoun rather than the nominative. "a" is
+#: absent: it contracts with o senhor and is handled by its own rule.
+_PT_PREPOSITION = (
+    r"\b(?:para|por|de|em|com|sem|sobre|até|desde|entre|contra|após)\s+"
+)
 
 
 def _pt_verb_rules() -> Tuple[Rule, ...]:
@@ -2470,12 +2486,23 @@ PORTUGUESE = LanguageTable(
     canon=(0, 1, 2, 2),
     please=("", "", "por favor ", "por favor "),
     insert_subject=("", "você", "o senhor", "o senhor"),
+    subject_position="wh_inverted",
     rules=_pt_verb_rules() + (
-        Rule("pron.2sg.nom", ("tu", "você", "o senhor", "o senhor"), "you"),
+        # "a" contracts with the article inside "o senhor", so the preposition
+        # changes shape with the register: a ti, a você, *ao* senhor. Listed
+        # ahead of the bare tonic rule and longer than it, so it wins the span.
+        Rule("prep.a.2sg", ("a ti", "a você", "ao senhor", "ao senhor"),
+             "to you"),
+        # Portuguese conjugates você and o senhor alike, so after a preposition
+        # the pronoun is the only thing carrying the level. These were "si" at
+        # every level above tu, which is the reflexive — "para si" is "for
+        # yourself" — and it erased the você/senhor distinction the language
+        # keeps precisely here.
+        Rule("pron.2sg.tonic", ("ti", "você", "o senhor", "o senhor"),
+             "you (after preposition)", require_before=_PT_PREPOSITION),
+        Rule("pron.2sg.nom", ("tu", "você", "o senhor", "o senhor"), "you",
+             guard_before=_PT_PREPOSITION),
         Rule("pron.2sg.obj", ("te", "lhe", "lhe", "lhe"), "you (obj)"),
-        # The tonic pronouns were missing entirely, so "Isto é para ti" had
-        # nothing to match on.
-        Rule("pron.2sg.tonic", ("ti", "si", "si", "si"), "you (after preposition)"),
         Rule("pron.2sg.com", ("contigo", "consigo", "consigo", "consigo"), "with you"),
         Rule("poss.m", ("teu", "seu", "seu", "seu"), "your (m)"),
         Rule("poss.f", ("tua", "sua", "sua", "sua"), "your (f)"),
@@ -2483,15 +2510,37 @@ PORTUGUESE = LanguageTable(
         Rule("poss.f.pl", ("tuas", "suas", "suas", "suas"), "your (f pl)"),
         Rule("greet.hello", ("Oi", "Olá", "Bom dia", "Bom dia"), "hello"),
         Rule("greet.bye", ("Tchau", "Tchau", "Até logo", "Passe bem"), "goodbye"),
-        # Obrigado is said at every level; only "Valeu" (slangy) and the
-        # elaborations are marked. Letting it vote made "Obrigado ao senhor"
-        # read as Casual, outvoting the senhor.
-        Rule("greet.thanks", ("Valeu", "Obrigado", "Muito obrigado", "Agradeço muito"),
-             "thanks", rewrite_only=True),
-        # "Desculpa" is the tu form and "Desculpe" the você/o senhor one — it
-        # is an imperative, not an invariant interjection, so it moves with the
+        # Obrigado spans the middle two slots, so it never contradicts the
+        # pronoun and no longer needs rewrite_only — the shape Tamil, Spanish
+        # and Italian all ended up with. "Agradeço muito" is gone from the top
+        # slot: it is a clause, not a drop-in for a word, and substituting it
+        # turned "Agradeço muito a sua ajuda" into "Obrigado a sua ajuda" on
+        # the way down. Same lesson as "La ringrazio a Lei".
+        # Obrigado is neutral across every level Portuguese reaches by
+        # rewriting — the gold says it plainly, with "Obrigado" in all three
+        # columns and only the pronoun moving. It used to escalate, so asking
+        # for Close turned "Obrigado a ti" into "Valeu a ti", swapping in slang
+        # nobody requested. Valeu is gone with it: it is real Portuguese, but
+        # there is no level here that means it.
+        Rule("greet.thanks", ("Obrigado", "Obrigado", "Obrigado", "Muito obrigado"),
+             "thanks"),
+        # "Desculpa" is the tu form and "Desculpe" the você one — an
+        # imperative, not an invariant interjection, so it moves with the
         # register like any other verb.
-        Rule("greet.sorry", ("Desculpa", "Desculpe", "Desculpe", "Peço desculpa"), "sorry"),
+        #
+        # "Desculpe" used to sit at Polite as well as Casual, which put the
+        # same string in two slots and left nothing to tell them apart; the
+        # gold set asked the detector to distinguish two identical sentences
+        # and one of the two rows could only fail. It also stranded "Peço
+        # desculpa" at slot 3, which this canon never requests — (0, 1, 2, 2)
+        # folds Formal onto Polite, so the top slot is unreachable and the
+        # phrase could not be produced at all. Moving it down one gives the
+        # ladder three distinct rungs and the language its o senhor form.
+        Rule("greet.sorry", ("Desculpa", "Desculpe", "Peço desculpa", "Peço desculpa"), "sorry"),
+        # A sign-off is pure register: no content at all, and the choice
+        # between them is the entire message.
+        Rule("close.signoff", ("Beijinhos", "Abraço", "Com os melhores cumprimentos",
+                               "Com os melhores cumprimentos"), "sign-off"),
     ),
 )
 
