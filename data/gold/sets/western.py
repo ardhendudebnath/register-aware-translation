@@ -512,10 +512,15 @@ ENGLISH = LanguageSet(
         ("requests", [
             ("Can you help me?", "Could you help me?", "Could you kindly help me?",
              "request", "stranger", "modal hedging"),
-            ("Give me a hand.", "Could you give me a hand?",
-             "Could you kindly give me a hand?", "request", "colleague", "imperative → hedge"),
-            ("Send it over.", "Please send it over.", "Kindly send it over.",
-             "workplace", "colleague", "imperative + politeness marker"),
+            # The Casual column has to carry a marker of its own. An earlier
+            # draft used a bare imperative ("Give me a hand.") there, which in
+            # English carries no register at all — the row was asking the
+            # detector to recover something the language does not encode, and
+            # counting it wrong for abstaining.
+            ("Can you give me a hand?", "Could you give me a hand?",
+             "Could you kindly give me a hand?", "request", "colleague", "modal hedging"),
+            ("Can you send it over?", "Please send it over.", "Kindly send it over.",
+             "workplace", "colleague", "politeness marker"),
         ]),
         ("greetings", [
             ("Hi.", "Hello.", "Good day.", "greeting", "stranger", "greeting"),
@@ -526,8 +531,11 @@ ENGLISH = LanguageSet(
             ("Bye.", "Goodbye.", "I bid you goodbye.", "greeting", "stranger", "farewell"),
         ]),
         ("lexis", [
-            ("I wanna go.", "I want to go.", "I should like to go.",
-             "smalltalk", "friend", "contraction → full form"),
+            # "I want to go" is neutral-to-casual English, not polite; the
+            # polite form is "I would like to". The earlier draft had it in the
+            # Polite column, disagreeing with the table for no good reason.
+            ("I wanna go.", "I would like to go.", "I should like to go.",
+             "smalltalk", "friend", "contraction → hedged form"),
             ("Yeah.", "Yes.", "Certainly.", "smalltalk", "colleague", "assent"),
             ("Loads of people came.", "Many people came.",
              "A great deal of people came.", "smalltalk", "colleague", "quantifier"),

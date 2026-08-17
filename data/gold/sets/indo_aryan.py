@@ -685,12 +685,14 @@ ASSAMESE = LanguageSet(
         ("imperative", [
             ("ইয়ালৈ আহ।", "ইয়ালৈ আহা।", "ইয়ালৈ আহক।", "everyday", "guest", "v.imp.aha"),
             ("ইয়াত বহ।", "ইয়াত বহা।", "ইয়াত বহক।", "everyday", "guest", "v.imp.baha"),
-            ("মোক কোৱা।", "মোক কোৱা।", "মোক কওক।", "everyday", "colleague", "v.imp.koa"),
+            # The তই and তুমি columns were both কোৱা in an earlier draft, which
+            # asked the detector to tell two identical strings apart.
+            ("মোক ক।", "মোক কোৱা।", "মোক কওক।", "everyday", "colleague", "v.imp.koa"),
         ]),
         ("courtesy", [
             ("মোক ক্ষমা কৰ।", "মোক ক্ষমা কৰা।", "মোক ক্ষমা কৰক।",
              "apology", "stranger", "v.imp.kora"),
-            ("তোমাক ধন্যবাদ।", "তোমাক ধন্যবাদ।", "আপোনাক ধন্যবাদ।",
+            ("তোক ধন্যবাদ।", "তোমাক ধন্যবাদ।", "আপোনাক ধন্যবাদ।",
              "greeting", "acquaintance", "pron.acc"),
         ]),
     ],

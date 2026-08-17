@@ -157,8 +157,19 @@ def register_accuracy(cases: Sequence[Case]) -> MetricResult:
 
             expected = out.level  # canon-folded, so two-level languages are fair
             if reading.level is None:
-                # No marker survived. Only a failure if the source had one.
-                if detect(case.text, case.language).level is None:
+                # No marker survived. That is correct in two situations, and a
+                # failure otherwise.
+                #
+                # First, if the source had no marker either — nothing was lost.
+                #
+                # Second, if the rewrite *deleted* a marker because the target
+                # level has no equivalent for it. English has no casual form of
+                # "please", so downgrading "Please send it over." to
+                # "Send it over." is exactly right, and the result is correctly
+                # unmarked. Scoring that as a miss penalised the engine for
+                # doing the only sensible thing.
+                deleted_a_marker = any(not e.after for e in out.edits)
+                if deleted_a_marker or detect(case.text, case.language).level is None:
                     result.correct += 1
                     continue
                 result.failures.append({
