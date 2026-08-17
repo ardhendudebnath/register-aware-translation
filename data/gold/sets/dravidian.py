@@ -300,8 +300,14 @@ MALAYALAM = LanguageSet(
         ]),
     ],
     formal=[
-        ("ദയവായി അല്പം കാത്തിരിക്കൂ.", "request", "official"),
-        ("ദയവായി ഇവിടെ ഒപ്പിടൂ.", "admin", "official"),
+        # Malayalam has its own Formal imperative, the necessitative -അണം, and
+        # these rows were the place to exercise it. They paired ദയവായി with
+        # the -ഊ imperative instead, which is the Polite step: a Formal
+        # particle on a Polite verb. That mix is ordinary Malayalam, but it is
+        # not a Formal row, so it moves to `hard` and the unmixed form stands
+        # here.
+        ("ദയവായി അല്പം കാത്തിരിക്കണം.", "request", "official"),
+        ("ദയവായി ഇവിടെ ഒപ്പിടണം.", "admin", "official"),
         ("താങ്കൾക്ക് വളരെ നന്ദി.", "greeting", "official"),
         ("ക്ഷമിക്കണം.", "apology", "official"),
     ],
@@ -317,6 +323,13 @@ MALAYALAM = LanguageSet(
         ("പറ.", 1, "imperative", "നീ imperative"),
         ("പറയൂ.", 2, "imperative", "നിങ്ങൾ imperative"),
         ("അവൻ എന്ത് ചെയ്യുന്നു?", None, "third person", "no second-person marker"),
+        # A Formal particle on a Polite verb — common, and genuinely split.
+        # Polite is the defensible reading: the verb is the stronger signal
+        # and ദയവായി attaches to requests at any level above Casual.
+        ("ദയവായി അല്പം കാത്തിരിക്കൂ.", 2, "mixed register",
+         "ദയവായി is Formal, -ഊ imperative is Polite"),
+        ("ദയവായി ഇവിടെ ഒപ്പിടൂ.", 2, "mixed register",
+         "ദയവായി is Formal, -ഊ imperative is Polite"),
     ],
 )
 

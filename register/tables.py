@@ -1634,6 +1634,54 @@ KANNADA = LanguageTable(
     ),
 )
 
+# --------------------------------------------------------------------------
+# Malayalam — നീ / നിങ്ങൾ / താങ്കൾ
+# --------------------------------------------------------------------------
+
+#: (നീ form, നിങ്ങൾ form, താങ്കൾ form).
+#:
+#: Malayalam is the one Dravidian language here that needs no verb paradigm and
+#: a three-column imperative — the opposite of its neighbours. Finite verbs do
+#: not agree with the subject at all, so ചെയ്യുന്നു is identical under നീ,
+#: നിങ്ങൾ and താങ്കൾ and carries no register: the pronoun is the whole signal.
+#: The imperative, by contrast, distinguishes all three levels, where Tamil,
+#: Telugu and Kannada distinguish two — bare stem, -ഊ, and the necessitative
+#: -അണം, which asks rather than tells and is the deferential one.
+_ML_IMPERATIVES: Dict[str, Tuple[str, str, str]] = {
+    "varuka": ("വാ", "വരൂ", "വരണം"),  # come
+    "pokuka": ("പോ", "പോകൂ", "പോകണം"),  # go
+    "parayuka": ("പറ", "പറയൂ", "പറയണം"),  # say
+    "cheyyuka": ("ചെയ്യ്", "ചെയ്യൂ", "ചെയ്യണം"),  # do
+    "nokkuka": ("നോക്ക്", "നോക്കൂ", "നോക്കണം"),  # look
+    "irikkuka": ("ഇരി", "ഇരിക്കൂ", "ഇരിക്കണം"),  # sit
+    "kelkkuka": ("കേൾക്ക്", "കേൾക്കൂ", "കേൾക്കണം"),  # listen
+    "kshamikkuka": ("ക്ഷമിക്ക്", "ക്ഷമിക്കൂ", "ക്ഷമിക്കണം"),  # forgive
+    "tharuka": ("താ", "തരൂ", "തരണം"),  # give (to me)
+    "kodukkuka": ("കൊടുക്ക്", "കൊടുക്കൂ", "കൊടുക്കണം"),  # give (to another)
+    "edukkuka": ("എടുക്ക്", "എടുക്കൂ", "എടുക്കണം"),  # take
+    "kazhikkuka": ("കഴിക്ക്", "കഴിക്കൂ", "കഴിക്കണം"),  # eat
+    "kudikkuka": ("കുടിക്ക്", "കുടിക്കൂ", "കുടിക്കണം"),  # drink
+    "ezhuthuka": ("എഴുത്", "എഴുതൂ", "എഴുതണം"),  # write
+    "vaayikkuka": ("വായിക്ക്", "വായിക്കൂ", "വായിക്കണം"),  # read
+    "kaathirikkuka": ("കാത്തിരിക്ക്", "കാത്തിരിക്കൂ", "കാത്തിരിക്കണം"),  # wait
+    "nirthuka": ("നിർത്ത്", "നിർത്തൂ", "നിർത്തണം"),  # stop
+    "sahaayikkuka": ("സഹായിക്ക്", "സഹായിക്കൂ", "സഹായിക്കണം"),  # help
+    "oppiduka": ("ഒപ്പിട്", "ഒപ്പിടൂ", "ഒപ്പിടണം"),  # sign
+    "samsaarikkuka": ("സംസാരിക്ക്", "സംസാരിക്കൂ", "സംസാരിക്കണം"),  # speak
+    "ayakkuka": ("അയക്ക്", "അയക്കൂ", "അയക്കണം"),  # send
+    "thudanguka": ("തുടങ്ങ്", "തുടങ്ങൂ", "തുടങ്ങണം"),  # begin
+    "kaanikkuka": ("കാണിക്ക്", "കാണിക്കൂ", "കാണിക്കണം"),  # show
+    "vaangikkuka": ("വാങ്ങ്", "വാങ്ങൂ", "വാങ്ങണം"),  # buy
+}
+
+
+def _ml_verb_rules() -> Tuple[Rule, ...]:
+    return tuple(
+        Rule(f"v.{verb}.imp", (fam, fam, polite, formal), f"{verb} · imperative")
+        for verb, (fam, polite, formal) in _ML_IMPERATIVES.items()
+    )
+
+
 MALAYALAM = LanguageTable(
     code="ml",
     name="Malayalam",
@@ -1647,20 +1695,27 @@ MALAYALAM = LanguageTable(
         "peer": ("", "മോനേ", "ചേട്ടാ", "സാർ"),
         "official": ("", "സാർ", "സാർ", "സാർ"),
     },
-    rules=(
+    rules=_ml_verb_rules() + (
         Rule("pron.2sg.nom", ("നീ", "നീ", "നിങ്ങൾ", "താങ്കൾ"), "you"),
+        Rule("pron.2sg.acc", ("നിന്നെ", "നിന്നെ", "നിങ്ങളെ", "താങ്കളെ"), "you (obj)"),
         Rule("pron.2sg.gen", ("നിന്റെ", "നിന്റെ", "നിങ്ങളുടെ", "താങ്കളുടെ"), "your"),
         Rule("pron.2sg.dat", ("നിനക്ക്", "നിനക്ക്", "നിങ്ങൾക്ക്", "താങ്കൾക്ക്"), "to you"),
-        Rule("v.varu.imp", ("വാ", "വാ", "വരൂ", "വരണം"), "come!"),
-        Rule("v.pokuka.imp", ("പോ", "പോ", "പോകൂ", "പോകണം"), "go!"),
-        Rule("v.parayuka.imp", ("പറ", "പറ", "പറയൂ", "പറയണം"), "say!"),
-        Rule("v.cheyyuka.imp", ("ചെയ്യ്", "ചെയ്യ്", "ചെയ്യൂ", "ചെയ്യണം"), "do!"),
-        Rule("v.nokkuka.imp", ("നോക്ക്", "നോക്ക്", "നോക്കൂ", "നോക്കണം"), "look!"),
-        Rule("v.irikkuka.imp", ("ഇരി", "ഇരി", "ഇരിക്കൂ", "ഇരിക്കണം"), "sit!"),
-        Rule("v.kelkkuka.imp", ("കേൾക്ക്", "കേൾക്ക്", "കേൾക്കൂ", "കേൾക്കണം"), "listen!"),
+        Rule("pron.2sg.soc", ("നിന്നോട്", "നിന്നോട്", "നിങ്ങളോട്", "താങ്കളോട്"), "to/with you"),
+        Rule("pron.2sg.loc", ("നിന്നിൽ", "നിന്നിൽ", "നിങ്ങളിൽ", "താങ്കളിൽ"), "in you"),
         Rule("greet.hello", ("എടാ", "ഹലോ", "നമസ്കാരം", "നമസ്കാരം"), "hello"),
-        Rule("greet.thanks", ("താങ്ക്സ്", "നന്ദി", "നന്ദി", "വളരെ നന്ദി"), "thanks"),
-        Rule("greet.sorry", ("സോറി", "സോറി", "ക്ഷമിക്കണം", "ക്ഷമിക്കണം"), "sorry"),
+        # ദയവായി is readable as well as insertable, like Tamil's தயவுசெய்து.
+        # ഒന്ന് is deliberately not a rule: it means "one/a bit" and softens
+        # any request, casual ones included.
+        Rule("polite.particle", ("", "", "", "ദയവായി"), "please"),
+        # Unlike its neighbours, Malayalam reaches Formal with a pronoun —
+        # താങ്കൾ — so the intensifier is optional rather than load-bearing, and
+        # slot 3 stays നന്ദി. Forcing വളരെ made "താങ്കൾക്ക് നന്ദി" unstable at
+        # its own level: already Formal, yet rewritten on arriving there.
+        Rule("greet.thanks", ("താങ്ക്സ്", "നന്ദി", "നന്ദി", "നന്ദി"), "thanks"),
+        # Tracks the imperative ladder rather than repeating ക്ഷമിക്കണം at
+        # both honorific levels, which made the necessitative unreadable as
+        # the Formal step it is.
+        Rule("greet.sorry", ("സോറി", "സോറി", "ക്ഷമിക്കൂ", "ക്ഷമിക്കണം"), "sorry"),
     ),
 )
 
