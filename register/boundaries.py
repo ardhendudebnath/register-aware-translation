@@ -25,6 +25,11 @@ __all__ = ["DELIMITER_CLASS", "LEFT", "RIGHT", "delimited"]
 #: space code points, which ``re`` read as a *range* — quietly promoting a large
 #: block of Unicode to "delimiter" and letting "sup" match inside "supper".
 #: Keep the hyphen escaped and last.
+#:
+#: Scripts bring their own punctuation and forgetting a mark silently disables
+#: the whole language: without U+06D4, the Urdu full stop, every sentence-final
+#: word failed the right-hand boundary check, so "یہاں بیٹھو۔" detected no
+#: register at all. Add a script's terminators when you add the script.
 DELIMITER_CLASS = (
     r"\s"                                       # whitespace, incl. NBSP
     r"\.,!\?;:"                                 # sentence punctuation
@@ -32,6 +37,7 @@ DELIMITER_CLASS = (
     "…—–"                        # ellipsis, em dash, en dash
     r"/\\\(\)\[\]\{\}"                          # slashes and brackets
     "।॥"                              # Devanagari danda, double danda
+    "۔،؟؛"          # Urdu/Arabic full stop, comma, question mark, semicolon
     "¿¡"                              # Spanish inverted ? and !
     "、。！？「」"      # CJK punctuation
     "​‌‍"                        # zero-width space / non-joiner / joiner
