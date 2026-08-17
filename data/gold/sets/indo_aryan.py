@@ -648,10 +648,17 @@ ODIA = LanguageSet(
         ("courtesy", [
             ("ମୋତେ କ୍ଷମା କର୍।", "ମୋତେ କ୍ଷମା କର।", "ମୋତେ କ୍ଷମା କରନ୍ତୁ।",
              "apology", "stranger", "v.imp.kariba"),
-            ("ତୋର ଧନ୍ୟବାଦ।", "ତୁମର ଧନ୍ୟବାଦ।", "ଆପଣଙ୍କୁ ଧନ୍ୟବାଦ।",
+            # Was ("ତୋର ଧନ୍ୟବାଦ।", "ତୁମର ଧନ୍ୟବାଦ।", "ଆପଣଙ୍କୁ ଧନ୍ୟବାଦ।") —
+            # genitive in the two informal columns and dative in the honorific
+            # one, so the row asked for a change of case as well as of
+            # register. The dative is the idiomatic frame for thanking in
+            # Odia, and it is what Hindi and Assamese use in the same row, so
+            # all three columns take it.
+            ("ତୋତେ ଧନ୍ୟବାଦ।", "ତୁମକୁ ଧନ୍ୟବାଦ।", "ଆପଣଙ୍କୁ ଧନ୍ୟବାଦ।",
              "greeting", "acquaintance", "pron.gen"),
         ]),
     ],
+    formal_lexical_groups=("courtesy",),
     formal=[
         ("ଦୟାକରି ଟିକେ ଅପେକ୍ଷା କରନ୍ତୁ।", "request", "official"),
         ("ଦୟାକରି ଏଠାରେ ସ୍ୱାକ୍ଷର କରନ୍ତୁ।", "admin", "official"),

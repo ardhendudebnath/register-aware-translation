@@ -543,8 +543,15 @@ ENGLISH = LanguageSet(
             # counting it wrong for abstaining.
             ("Can you give me a hand?", "Could you give me a hand?",
              "Could you kindly give me a hand?", "request", "colleague", "modal hedging"),
-            ("Can you send it over?", "Please send it over.", "Kindly send it over.",
-             "workplace", "colleague", "politeness marker"),
+            # Was ("Can you send it over?", "Please send it over.", "Kindly
+            # send it over.") — three columns using two different politeness
+            # strategies, so climbing the row meant turning a question into an
+            # imperative. That is a restructure, not a register step, and no
+            # substitution table can do it. The marker forms are still tested,
+            # as `hard` rows below, where only their reading is asked for.
+            ("Can you send it over?", "Could you send it over?",
+             "Could you kindly send it over?",
+             "workplace", "colleague", "modal hedging"),
         ]),
         ("greetings", [
             ("Hi.", "Hello.", "Good day.", "greeting", "stranger", "greeting"),
@@ -582,6 +589,12 @@ ENGLISH = LanguageSet(
     hard=[
         ("He is very kind.", None, "third person", "no second-person marker"),
         ("Thanks.", 1, "bare token", "single-word register signal"),
+        # The politeness markers on a bare imperative. Reading these is a fair
+        # ask; producing one from a question is not.
+        ("Please send it over.", 2, "politeness marker",
+         "please on an imperative that carries no register of its own"),
+        ("Kindly send it over.", 3, "politeness marker",
+         "kindly is the formal counterpart of please"),
     ],
 )
 
