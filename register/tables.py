@@ -2109,7 +2109,29 @@ ENGLISH = LanguageTable(
     canon=(1, 1, 2, 3),
     please=("", "", "please ", "kindly "),
     rules=(
+        # English has no T/V distinction at all, so every rule here is lexical
+        # or a hedge. That also means a bare imperative — "Send it over." —
+        # genuinely carries no register, and the detector abstaining on it is
+        # correct rather than a gap.
+        Rule("polite.particle", ("", "", "please", "kindly"), "please"),
         Rule("clause.can_you", ("can you", "can you", "could you", "could you kindly"), "request"),
+        Rule("clause.could_i", ("can i", "can I", "could I", "might I"), "may I"),
+        Rule("clause.i_think", ("i reckon", "I think", "I believe",
+                                "I am of the view"), "I think"),
+        Rule("clause.writing", ("just a note", "I'm writing", "I am writing",
+                                "I am writing to enquire"), "correspondence opener"),
+        Rule("clause.sorry_but", ("sorry but", "sorry, but", "I am afraid",
+                                  "I regret to say"), "softened refusal"),
+        Rule("clause.need_help", ("need a hand", "need help",
+                                  "need some assistance", "require assistance"), "help"),
+        Rule("word.ok", ("kk", "ok", "very well", "certainly"), "assent"),
+        Rule("word.buy", ("grab", "buy", "purchase", "purchase"), "buy"),
+        Rule("word.show", ("show", "show", "indicate", "indicate"), "show"),
+        Rule("word.start", ("kick off", "start", "begin", "commence"), "start"),
+        Rule("word.enough", ("enough", "enough", "sufficient", "sufficient"), "enough"),
+        Rule("word.about", ("about", "about", "regarding", "with regard to"), "about"),
+        Rule("word.but", ("but", "but", "however", "however"), "but"),
+        Rule("word.so", ("so", "so", "therefore", "therefore"), "so"),
         Rule("clause.want_to", ("wanna", "want to", "would like to", "should like to"), "want to"),
         Rule("clause.going_to", ("gonna", "going to", "going to", "intending to"), "going to"),
         Rule("clause.got_to", ("gotta", "have to", "need to", "am required to"), "have to"),
@@ -2433,6 +2455,84 @@ ODIA = LanguageTable(
     ),
 )
 
+# --------------------------------------------------------------------------
+# Assamese verb paradigms. (তই, তুমি, আপুনি)
+#
+# Shares the Bengali script but not the morphology, and the endings differ more
+# than the shared alphabet suggests. Thirteen rules covered a handful of
+# imperatives, so everything finite detected nothing.
+#
+# Lowest-confidence table in the project along with Odia and Nepali: drafted
+# from grammars, not spoken.
+# --------------------------------------------------------------------------
+
+_AS_PARADIGMS: Dict[str, Dict[str, Tuple[str, str, str]]] = {
+    "kara": {  # to do
+        "pres": ("কৰ", "কৰা", "কৰে"),
+        "cont": ("কৰি আছ", "কৰি আছা", "কৰি আছে"),
+        "future": ("কৰিবি", "কৰিবা", "কৰিব"),
+        "imp": ("কৰ", "কৰা", "কৰক"),
+    },
+    "jaa": {  # to go
+        "pres": ("যা", "যোৱা", "যায়"),
+        "future": ("যাবি", "যাবা", "যাব"),
+        "imp": ("যা", "যোৱা", "যাওক"),
+    },
+    "aha": {  # to come
+        "pres": ("আহ", "আহা", "আহে"),
+        "future": ("আহিবি", "আহিবা", "আহিব"),
+        "imp": ("আহ", "আহা", "আহক"),
+    },
+    "thaka": {  # to stay, to live
+        "pres": ("থাক", "থাকা", "থাকে"),
+        "imp": ("থাক", "থাকা", "থাকক"),
+    },
+    "khaa": {  # to eat
+        "pres": ("খা", "খোৱা", "খায়"),
+        "imp": ("খা", "খোৱা", "খাওক"),
+    },
+    "saa": {"imp": ("চা", "চোৱা", "চাওক")},        # to look
+    "suna": {"imp": ("শুন", "শুনা", "শুনক")},        # to hear
+    "diya": {"imp": ("দে", "দিয়া", "দিয়ক")},        # to give
+    "loa": {"imp": ("ল", "লোৱা", "লওক")},           # to take
+    "baha": {"imp": ("বহ", "বহা", "বহক")},          # to sit
+    "likha": {"imp": ("লিখ", "লিখা", "লিখক")},      # to write
+    "para": {"imp": ("পঢ়", "পঢ়া", "পঢ়ক")},         # to read
+    "kaba": {"imp": ("ক", "কোৱা", "কওক")},          # to say
+}
+
+_AS_TENSE_ORDER = ("cont", "future", "pres", "imp")
+
+#: An imperative closes its clause. Required by কোৱা's তই form, which is the
+#: single character ক — and the apostrophe in ক'ত ("where") counts as a word
+#: boundary, so a bare ক matched inside it and "আপোনাৰ ঘৰ ক'ত?" detected as
+#: Close off a one-letter false positive.
+_AS_CLAUSE_FINAL = r"\s*(?:[।!?.,]|$)"
+_AS_SHORT_IMPERATIVES = {"kaba", "loa"}
+
+
+def _as_verb_rules() -> Tuple[Rule, ...]:
+    out = []
+    for tense in _AS_TENSE_ORDER:
+        for verb, paradigm in _AS_PARADIGMS.items():
+            forms = paradigm.get(tense)
+            if not forms:
+                continue
+            toi, tumi, apuni = forms
+            if len({toi, tumi, apuni}) == 1:
+                continue
+            after = (
+                _AS_CLAUSE_FINAL
+                if tense == "imp" and verb in _AS_SHORT_IMPERATIVES
+                else ""
+            )
+            out.append(
+                Rule(f"v.{verb}.{tense}", (toi, tumi, apuni, apuni),
+                     f"{verb} · {tense}", require_after=after)
+            )
+    return tuple(out)
+
+
 ASSAMESE = LanguageTable(
     code="as",
     name="Assamese",
@@ -2446,17 +2546,23 @@ ASSAMESE = LanguageTable(
         "peer": ("", "বন্ধু", "দাদা", "চাৰ"),
         "official": ("", "চাৰ", "চাৰ", "চাৰ"),
     },
-    rules=(
+    rules=_as_verb_rules() + (
         Rule("pron.2sg.nom", ("তই", "তুমি", "আপুনি", "আপুনি"), "you"),
         Rule("pron.2sg.gen", ("তোৰ", "তোমাৰ", "আপোনাৰ", "আপোনাৰ"), "your"),
         Rule("pron.2sg.acc", ("তোক", "তোমাক", "আপোনাক", "আপোনাক"), "to you"),
-        Rule("cop.pres", ("আছ", "আছা", "আছে", "আছে"), "you are"),
-        Rule("v.kara.pres", ("কৰ", "কৰা", "কৰে", "কৰে"), "you do"),
-        Rule("v.kara.imp", ("কৰ", "কৰা", "কৰক", "কৰক"), "do!"),
-        Rule("v.jaa.imp", ("যা", "যোৱা", "যাওক", "যাওক"), "go!"),
-        Rule("v.aha.imp", ("আয়", "আহা", "আহক", "আহক"), "come!"),
-        Rule("v.kaba.imp", ("ক", "কোৱা", "কওক", "কওক"), "say!"),
-        Rule("v.baha.imp", ("বহ", "বহা", "বহক", "বহক"), "sit!"),
+        Rule("pron.2sg.dat", ("তোলৈ", "তোমালৈ", "আপোনালৈ", "আপোনালৈ"), "to you (dat)"),
+        # আছে is the আপুনি copula and also the ordinary third-person one, so
+        # "বৰষুণ দি আছে" ("it is raining") read as Polite. It needs a
+        # second-person pronoun nearby to count; আছ and আছা are unambiguous.
+        # Same shape as Gujarati છે.
+        Rule("cop.pres", ("আছ", "আছা", "আছে", "আছে"), "you are",
+             form_guards=(("আছে", "", "",
+                           r"(?:তই|তুমি|আপুনি|তোৰ|তোমাৰ|আপোনাৰ)(?:\s+\S+){0,6}\s+",
+                           ""),)),
+        # অনুগ্ৰহ কৰি marks Formal above the shared আপুনি, so it has to be
+        # readable, not merely insertable; the empty low slots drop it on the
+        # way down.
+        Rule("polite.particle", ("", "", "", "অনুগ্ৰহ কৰি"), "please"),
         Rule("greet.hello", ("এই", "হেলো", "নমস্কাৰ", "নমস্কাৰ"), "hello"),
         Rule("greet.thanks", ("থেংকছ", "ধন্যবাদ", "ধন্যবাদ", "বহুত ধন্যবাদ"), "thanks"),
         Rule("greet.sorry", ("চৰি", "চৰি", "ক্ষমা কৰিব", "ক্ষমা কৰিব"), "sorry"),
