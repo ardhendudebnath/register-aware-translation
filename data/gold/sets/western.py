@@ -87,12 +87,12 @@ GERMAN = LanguageSet(
              "Haben Sie eine Fahrkarte?", "transit", "conductor", "v.haben.inv"),
         ]),
     ],
+    formal_lexical_groups=("courtesy",),
     formal=[
         ("Sehr geehrte Damen und Herren,", "correspondence", "official"),
         ("Herzlichen Dank für Ihre Unterstützung.", "workplace", "official"),
         ("Ich bedanke mich vielmals.", "greeting", "official"),
         ("Mit freundlichen Grüßen", "correspondence", "official"),
-        ("Bitte nehmen Sie Platz.", "admin", "official"),
     ],
     no_marker=[
         ("Das Wetter ist heute gut.", "weather"),
