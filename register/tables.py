@@ -69,8 +69,9 @@ class Rule:
     guard_after: str = ""
     require_before: str = ""
     require_after: str = ""
-    #: Per-form context overrides, as ``(form, guard_before, require_before)``
-    #: triples. An empty string leaves that constraint unset.
+    #: Per-form context overrides, as
+    #: ``(form, guard_before, guard_after, require_before, require_after)``.
+    #: An empty string leaves that constraint at the rule's own value.
     #:
     #: Needed where a rule's forms are not equally ambiguous. Portuguese "estás"
     #: is unmistakably second person, but "está" is equally "he/she/it is" — so
@@ -79,9 +80,12 @@ class Rule:
     #: the તું copula *and* the ordinary third-person copula, so it needs a
     #: second-person subject nearby to count, while છો needs nothing.
     #:
-    #: A rule-level guard cannot express either: constraining the whole rule
-    #: would also constrain the unambiguous form.
-    form_guards: Tuple[Tuple[str, str, str], ...] = ()
+    #: Japanese だ is a third case: with no word boundaries at all it matches
+    #: inside ください, so it needs a require_after, while です needs nothing.
+    #:
+    #: A rule-level guard cannot express any of these: constraining the whole
+    #: rule would also constrain the unambiguous form.
+    form_guards: Tuple[Tuple[str, str, str, str, str], ...] = ()
     #: Use this rule when rewriting, but never as evidence when detecting.
     #:
     #: For words that are register-*neutral* in themselves but have a polite
@@ -990,7 +994,7 @@ GUJARATI = LanguageTable(
         # Casual. It only counts as second person with તું nearby; છો is
         # unambiguous and needs nothing.
         Rule("cop.pres", ("છે", "છે", "છો", "છો"), "you are",
-             form_guards=(("છે", "", r"તું(?:\s+\S+){0,6}\s+"),)),
+             form_guards=(("છે", "", "", r"તું(?:\s+\S+){0,6}\s+", ""),)),
         # કૃપા કરીને is the marker that separates Formal from Polite here, so
         # it has to be readable, not just insertable via `please`. જરા is left
         # out for the same reason as Tamil கொஞ்சம் — it just means "a little".
@@ -1002,6 +1006,74 @@ GUJARATI = LanguageTable(
         Rule("greet.sorry", ("સોરી", "સોરી", "માફ કરશો", "ક્ષમા કરશો"), "sorry"),
     ),
 )
+
+# --------------------------------------------------------------------------
+# Punjabi verb paradigms. (ਤੂੰ, ਤੁਸੀਂ)
+#
+# Imperative-only, like every other table before it was deepened, so the
+# present, continuous and future all detected nothing.
+# --------------------------------------------------------------------------
+
+_PA_PARADIGMS: Dict[str, Dict[str, Tuple[str, str]]] = {
+    "karna": {
+        "pres.m": ("ਕਰਦਾ ਹੈਂ", "ਕਰਦੇ ਹੋ"),
+        "pres.f": ("ਕਰਦੀ ਹੈਂ", "ਕਰਦੀਆਂ ਹੋ"),
+        "cont.m": ("ਕਰ ਰਿਹਾ ਹੈਂ", "ਕਰ ਰਹੇ ਹੋ"),
+        "future.m": ("ਕਰੇਂਗਾ", "ਕਰੋਗੇ"),
+        "imp": ("ਕਰ", "ਕਰੋ"),
+    },
+    "jana": {
+        "pres.m": ("ਜਾਂਦਾ ਹੈਂ", "ਜਾਂਦੇ ਹੋ"),
+        "cont.m": ("ਜਾ ਰਿਹਾ ਹੈਂ", "ਜਾ ਰਹੇ ਹੋ"),
+        "future.m": ("ਜਾਵੇਂਗਾ", "ਜਾਓਗੇ"),
+        "imp": ("ਜਾ", "ਜਾਓ"),
+    },
+    "auna": {
+        "pres.m": ("ਆਉਂਦਾ ਹੈਂ", "ਆਉਂਦੇ ਹੋ"),
+        "future.m": ("ਆਵੇਂਗਾ", "ਆਓਗੇ"),
+        "imp": ("ਆ", "ਆਓ"),
+    },
+    "rahna": {"pres.m": ("ਰਹਿੰਦਾ ਹੈਂ", "ਰਹਿੰਦੇ ਹੋ")},
+    "bolna": {"pres.m": ("ਬੋਲਦਾ ਹੈਂ", "ਬੋਲਦੇ ਹੋ"), "imp": ("ਬੋਲ", "ਬੋਲੋ")},
+    "dassna": {"pres.m": ("ਦੱਸਦਾ ਹੈਂ", "ਦੱਸਦੇ ਹੋ"), "imp": ("ਦੱਸ", "ਦੱਸੋ")},
+    "vekhna": {"pres.m": ("ਵੇਖਦਾ ਹੈਂ", "ਵੇਖਦੇ ਹੋ"), "imp": ("ਵੇਖ", "ਵੇਖੋ")},
+    "sunna": {"pres.m": ("ਸੁਣਦਾ ਹੈਂ", "ਸੁਣਦੇ ਹੋ"), "imp": ("ਸੁਣ", "ਸੁਣੋ")},
+    "khana": {"pres.m": ("ਖਾਂਦਾ ਹੈਂ", "ਖਾਂਦੇ ਹੋ"), "imp": ("ਖਾ", "ਖਾਓ")},
+    "samajhna": {"pres.m": ("ਸਮਝਦਾ ਹੈਂ", "ਸਮਝਦੇ ਹੋ")},
+    "janna": {"pres.m": ("ਜਾਣਦਾ ਹੈਂ", "ਜਾਣਦੇ ਹੋ")},
+    "sakna": {"pres.m": ("ਸਕਦਾ ਹੈਂ", "ਸਕਦੇ ਹੋ")},
+    "pina": {"imp": ("ਪੀ", "ਪੀਓ")},
+    "lena": {"imp": ("ਲੈ", "ਲਵੋ")},
+    "dena": {"imp": ("ਦੇ", "ਦਿਓ")},
+    "baithna": {"imp": ("ਬੈਠ", "ਬੈਠੋ")},
+    "uthna": {"imp": ("ਉੱਠ", "ਉੱਠੋ")},
+    "rukna": {"imp": ("ਰੁਕ", "ਰੁਕੋ")},
+    "likhna": {"imp": ("ਲਿਖ", "ਲਿਖੋ")},
+    "padhna": {"imp": ("ਪੜ੍ਹ", "ਪੜ੍ਹੋ")},
+    "kholna": {"imp": ("ਖੋਲ੍ਹ", "ਖੋਲ੍ਹੋ")},
+    "utarna": {"imp": ("ਉਤਰ", "ਉਤਰੋ")},
+    "maf_karna": {"imp": ("ਮਾਫ਼ ਕਰ", "ਮਾਫ਼ ਕਰੋ")},
+    "madad_karna": {"imp": ("ਮਦਦ ਕਰ", "ਮਦਦ ਕਰੋ")},
+}
+
+_PA_TENSE_ORDER = ("cont.m", "future.m", "pres.m", "pres.f", "imp")
+
+
+def _pa_verb_rules() -> Tuple[Rule, ...]:
+    out = []
+    for tense in _PA_TENSE_ORDER:
+        for verb, paradigm in _PA_PARADIGMS.items():
+            forms = paradigm.get(tense)
+            if not forms:
+                continue
+            tu, tusi = forms
+            if tu == tusi:
+                continue
+            out.append(
+                Rule(f"v.{verb}.{tense}", (tu, tu, tusi, tusi), f"{verb} · {tense}")
+            )
+    return tuple(out)
+
 
 PUNJABI = LanguageTable(
     code="pa",
@@ -1020,21 +1092,25 @@ PUNJABI = LanguageTable(
         "peer": ("", "ਯਾਰ", "ਵੀਰ ਜੀ", "ਸਰ"),
         "official": ("", "ਸਾਹਬ", "ਸਾਹਬ", "ਸਰ"),
     },
-    rules=(
+    rules=_pa_verb_rules() + (
         Rule("pron.2sg.nom", ("ਤੂੰ", "ਤੂੰ", "ਤੁਸੀਂ", "ਤੁਸੀਂ"), "you"),
         Rule("pron.2sg.dat", ("ਤੈਨੂੰ", "ਤੈਨੂੰ", "ਤੁਹਾਨੂੰ", "ਤੁਹਾਨੂੰ"), "to you"),
         Rule("pron.2sg.gen", ("ਤੇਰਾ", "ਤੇਰਾ", "ਤੁਹਾਡਾ", "ਤੁਹਾਡਾ"), "your"),
+        # The oblique and feminine genitives were missing, so "ਇਹ ਤੇਰੇ ਲਈ ਹੈ"
+        # matched nothing at all.
+        Rule("pron.2sg.gen.obl", ("ਤੇਰੇ", "ਤੇਰੇ", "ਤੁਹਾਡੇ", "ਤੁਹਾਡੇ"), "your (obl)"),
+        Rule("pron.2sg.gen.f", ("ਤੇਰੀ", "ਤੇਰੀ", "ਤੁਹਾਡੀ", "ਤੁਹਾਡੀ"), "your (f)"),
         Rule("cop.pres", ("ਹੈਂ", "ਹੈਂ", "ਹੋ", "ਹੋ"), "you are"),
-        Rule("v.karna.imp", ("ਕਰ", "ਕਰ", "ਕਰੋ", "ਕਰੋ"), "do!"),
-        Rule("v.auna.imp", ("ਆ", "ਆ", "ਆਓ", "ਆਓ"), "come!"),
-        Rule("v.jana.imp", ("ਜਾ", "ਜਾ", "ਜਾਓ", "ਜਾਓ"), "go!"),
-        Rule("v.baithna.imp", ("ਬੈਠ", "ਬੈਠ", "ਬੈਠੋ", "ਬੈਠੋ"), "sit!"),
-        Rule("v.dassna.imp", ("ਦੱਸ", "ਦੱਸ", "ਦੱਸੋ", "ਦੱਸੋ"), "tell!"),
-        Rule("v.lena.imp", ("ਲੈ", "ਲੈ", "ਲਵੋ", "ਲਵੋ"), "take!"),
-        Rule("v.dena.imp", ("ਦੇ", "ਦੇ", "ਦਿਓ", "ਦਿਓ"), "give!"),
-        Rule("v.vekhna.imp", ("ਵੇਖ", "ਵੇਖ", "ਵੇਖੋ", "ਵੇਖੋ"), "look!"),
+        # ਕਿਰਪਾ ਕਰਕੇ is what marks Formal above the shared ਤੁਸੀਂ, so it has to
+        # be readable. Empty low slots mean it is dropped on the way down.
+        Rule("polite.particle", ("", "", "", "ਕਿਰਪਾ ਕਰਕੇ"), "please"),
         Rule("greet.hello", ("ਓਏ", "ਹੈਲੋ", "ਸਤ ਸ੍ਰੀ ਅਕਾਲ", "ਸਤ ਸ੍ਰੀ ਅਕਾਲ"), "hello"),
-        Rule("greet.thanks", ("ਥੈਂਕਸ", "ਸ਼ੁਕਰੀਆ", "ਧੰਨਵਾਦ", "ਬਹੁਤ ਧੰਨਵਾਦ"), "thanks"),
+        # ਧੰਨਵਾਦ is the ordinary thanks word and is used at Casual as much as at
+        # Polite, so it sits in both slots rather than only the upper one. That
+        # is what stops "ਤੇਰਾ ਧੰਨਵਾਦ" reading Polite off the noun instead of
+        # Casual off the ਤੇਰਾ — and unlike rewrite_only it leaves ਬਹੁਤ ਧੰਨਵਾਦ
+        # free to be the evidence a Formal sentence needs.
+        Rule("greet.thanks", ("ਥੈਂਕਸ", "ਧੰਨਵਾਦ", "ਧੰਨਵਾਦ", "ਬਹੁਤ ਧੰਨਵਾਦ"), "thanks"),
         Rule("greet.sorry", ("ਸੌਰੀ", "ਸੌਰੀ", "ਮਾਫ਼ ਕਰਨਾ", "ਖਿਮਾ ਕਰਨਾ"), "sorry"),
     ),
 )
@@ -1876,7 +1952,7 @@ def _pt_verb_rules() -> Tuple[Rule, ...]:
     out = [
         Rule(f"v.{stem}", (tu, polite, polite, polite), gloss,
              guard_before=_PT_3P_SUBJECT,
-             form_guards=(((_PT_SYNCRETIC[stem], _PT_IMPERSONAL, ""),)
+             form_guards=(((_PT_SYNCRETIC[stem], _PT_IMPERSONAL, "", "", ""),)
                           if stem in _PT_SYNCRETIC else ()))
         for stem, tu, polite, gloss in _PT_VERBS
     ]
@@ -1922,28 +1998,102 @@ PORTUGUESE = LanguageTable(
 # East Asian
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# Japanese verb paradigms.
+#
+# Japanese is the one language here where register does not attach to a second
+# person at all. です and ます mark the speaker's stance toward the *listener*,
+# so "今日はいい天気です" is polite while being about the weather. Everything
+# else in this project keys off a pronoun; Japanese keys off the sentence
+# ending, and the table is a list of those endings.
+#
+# Each entry is (plain, ます, 敬語). The third column is honorific or humble
+# vocabulary rather than an inflection — 見る becomes 拝見する, not 見られる —
+# which is why real keigo needs morphological analysis and this table only
+# claims the sentence-final spine.
+# --------------------------------------------------------------------------
+
+_JA_PARADIGMS: Tuple[Tuple[str, str, str, str], ...] = (
+    # gloss,     plain,        masu,            keigo
+    ("suru", "する", "します", "いたします"),
+    ("suru.past", "した", "しました", "いたしました"),
+    ("suru.neg", "しない", "しません", "いたしません"),
+    ("iku", "行く", "行きます", "まいります"),
+    ("iku.past", "行った", "行きました", "まいりました"),
+    ("kuru", "来る", "来ます", "まいります"),
+    ("kuru.past", "来た", "来ました", "まいりました"),
+    ("miru", "見る", "見ます", "拝見します"),
+    ("miru.past", "見た", "見ました", "拝見しました"),
+    ("taberu", "食べる", "食べます", "いただきます"),
+    ("nomu", "飲む", "飲みます", "いただきます"),
+    ("iu", "言う", "言います", "申します"),
+    ("iru", "いる", "います", "おります"),
+    ("aru", "ある", "あります", "ございます"),
+    ("nai", "ない", "ありません", "ございません"),
+    ("morau", "もらう", "もらいます", "いただきます"),
+    ("shiru", "知ってる", "知っています", "存じております"),
+    ("kau", "買う", "買います", "お求めになります"),
+    ("matsu", "待つ", "待ちます", "お待ちします"),
+    ("hanasu", "話す", "話します", "お話しします"),
+    ("kiku", "聞く", "聞きます", "伺います"),
+    ("yomu", "読む", "読みます", "拝読します"),
+    ("kaku", "書く", "書きます", "お書きします"),
+    ("wakaru", "分かる", "分かります", "承知しております"),
+    ("dekiru", "できる", "できます", "いたしかねます"),
+    ("omou", "思う", "思います", "存じます"),
+    ("au", "会う", "会います", "お目にかかります"),
+    ("kaeru", "帰る", "帰ります", "失礼します"),
+    ("tsukau", "使う", "使います", "使わせていただきます"),
+    ("motsu", "持つ", "持ちます", "お持ちします"),
+    ("suwaru", "座る", "座ります", "お掛けになります"),
+    ("yasumu", "休む", "休みます", "お休みになります"),
+    ("oshieru", "教える", "教えます", "お教えします"),
+    ("mirareru", "見せる", "見せます", "お見せします"),
+    ("ageru", "あげる", "あげます", "差し上げます"),
+)
+
+#: The bare copula only counts at the end of a clause.
+#:
+#: Japanese has no word boundaries, so matching is substring-based, and だ
+#: occurs inside perfectly ordinary words — ください is く-だ-さい. Without this
+#: the honorific "恐れ入りますが、少々お待ちください" detected as Casual with
+#: full confidence, on the strength of the だ buried in ください.
+_JA_CLAUSE_FINAL = r"(?:[。．.!?！？、，]|$|ね|よ|な|ぞ|わ)"
+
+
+def _ja_verb_rules() -> Tuple[Rule, ...]:
+    return tuple(
+        Rule(f"v.{name}", (plain, plain, masu, keigo), name)
+        for name, plain, masu, keigo in _JA_PARADIGMS
+        if len({plain, masu, keigo}) > 1
+    )
+
+
 JAPANESE = LanguageTable(
     code="ja",
     name="Japanese",
     canon=(1, 1, 2, 3),
     boundary="none",
     please=("", "", "", ""),
-    rules=(
-        # Ordered so that longer, more specific spines win over bare copulas.
+    # Matching is longest-first, so the multi-character spines beat the bare
+    # copula nested inside them without needing declaration order to say so.
+    rules=_ja_verb_rules() + (
         Rule("polite.arigatou", ("ありがと", "ありがとう", "ありがとうございます", "誠にありがとうございます"), "thanks"),
         Rule("polite.gomen", ("ごめん", "ごめんね", "すみません", "申し訳ございません"), "sorry"),
-        Rule("v.suru", ("する", "する", "します", "いたします"), "do"),
-        Rule("v.shita", ("した", "した", "しました", "いたしました"), "did"),
-        Rule("v.iku", ("行く", "行く", "行きます", "まいります"), "go"),
-        Rule("v.kuru", ("来る", "来る", "来ます", "まいります"), "come"),
-        Rule("v.miru", ("見る", "見る", "見ます", "拝見します"), "see"),
-        Rule("v.taberu", ("食べる", "食べる", "食べます", "いただきます"), "eat"),
-        Rule("v.iu", ("言う", "言う", "言います", "申します"), "say"),
-        Rule("v.iru", ("いる", "いる", "います", "おります"), "be (animate)"),
-        Rule("v.aru", ("ある", "ある", "あります", "ございます"), "be (inanimate)"),
-        Rule("v.morau", ("もらう", "もらう", "もらいます", "いただきます"), "receive"),
-        Rule("v.shiru", ("知ってる", "知っている", "知っています", "存じております"), "know"),
-        Rule("cop.da", ("だ", "だ", "です", "でございます"), "is"),
+        Rule("polite.onegai", ("頼む", "お願い", "お願いします", "お願いいたします"), "please"),
+        Rule("polite.osoreirimasu", ("悪いけど", "すみませんが", "恐れ入りますが",
+                                     "恐れ入りますが"), "excuse me, but"),
+        # The copula drops entirely before the question particle: plain
+        # "これはいくらか。" against polite "これはいくらですか。". Rewriting です to
+        # だ blindly produced "だか", which is not Japanese. Longer than cop.da,
+        # so it wins the match; the bare か is clause-final only, or it would
+        # fire inside から and every disjunction.
+        Rule("cop.desu.ka", ("か", "か", "ですか", "でございますか"), "is …?",
+             form_guards=(("か", "", "", "", _JA_CLAUSE_FINAL),)),
+        # だ only counts clause-finally — see _JA_CLAUSE_FINAL. です needs no
+        # such guard: it does not occur inside other words.
+        Rule("cop.da", ("だ", "だ", "です", "でございます"), "is",
+             form_guards=(("だ", "", "", "", _JA_CLAUSE_FINAL),)),
         Rule("greet.hello", ("やあ", "こんにちは", "こんにちは", "お世話になっております"), "hello"),
     ),
 )
