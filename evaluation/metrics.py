@@ -330,10 +330,18 @@ def evaluate(cases: Sequence[Case], language: Optional[str] = None) -> Evaluatio
 
 
 def _mask(text: str, spans: Iterable[str]) -> str:
-    """Remove the substrings the engine claims to have edited."""
+    """
+    Remove the substrings the engine claims to have edited.
+
+    Case-insensitively, because an edit records the replacement *before*
+    sentence-initial capitalisation is restored: rewriting "Scusa." reports
+    ``Scusa -> scusi`` while the output reads "Scusi.". Matching case-sensitively
+    left the whole word unmasked and scored an otherwise perfect one-word
+    rewrite at 0.29.
+    """
     out = text
     for span in sorted(set(s for s in spans if s), key=len, reverse=True):
-        out = out.replace(span, " ")
+        out = re.sub(re.escape(span), " ", out, flags=re.IGNORECASE)
     return re.sub(r"\s+", " ", out).strip()
 
 

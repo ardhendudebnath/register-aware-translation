@@ -69,6 +69,15 @@ class Rule:
     guard_after: str = ""
     require_before: str = ""
     require_after: str = ""
+    #: Use this rule when rewriting, but never as evidence when detecting.
+    #:
+    #: For words that are register-*neutral* in themselves but have a polite
+    #: elaboration. Italian "Grazie" is said at every level; "La ringrazio" is
+    #: markedly formal. Listing Grazie in the low slots makes the upgrade work,
+    #: but it also let a bare "Grazie a Lei" outvote the Lei and detect as
+    #: Casual — the rule was supplying evidence for a level the word does not
+    #: actually carry.
+    rewrite_only: bool = False
     #: Name of a selector in :mod:`register.selectors`, for rules whose
     #: replacement cannot be read straight out of the tuple because it depends
     #: on surrounding words. French ``votre`` carries no gender, so downgrading
@@ -1336,6 +1345,119 @@ FRENCH = LanguageTable(
     ),
 )
 
+# --------------------------------------------------------------------------
+# Spanish verbs.
+#
+# Same shape of problem as Italian — usted takes third-person agreement, so
+# "es" is both "you are" and "he/she is" — but *without* Italian's escape
+# hatch: Spanish does not capitalise usted, so there is no casing cue. The
+# left-context guard is the only tool, and Spanish drops subject pronouns
+# freely, so some ambiguity is irreducible.
+#
+# Each entry is (tú, usted).
+# --------------------------------------------------------------------------
+
+_ES_VERBS: Tuple[Tuple[str, str, str, str], ...] = (
+    ("ser", "eres", "es", "you are"),
+    ("estar", "estás", "está", "you are (state)"),
+    ("tener", "tienes", "tiene", "you have"),
+    ("poder", "puedes", "puede", "you can"),
+    ("querer", "quieres", "quiere", "you want"),
+    ("ir", "vas", "va", "you go"),
+    ("venir", "vienes", "viene", "you come"),
+    ("hacer", "haces", "hace", "you do"),
+    ("decir", "dices", "dice", "you say"),
+    ("dar", "das", "da", "you give"),
+    ("ver", "ves", "ve", "you see"),
+    ("saber", "sabes", "sabe", "you know"),
+    ("conocer", "conoces", "conoce", "you know (someone)"),
+    ("hablar", "hablas", "habla", "you speak"),
+    ("vivir", "vives", "vive", "you live"),
+    ("trabajar", "trabajas", "trabaja", "you work"),
+    ("comer", "comes", "come", "you eat"),
+    ("beber", "bebes", "bebe", "you drink"),
+    ("entender", "entiendes", "entiende", "you understand"),
+    ("necesitar", "necesitas", "necesita", "you need"),
+    ("llegar", "llegas", "llega", "you arrive"),
+    ("esperar", "esperas", "espera", "you wait"),
+    ("pagar", "pagas", "paga", "you pay"),
+    ("comprar", "compras", "compra", "you buy"),
+    ("ayudar", "ayudas", "ayuda", "you help"),
+    ("escribir", "escribes", "escribe", "you write"),
+    ("leer", "lees", "lee", "you read"),
+    ("abrir", "abres", "abre", "you open"),
+    ("pensar", "piensas", "piensa", "you think"),
+    ("volver", "vuelves", "vuelve", "you return"),
+)
+
+#: Reflexives and the dative frame, where the clitic moves with the register:
+#: te llamas -> se llama, te gusta -> le gusta.
+_ES_CLITIC: Tuple[Tuple[str, str, str, str], ...] = (
+    ("llamarse", "te llamas", "se llama", "you are called"),
+    ("sentarse", "te sientas", "se sienta", "you sit"),
+    ("gustar", "te gusta", "le gusta", "you like"),
+    ("parecer", "te parece", "le parece", "you think"),
+    ("importar", "te importa", "le importa", "you mind"),
+)
+
+#: Imperatives, built from the subjunctive for usted and so not derivable from
+#: the indicative. Several tú forms are irregular one-syllable stems.
+_ES_IMPERATIVES: Tuple[Tuple[str, str, str, str], ...] = (
+    ("hablar", "habla", "hable", "speak!"),
+    ("comer", "come", "coma", "eat!"),
+    ("abrir", "abre", "abra", "open!"),
+    ("venir", "ven", "venga", "come!"),
+    ("decir", "di", "diga", "say!"),
+    ("hacer", "haz", "haga", "do!"),
+    ("ir", "ve", "vaya", "go!"),
+    ("tener", "ten", "tenga", "have!"),
+    ("poner", "pon", "ponga", "put!"),
+    ("salir", "sal", "salga", "leave!"),
+    ("esperar", "espera", "espere", "wait!"),
+    ("perdonar", "perdona", "perdone", "forgive!"),
+    ("disculpar", "disculpa", "disculpe", "excuse!"),
+    ("pasar", "pasa", "pase", "come in!"),
+    ("mirar", "mira", "mire", "look!"),
+    ("escuchar", "escucha", "escuche", "listen!"),
+    ("dime", "dime", "dígame", "tell me!"),
+)
+
+#: Explicit third-person subjects. Spanish omits pronouns far more than Italian
+#: does, so this catches fewer cases than the Italian equivalent — the residue
+#: is genuine ambiguity, not a missing rule.
+_ES_3P_SUBJECT = r"\b(?:él|ella|ellos|ellas|quien|quién|que|uno|alguien|nadie)\s+"
+
+#: An imperative heads its clause. This is what separates the two readings of
+#: "espera": the *usted* indicative ("he/she waits", "you wait") and the *tú*
+#: imperative ("wait!") are the same string at opposite ends of the scale, so
+#: "Espere un momento" downgraded to "Espera un momento" and then read back as
+#: Polite. Position is the only cue Spanish gives.
+_CLAUSE_INITIAL = r"(?:^|[.!?¡¿,;:]\s*)"
+
+
+def _es_verb_rules() -> Tuple[Rule, ...]:
+    imperative_tu = {tu for _, tu, _, _ in _ES_IMPERATIVES}
+    out = []
+    for stem, tu, usted, gloss in _ES_VERBS:
+        # Where the usted indicative collides with some verb's tú imperative,
+        # keep the indicative out of clause-initial position.
+        collides = usted in imperative_tu
+        out.append(
+            Rule(f"v.{stem}", (tu, tu, usted, usted), gloss,
+                 guard_before=(f"{_ES_3P_SUBJECT}|{_CLAUSE_INITIAL}"
+                               if collides else _ES_3P_SUBJECT))
+        )
+    out += [
+        Rule(f"v.{stem}.clitic", (tu, tu, usted, usted), gloss)
+        for stem, tu, usted, gloss in _ES_CLITIC
+    ]
+    out += [
+        Rule(f"v.{stem}.imp", (tu, tu, usted, usted), gloss)
+        for stem, tu, usted, gloss in _ES_IMPERATIVES
+    ]
+    return tuple(out)
+
+
 SPANISH = LanguageTable(
     code="es",
     name="Spanish",
@@ -1345,25 +1467,22 @@ SPANISH = LanguageTable(
     # would throw that away, so both slots stay live.
     canon=(1, 1, 2, 3),
     please=("", "", "por favor ", "por favor "),
-    rules=(
+    rules=_es_verb_rules() + (
         Rule("clause.como_estas", ("¿Cómo estás?", "¿Cómo estás?", "¿Cómo está usted?", "¿Cómo está usted?"), "how are you"),
         Rule("pron.2sg.nom", ("tú", "tú", "usted", "usted"), "you"),
         Rule("pron.2sg.obj", ("te", "te", "le", "le"), "you (obj)"),
         Rule("pron.2sg.prep", ("ti", "ti", "usted", "usted"), "you (prep)"),
+        Rule("pron.2sg.com", ("contigo", "contigo", "con usted", "con usted"), "with you"),
         Rule("poss.sg", ("tu", "tu", "su", "su"), "your"),
         Rule("poss.pl", ("tus", "tus", "sus", "sus"), "your (pl)"),
-        Rule("v.ser", ("eres", "eres", "es", "es"), "you are"),
-        Rule("v.estar", ("estás", "estás", "está", "está"), "you are (state)"),
-        Rule("v.tener", ("tienes", "tienes", "tiene", "tiene"), "you have"),
-        Rule("v.poder", ("puedes", "puedes", "puede", "puede"), "you can"),
-        Rule("v.querer", ("quieres", "quieres", "quiere", "quiere"), "you want"),
-        Rule("v.hablar", ("hablas", "hablas", "habla", "habla"), "you speak"),
-        Rule("v.hacer.imp", ("haz", "haz", "haga", "haga"), "do!"),
-        Rule("v.venir.imp", ("ven", "ven", "venga", "venga"), "come!"),
-        Rule("v.decir.imp", ("di", "di", "diga", "diga"), "say!"),
         Rule("greet.hello", ("Ey", "Hola", "Buenos días", "Buenos días"), "hello"),
         Rule("greet.bye", ("Chao", "Adiós", "Hasta luego", "Que tenga un buen día"), "goodbye"),
-        Rule("greet.thanks", ("Gracias", "Gracias", "Muchas gracias", "Le agradezco mucho"), "thanks"),
+        # Drop-in at every slot — see the Italian note. "Le agradezco mucho" is
+        # a clause and produced "Le agradezco mucho a usted".
+        Rule("greet.thanks", ("Gracias", "Gracias", "Muchas gracias", "Muchísimas gracias"),
+             "thanks", rewrite_only=True),
+        Rule("clause.agradezco", ("te agradezco", "te agradezco",
+                                  "le agradezco", "le agradezco"), "I thank you"),
         Rule("greet.sorry", ("Perdón", "Perdón", "Disculpe", "Le pido disculpas"), "sorry"),
     ),
 )
@@ -1371,6 +1490,103 @@ SPANISH = LanguageTable(
 # Lowercase third-person subjects. Capitalised "Lei" is the polite pronoun and
 # must NOT appear here.
 _IT_3P_SUBJECT = r"\b(?:lui|lei|egli|ella|esso|essa|chi)\s+"
+
+# --------------------------------------------------------------------------
+# Italian verbs.
+#
+# Harder than French, and it showed: 66.7% detection, the worst in the project.
+# French marks the polite form with its own conjugation (êtes, avez), so the
+# verb alone settles it. Italian polite Lei takes *third-person* agreement, so
+# "è" is both "you are" and "he/she is" and the verb settles nothing.
+#
+# Two things carry the distinction, and the table uses both:
+#   * capitalisation — polite Lei is capitalised by convention even
+#     mid-sentence, so `cased` rules can tell Lei from lei (she)
+#   * the left context — a lowercase third-person subject blocks the reading
+#
+# Each entry is (tu, Lei).
+# --------------------------------------------------------------------------
+
+_IT_VERBS: Tuple[Tuple[str, str, str, str], ...] = (
+    # stem,        tu,          Lei,        gloss
+    ("essere", "sei", "è", "you are"),
+    ("avere", "hai", "ha", "you have"),
+    ("stare", "stai", "sta", "you are (state)"),
+    ("fare", "fai", "fa", "you do"),
+    ("andare", "vai", "va", "you go"),
+    ("venire", "vieni", "viene", "you come"),
+    ("potere", "puoi", "può", "you can"),
+    ("volere", "vuoi", "vuole", "you want"),
+    ("dovere", "devi", "deve", "you must"),
+    ("sapere", "sai", "sa", "you know"),
+    ("dire", "dici", "dice", "you say"),
+    ("dare", "dai", "dà", "you give"),
+    ("vedere", "vedi", "vede", "you see"),
+    ("parlare", "parli", "parla", "you speak"),
+    ("abitare", "abiti", "abita", "you live"),
+    ("lavorare", "lavori", "lavora", "you work"),
+    ("mangiare", "mangi", "mangia", "you eat"),
+    ("bere", "bevi", "beve", "you drink"),
+    ("capire", "capisci", "capisce", "you understand"),
+    ("conoscere", "conosci", "conosce", "you know (someone)"),
+    ("prendere", "prendi", "prende", "you take"),
+    ("aspettare", "aspetti", "aspetta", "you wait"),
+    ("arrivare", "arrivi", "arriva", "you arrive"),
+    ("pagare", "paghi", "paga", "you pay"),
+    ("comprare", "compri", "compra", "you buy"),
+    ("aiutare", "aiuti", "aiuta", "you help"),
+    ("sentire", "senti", "sente", "you hear"),
+    ("scrivere", "scrivi", "scrive", "you write"),
+    ("leggere", "leggi", "legge", "you read"),
+    ("vivere", "vivi", "vive", "you live"),
+)
+
+#: Reflexives, where the clitic moves too: ti chiami -> si chiama.
+_IT_REFLEXIVES: Tuple[Tuple[str, str, str, str], ...] = (
+    ("chiamarsi", "ti chiami", "si chiama", "you are called"),
+    ("sentirsi", "ti senti", "si sente", "you feel"),
+    ("accomodarsi", "ti accomodi", "si accomoda", "you make yourself comfortable"),
+)
+
+#: Imperatives. Italian builds the polite one from the subjunctive, so it is
+#: not derivable from the indicative above.
+_IT_IMPERATIVES: Tuple[Tuple[str, str, str, str], ...] = (
+    ("parlare", "parla", "parli", "speak!"),
+    ("mangiare", "mangia", "mangi", "eat!"),
+    ("prendere", "prendi", "prenda", "take!"),
+    ("aspettare", "aspetta", "aspetti", "wait!"),
+    ("scusare", "scusa", "scusi", "excuse!"),
+    ("dire", "di'", "dica", "say!"),
+    ("fare", "fa'", "faccia", "do!"),
+    ("andare", "va'", "vada", "go!"),
+    ("venire", "vieni", "venga", "come!"),
+    ("dare", "da'", "dia", "give!"),
+    ("sentire", "senti", "senta", "listen!"),
+    ("entrare", "entra", "entri", "come in!"),
+    ("guardare", "guarda", "guardi", "look!"),
+)
+
+#: Lowercase third-person subjects. Capitalised "Lei" is the polite pronoun and
+#: must never appear here.
+_IT_3P_SUBJECT_FULL = r"\b(?:lui|lei|egli|ella|esso|essa|chi|che)\s+"
+
+
+def _it_verb_rules() -> Tuple[Rule, ...]:
+    out = [
+        Rule(f"v.{stem}", (tu, tu, lei, lei), gloss,
+             cased=True, guard_before=_IT_3P_SUBJECT_FULL)
+        for stem, tu, lei, gloss in _IT_VERBS
+    ]
+    out += [
+        Rule(f"v.{stem}.refl", (tu, tu, lei, lei), gloss, cased=True)
+        for stem, tu, lei, gloss in _IT_REFLEXIVES
+    ]
+    out += [
+        Rule(f"v.{stem}.imp", (tu, tu, lei, lei), gloss, cased=True)
+        for stem, tu, lei, gloss in _IT_IMPERATIVES
+    ]
+    return tuple(out)
+
 
 ITALIAN = LanguageTable(
     code="it",
@@ -1381,7 +1597,7 @@ ITALIAN = LanguageTable(
     # would throw that away, so both slots stay live.
     canon=(1, 1, 2, 3),
     please=("", "", "per favore ", "per cortesia "),
-    rules=(
+    rules=_it_verb_rules() + (
         # Known limitation. Italian polite "Lei" is capitalised by convention
         # even mid-sentence, which is what makes `cased` work here — lowercase
         # "lei" (she) and "le" (the/to her) are correctly left alone. But at the
@@ -1390,29 +1606,32 @@ ITALIAN = LanguageTable(
         # German kind can separate them. Sentence-initial Lei is therefore read
         # as polite. Mid-sentence casing carries the distinction correctly.
         Rule("clause.come_stai", ("Come stai?", "Come stai?", "Come sta?", "Come sta?"), "how are you"),
+        Rule("clause.dimmi", ("dimmi", "dimmi", "mi dica", "mi dica"), "tell me!"),
         Rule("pron.2sg.nom", ("tu", "tu", "Lei", "Lei"), "you", cased=True),
         Rule("pron.2sg.obj", ("ti", "ti", "Le", "Le"), "you (obj)", cased=True),
+        # Tonic "te" after a preposition was missing, so "Questo è per te"
+        # had only the ambiguous "è" to go on and read as Polite.
+        Rule("pron.2sg.tonic", ("te", "te", "Lei", "Lei"), "you (tonic)", cased=True,
+             require_before=r"\b(?:per|con|da|a|di|su|tra|fra|come)\s+"),
         Rule("poss.m", ("tuo", "tuo", "Suo", "Suo"), "your (m)", cased=True),
         Rule("poss.f", ("tua", "tua", "Sua", "Sua"), "your (f)", cased=True),
-        # Italian polite "Lei" takes third-person verbs, so "ha" is both *you
-        # have* (polite) and *he/she has*. A lowercase third-person subject
-        # immediately before settles it — and these are `cased` so the guard
-        # itself is case-sensitive, letting "Lei ha" through while blocking
-        # "lei ha". Without this, "Anche lei ha ragione" downgraded to
-        # "Anche lei hai ragione".
-        Rule("v.essere", ("sei", "sei", "è", "è"), "you are",
-             cased=True, guard_before=_IT_3P_SUBJECT),
-        Rule("v.avere", ("hai", "hai", "ha", "ha"), "you have",
-             cased=True, guard_before=_IT_3P_SUBJECT),
-        Rule("v.potere", ("puoi", "puoi", "può", "può"), "you can",
-             cased=True, guard_before=_IT_3P_SUBJECT),
-        Rule("v.volere", ("vuoi", "vuoi", "vuole", "vuole"), "you want",
-             cased=True, guard_before=_IT_3P_SUBJECT),
-        Rule("v.fare.imp", ("fai", "fai", "faccia", "faccia"), "do!"),
-        Rule("v.dire.imp", ("dimmi", "dimmi", "mi dica", "mi dica"), "tell me!"),
+        Rule("poss.m.pl", ("tuoi", "tuoi", "Suoi", "Suoi"), "your (m pl)", cased=True),
+        Rule("poss.f.pl", ("tue", "tue", "Sue", "Sue"), "your (f pl)", cased=True),
         Rule("greet.hello", ("Ehi", "Ciao", "Buongiorno", "Buongiorno"), "hello"),
         Rule("greet.bye", ("Ciao", "Ciao", "Arrivederci", "ArrivederLa"), "goodbye"),
-        Rule("greet.thanks", ("Grazie", "Grazie", "Grazie mille", "La ringrazio"), "thanks"),
+        # Grazie and Scusa are said at every level; only their elaborations are
+        # marked. Rewriting up should still reach "La ringrazio", but neither
+        # may vote when detecting — a bare "Grazie a Lei" was outvoting the Lei
+        # and reading as Casual.
+        # Every slot has to be a drop-in for the others: this is a token
+        # substitution table, not a sentence rewriter. "La ringrazio" is a full
+        # clause meaning "I thank you", so substituting it for the word Grazie
+        # turned "Grazie a Lei" into "La ringrazio a Lei" — two objects and no
+        # grammar. The escalation stays lexical instead.
+        Rule("greet.thanks", ("Grazie", "Grazie", "Grazie mille", "Grazie infinite"),
+             "thanks", rewrite_only=True),
+        Rule("clause.ringrazio", ("ti ringrazio", "ti ringrazio",
+                                  "La ringrazio", "La ringrazio"), "I thank you"),
         Rule("greet.sorry", ("Scusa", "Scusa", "Mi scusi", "Le chiedo scusa"), "sorry"),
     ),
 )
