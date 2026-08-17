@@ -207,8 +207,8 @@ class _Matcher:
         for rule in table.rules:
             guards = self._guards(rule)
             overrides = {
-                form: self._guards(rule, guard_before=override)
-                for form, override in rule.form_guards
+                form: self._guards(rule, guard_before=before, require_before=required)
+                for form, before, required in rule.form_guards
             }
             seen_forms = set()
             for form in rule.forms:
@@ -265,10 +265,17 @@ class _Matcher:
         return variants
 
     @staticmethod
-    def _guards(rule: Rule, guard_before: Optional[str] = None) -> _Guards:
+    def _guards(rule: Rule, guard_before: Optional[str] = None,
+                require_before: Optional[str] = None) -> _Guards:
         flags = re.IGNORECASE if not rule.cased else 0
-        if guard_before is not None:
-            rule = replace(rule, guard_before=guard_before)
+        if guard_before is not None or require_before is not None:
+            rule = replace(
+                rule,
+                guard_before=(guard_before if guard_before is not None
+                              else rule.guard_before),
+                require_before=(require_before if require_before is not None
+                                else rule.require_before),
+            )
         # The *_before patterns are anchored to the end of the prefix, so they
         # mean "immediately before the match".
         def _before(pattern: str) -> Optional[re.Pattern]:
@@ -486,6 +493,26 @@ def rewrite(
                     replacement = chosen
 
         if not replacement:
+            # An empty slot means the level has no equivalent, so the word goes
+            # away rather than surviving the rewrite. Politeness particles are
+            # the case: Tamil தயவுசெய்து and Gujarati કૃપા કરીને belong to the
+            # Formal rendering only, and leaving them in a downgraded sentence
+            # made it read back as Formal.
+            pieces.append(text[cursor:hit.start])
+            cursor = hit.end
+            while cursor < len(text) and text[cursor] == " ":
+                cursor += 1
+            edits.append(
+                Edit(
+                    rule=hit.rule.name,
+                    gloss=hit.rule.gloss,
+                    before=hit.surface,
+                    after="",
+                    start=hit.start,
+                    from_levels=hit.rule.levels_for(hit.form),
+                    to_level=level,
+                )
+            )
             continue
         if not hit.cased:
             replacement = _match_case(hit.surface, replacement)

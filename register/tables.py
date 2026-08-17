@@ -69,15 +69,19 @@ class Rule:
     guard_after: str = ""
     require_before: str = ""
     require_after: str = ""
-    #: Per-form ``guard_before`` overrides, as (form, regex) pairs.
+    #: Per-form context overrides, as ``(form, guard_before, require_before)``
+    #: triples. An empty string leaves that constraint unset.
     #:
     #: Needed where a rule's forms are not equally ambiguous. Portuguese "estás"
     #: is unmistakably second person, but "está" is equally "he/she/it is" — so
-    #: "A loja está fechada" ("the shop is closed") was reading as Polite. A
-    #: rule-level guard cannot express that: blocking clause-initial position
-    #: would also kill "Estás bem?", which needs no guard at all. Only the
-    #: syncretic form carries the restriction.
-    form_guards: Tuple[Tuple[str, str], ...] = ()
+    #: "A loja está fechada" ("the shop is closed") was reading as Polite.
+    #: Gujarati છે is the same shape of problem in the other direction: it is
+    #: the તું copula *and* the ordinary third-person copula, so it needs a
+    #: second-person subject nearby to count, while છો needs nothing.
+    #:
+    #: A rule-level guard cannot express either: constraining the whole rule
+    #: would also constrain the unambiguous form.
+    form_guards: Tuple[Tuple[str, str, str], ...] = ()
     #: Use this rule when rewriting, but never as evidence when detecting.
     #:
     #: For words that are register-*neutral* in themselves but have a polite
@@ -981,7 +985,16 @@ GUJARATI = LanguageTable(
         Rule("pron.2sg.gen.m", ("તારો", "તારો", "તમારો", "આપનો"), "your (m)"),
         Rule("pron.2sg.gen.f", ("તારી", "તારી", "તમારી", "આપની"), "your (f)"),
         Rule("pron.2sg.gen.obl", ("તારા", "તારા", "તમારા", "આપના"), "your (obl/pl)"),
-        Rule("cop.pres", ("છે", "છે", "છો", "છો"), "you are"),
+        # છે is the તું copula and also the ordinary third-person copula, so
+        # "આજે હવામાન સરસ છે" ("the weather is nice today") was detecting as
+        # Casual. It only counts as second person with તું nearby; છો is
+        # unambiguous and needs nothing.
+        Rule("cop.pres", ("છે", "છે", "છો", "છો"), "you are",
+             form_guards=(("છે", "", r"તું(?:\s+\S+){0,6}\s+"),)),
+        # કૃપા કરીને is the marker that separates Formal from Polite here, so
+        # it has to be readable, not just insertable via `please`. જરા is left
+        # out for the same reason as Tamil கொஞ்சம் — it just means "a little".
+        Rule("polite.particle", ("", "", "", "કૃપા કરીને"), "please"),
         Rule("cop.past.m", ("હતો", "હતો", "હતા", "હતા"), "you were (m)"),
         Rule("cop.past.f", ("હતી", "હતી", "હતાં", "હતાં"), "you were (f)"),
         Rule("greet.hello", ("એ", "હેલો", "નમસ્તે", "નમસ્કાર"), "hello"),
@@ -1030,6 +1043,112 @@ PUNJABI = LanguageTable(
 # Dravidian
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# Tamil verb paradigms.
+#
+# Sixteen rules, nearly all imperatives, and the gold set found the rest: no
+# present, no past, no future, and several ordinary imperatives absent
+# entirely, so "என்னிடம் சொல்." and "கொஞ்சம் இரு." matched nothing.
+#
+# Each entry is (நீ, நீங்கள்). The -ங்கள் ending is what carries the register
+# right across the paradigm, which is exactly why covering only the imperative
+# leaves most of the language unreachable.
+#
+# Written Tamil throughout. Spoken Tamil diverges sharply — வர்றீங்க for
+# வருகிறீர்கள் — and is a separate table's worth of work, not a variant of
+# this one.
+# --------------------------------------------------------------------------
+
+_TA_PARADIGMS: Dict[str, Dict[str, Tuple[str, str]]] = {
+    "varu": {  # to come
+        "pres": ("வருகிறாய்", "வருகிறீர்கள்"),
+        "past": ("வந்தாய்", "வந்தீர்கள்"),
+        "future": ("வருவாய்", "வருவீர்கள்"),
+        "imp": ("வா", "வாருங்கள்"),
+    },
+    "po": {  # to go
+        "pres": ("போகிறாய்", "போகிறீர்கள்"),
+        "past": ("போனாய்", "போனீர்கள்"),
+        "future": ("போவாய்", "போவீர்கள்"),
+        "imp": ("போ", "போங்கள்"),
+    },
+    "sey": {  # to do
+        "pres": ("செய்கிறாய்", "செய்கிறீர்கள்"),
+        "past": ("செய்தாய்", "செய்தீர்கள்"),
+        "future": ("செய்வாய்", "செய்வீர்கள்"),
+        "imp": ("செய்", "செய்யுங்கள்"),
+    },
+    "sollu": {  # to say
+        "pres": ("சொல்கிறாய்", "சொல்கிறீர்கள்"),
+        "past": ("சொன்னாய்", "சொன்னீர்கள்"),
+        "imp": ("சொல்", "சொல்லுங்கள்"),
+    },
+    "sollu_alt": {"imp": ("சொல்லு", "சொல்லுங்கள்")},
+    "iru": {  # to be, to stay
+        "pres": ("இருக்கிறாய்", "இருக்கிறீர்கள்"),
+        "past": ("இருந்தாய்", "இருந்தீர்கள்"),
+        "future": ("இருப்பாய்", "இருப்பீர்கள்"),
+        "imp": ("இரு", "இருங்கள்"),
+    },
+    "paar": {  # to see
+        "pres": ("பார்க்கிறாய்", "பார்க்கிறீர்கள்"),
+        "past": ("பார்த்தாய்", "பார்த்தீர்கள்"),
+        "imp": ("பார்", "பாருங்கள்"),
+    },
+    "kel": {  # to ask, to listen
+        "pres": ("கேட்கிறாய்", "கேட்கிறீர்கள்"),
+        "imp": ("கேள்", "கேளுங்கள்"),
+    },
+    "kelu_alt": {"imp": ("கேளு", "கேளுங்கள்")},
+    "saapidu": {  # to eat
+        "pres": ("சாப்பிடுகிறாய்", "சாப்பிடுகிறீர்கள்"),
+        "imp": ("சாப்பிடு", "சாப்பிடுங்கள்"),
+    },
+    "pesu": {  # to speak
+        "pres": ("பேசுகிறாய்", "பேசுகிறீர்கள்"),
+        "imp": ("பேசு", "பேசுங்கள்"),
+    },
+    "theri": {"pres": ("தெரிகிறாய்", "தெரிகிறீர்கள்")},
+    "vaazh": {"pres": ("வாழ்கிறாய்", "வாழ்கிறீர்கள்")},
+    "utkaar": {"imp": ("உட்கார்", "உட்காருங்கள்")},
+    "kudi": {"imp": ("குடி", "குடியுங்கள்")},
+    "vaangu": {"imp": ("வாங்கு", "வாங்குங்கள்")},
+    "kodu": {"imp": ("கொடு", "கொடுங்கள்")},
+    "edu": {"imp": ("எடு", "எடுங்கள்")},
+    "irangu": {"imp": ("இறங்கு", "இறங்குங்கள்")},
+    "ezhudhu": {"imp": ("எழுது", "எழுதுங்கள்")},
+    "padi": {"imp": ("படி", "படியுங்கள்")},
+    "manni": {"imp": ("மன்னி", "மன்னியுங்கள்")},
+    "nil": {"imp": ("நில்", "நில்லுங்கள்")},
+    "udhavu": {"imp": ("உதவு", "உதவுங்கள்")},
+    "kaathiru": {"imp": ("காத்திரு", "காத்திருங்கள்")},
+    "thodangu": {"imp": ("தொடங்கு", "தொடங்குங்கள்")},
+}
+
+#: Finite tenses before the imperative: the imperative is the shortest form and
+#: is contained inside several of the others (இரு inside இருங்கள்).
+_TA_TENSE_ORDER = ("pres", "past", "future", "imp")
+
+
+def _ta_verb_rules() -> Tuple[Rule, ...]:
+    out = []
+    for tense in _TA_TENSE_ORDER:
+        for verb, paradigm in _TA_PARADIGMS.items():
+            forms = paradigm.get(tense)
+            if not forms:
+                continue
+            nee, neengal = forms
+            if nee == neengal:
+                continue
+            # Tamil canon is (1, 1, 2, 3): நீ is Casual, and நீங்கள் covers
+            # both Polite and Formal, the extra deference being lexical.
+            out.append(
+                Rule(f"v.{verb}.{tense}", (nee, nee, neengal, neengal),
+                     f"{verb} · {tense}")
+            )
+    return tuple(out)
+
+
 TAMIL = LanguageTable(
     code="ta",
     name="Tamil",
@@ -1047,21 +1166,24 @@ TAMIL = LanguageTable(
         "peer": ("", "மச்சான்", "அண்ணா", "சார்"),
         "official": ("", "ஐயா", "ஐயா", "சார்"),
     },
-    rules=(
+    rules=_ta_verb_rules() + (
         Rule("pron.2sg.nom", ("நீ", "நீ", "நீங்கள்", "நீங்கள்"), "you"),
         Rule("pron.2sg.acc", ("உன்னை", "உன்னை", "உங்களை", "உங்களை"), "you (obj)"),
         Rule("pron.2sg.gen", ("உன்", "உன்", "உங்கள்", "உங்கள்"), "your"),
         Rule("pron.2sg.dat", ("உனக்கு", "உனக்கு", "உங்களுக்கு", "உங்களுக்கு"), "to you"),
-        Rule("v.varu.imp", ("வா", "வா", "வாருங்கள்", "வாருங்கள்"), "come!"),
-        Rule("v.po.imp", ("போ", "போ", "போங்கள்", "போங்கள்"), "go!"),
-        Rule("v.sollu.imp", ("சொல்லு", "சொல்லு", "சொல்லுங்கள்", "சொல்லுங்கள்"), "say!"),
-        Rule("v.sey.imp", ("செய்", "செய்", "செய்யுங்கள்", "செய்யுங்கள்"), "do!"),
-        Rule("v.paar.imp", ("பார்", "பார்", "பாருங்கள்", "பாருங்கள்"), "look!"),
-        Rule("v.utkaar.imp", ("உட்கார்", "உட்கார்", "உட்காருங்கள்", "உட்காருங்கள்"), "sit!"),
-        Rule("v.kelu.imp", ("கேளு", "கேளு", "கேளுங்கள்", "கேளுங்கள்"), "ask/listen!"),
-        Rule("v.sey.pres", ("செய்கிறாய்", "செய்கிறாய்", "செய்கிறீர்கள்", "செய்கிறீர்கள்"), "you do"),
-        Rule("v.iru.pres", ("இருக்கிறாய்", "இருக்கிறாய்", "இருக்கிறீர்கள்", "இருக்கிறீர்கள்"), "you are"),
+        Rule("pron.2sg.soc", ("உன்னுடன்", "உன்னுடன்", "உங்களுடன்", "உங்களுடன்"), "with you"),
+        Rule("pron.2sg.loc", ("உன்னிடம்", "உன்னிடம்", "உங்களிடம்", "உங்களிடம்"), "at/from you"),
         Rule("greet.hello", ("ஏய்", "ஹலோ", "வணக்கம்", "வணக்கம்"), "hello"),
+        # தயவுசெய்து is what separates Formal from Polite in Tamil — நீங்கள்
+        # covers both — so it has to be readable, not merely insertable.
+        # கொஞ்சம் is deliberately *not* here: it means "a little" and is an
+        # ordinary adverb, so "கொஞ்சம் இரு" (wait a bit) is perfectly casual.
+        # Listing it as a politeness marker made every sentence containing it
+        # read as Polite.
+        Rule("polite.particle", ("", "", "", "தயவுசெய்து"), "please"),
+        # Not rewrite_only, unlike Italian Grazie: நன்றி sits at Casual and
+        # Polite rather than at the bottom two, so it never outvotes a நீங்கள்,
+        # and மிக்க நன்றி is the only evidence a Formal sentence carries.
         Rule("greet.thanks", ("தேங்க்ஸ்", "நன்றி", "நன்றி", "மிக்க நன்றி"), "thanks"),
         Rule("greet.sorry", ("சாரி", "சாரி", "மன்னிக்கவும்", "மன்னிக்கவும்"), "sorry"),
     ),
@@ -1754,7 +1876,7 @@ def _pt_verb_rules() -> Tuple[Rule, ...]:
     out = [
         Rule(f"v.{stem}", (tu, polite, polite, polite), gloss,
              guard_before=_PT_3P_SUBJECT,
-             form_guards=(((_PT_SYNCRETIC[stem], _PT_IMPERSONAL),)
+             form_guards=(((_PT_SYNCRETIC[stem], _PT_IMPERSONAL, ""),)
                           if stem in _PT_SYNCRETIC else ()))
         for stem, tu, polite, gloss in _PT_VERBS
     ]
