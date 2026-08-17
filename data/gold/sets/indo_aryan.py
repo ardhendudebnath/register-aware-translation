@@ -541,6 +541,7 @@ NEPALI = LanguageSet(
     name="Nepali",
     columns=(0, 1, 2),
     confidence="low",
+    formal_distinct=True,
     note="Four levels in practice: तँ / तिमी / तपाईं / हजुर. हजुर rows are in "
          "`formal`. Verb agreement is elaborate — review the endings closely.",
     triads=[
