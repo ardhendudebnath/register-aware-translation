@@ -661,6 +661,115 @@ HINDI = LanguageTable(
     ),
 )
 
+# --------------------------------------------------------------------------
+# Marathi verb paradigms.
+#
+# Imperative-only again, and the gold set found two things. The verb paradigm
+# was absent, so "तू काय करतोस?" detected nothing. And the genitive was missing
+# its *neuter*: the table had तुझा (m) and तुझी (f) but not तुझं, which is the
+# form in "तुझं नाव काय आहे?" — one of the most ordinary sentences in the
+# language. Marathi has three genders and the table covered two.
+#
+# Each entry is (तू, तुम्ही, आपण). Verbs whose forms do not differ across the
+# three are skipped by the generator rather than listed as dead rules.
+# --------------------------------------------------------------------------
+
+_MR_PARADIGMS: Dict[str, Dict[str, Tuple[str, str, str]]] = {
+    "karne": {  # to do
+        "pres.m": ("करतोस", "करता", "करता"),
+        "pres.f": ("करतेस", "करता", "करता"),
+        "future": ("करशील", "कराल", "कराल"),
+        "imp": ("कर", "करा", "करा"),
+    },
+    "yene": {  # to come
+        "pres.m": ("येतोस", "येता", "येता"),
+        "pres.f": ("येतेस", "येता", "येता"),
+        "future": ("येशील", "याल", "याल"),
+        "imp": ("ये", "या", "या"),
+    },
+    "jane": {  # to go — the imperative is जा at every level, so only the
+               # finite forms carry register
+        "pres.m": ("जातोस", "जाता", "जाता"),
+        "pres.f": ("जातेस", "जाता", "जाता"),
+        "future": ("जाशील", "जाल", "जाल"),
+    },
+    "basne": {
+        "pres.m": ("बसतोस", "बसता", "बसता"),
+        "imp": ("बस", "बसा", "बसा"),
+    },
+    "bolne": {
+        "pres.m": ("बोलतोस", "बोलता", "बोलता"),
+        "pres.f": ("बोलतेस", "बोलता", "बोलता"),
+        "imp": ("बोल", "बोला", "बोला"),
+    },
+    "baghne": {
+        "pres.m": ("बघतोस", "बघता", "बघता"),
+        "imp": ("बघ", "बघा", "बघा"),
+    },
+    "aikne": {
+        "pres.m": ("ऐकतोस", "ऐकता", "ऐकता"),
+        "imp": ("ऐक", "ऐका", "ऐका"),
+    },
+    "sangne": {
+        "pres.m": ("सांगतोस", "सांगता", "सांगता"),
+        "imp": ("सांग", "सांगा", "सांगा"),
+    },
+    "rahane": {  # to live, to stay
+        "pres.m": ("राहतोस", "राहता", "राहता"),
+        "pres.f": ("राहतेस", "राहता", "राहता"),
+    },
+    "khane": {
+        "pres.m": ("खातोस", "खाता", "खाता"),
+        "future": ("खाशील", "खाल", "खाल"),
+    },
+    "shakne": {  # can — the common request frame
+        "pres.m": ("शकतोस", "शकता", "शकता"),
+        "pres.f": ("शकतेस", "शकता", "शकता"),
+    },
+    "janne": {"pres.m": ("जाणतोस", "जाणता", "जाणता")},
+    "samajne": {"pres.m": ("समजतोस", "समजता", "समजता")},
+    "lihine": {
+        "pres.m": ("लिहितोस", "लिहिता", "लिहिता"),
+        "imp": ("लिही", "लिहा", "लिहा"),
+    },
+    "vachne": {
+        "pres.m": ("वाचतोस", "वाचता", "वाचता"),
+        "imp": ("वाच", "वाचा", "वाचा"),
+    },
+    "ghene": {"imp": ("घे", "घ्या", "घ्या")},
+    "dene": {"imp": ("दे", "द्या", "द्या")},
+    "thambne": {"imp": ("थांब", "थांबा", "थांबा")},
+    "utarne": {"imp": ("उतर", "उतरा", "उतरा")},
+    "ughadne": {"imp": ("उघड", "उघडा", "उघडा")},
+    "vicharne": {"imp": ("विचार", "विचारा", "विचारा")},
+    "bolavne": {"imp": ("बोलाव", "बोलावा", "बोलावा")},
+    "madat_karne": {"imp": ("मदत कर", "मदत करा", "मदत करा")},
+    "maf_karne": {"imp": ("माफ कर", "माफ करा", "माफ करा")},
+}
+
+_MR_TENSE_ORDER = ("future", "pres.m", "pres.f", "imp")
+
+_MR_2P_CONTEXT = r"(?:तू|तुम्ही|आपण)(?:\s+\S+){0,10}\s+"
+
+
+def _mr_verb_rules() -> Tuple[Rule, ...]:
+    out = []
+    for tense in _MR_TENSE_ORDER:
+        for verb, paradigm in _MR_PARADIGMS.items():
+            forms = paradigm.get(tense)
+            if not forms:
+                continue
+            tu, tumhi, aapan = forms
+            if len({tu, tumhi, aapan}) == 1:
+                continue  # carries no register information
+            # Marathi canon is (0, 1, 2, 3) with तू at both 0 and 1.
+            out.append(
+                Rule(f"v.{verb}.{tense}", (tu, tu, tumhi, aapan),
+                     f"{verb} · {tense}")
+            )
+    return tuple(out)
+
+
 MARATHI = LanguageTable(
     code="mr",
     name="Marathi",
@@ -674,23 +783,20 @@ MARATHI = LanguageTable(
         "peer": ("", "अरे", "दादा", "सर"),
         "official": ("", "साहेब", "साहेब", "सर"),
     },
-    rules=(
+    rules=_mr_verb_rules() + (
         Rule("pron.2sg.nom", ("तू", "तू", "तुम्ही", "आपण"), "you"),
         Rule("pron.2sg.dat", ("तुला", "तुला", "तुम्हाला", "आपल्याला"), "to you"),
         Rule("pron.2sg.gen.m", ("तुझा", "तुझा", "तुमचा", "आपला"), "your (m)"),
         Rule("pron.2sg.gen.f", ("तुझी", "तुझी", "तुमची", "आपली"), "your (f)"),
+        # Marathi has three genders and the table had two. तुझं is the neuter
+        # and the form in "तुझं नाव काय आहे?" — about as ordinary a sentence as
+        # the language has, and it detected nothing at all.
+        Rule("pron.2sg.gen.n", ("तुझं", "तुझं", "तुमचं", "आपलं"), "your (n)"),
+        Rule("pron.2sg.gen.n2", ("तुझे", "तुझे", "तुमचे", "आपले"), "your (n pl)"),
+        Rule("pron.2sg.obl", ("तुझ्या", "तुझ्या", "तुमच्या", "आपल्या"), "your (oblique)"),
         Rule("cop.pres", ("आहेस", "आहेस", "आहात", "आहात"), "you are"),
-        Rule("v.karne.imp", ("कर", "कर", "करा", "करा"), "do!"),
-        Rule("v.yene.imp", ("ये", "ये", "या", "या"), "come!"),
-        Rule("v.jane.imp", ("जा", "जा", "जा ना", "जा ना"), "go!"),
-        Rule("v.basne.imp", ("बस", "बस", "बसा", "बसा"), "sit!"),
-        Rule("v.bolne.imp", ("बोल", "बोल", "बोला", "बोला"), "speak!"),
-        Rule("v.gene.imp", ("घे", "घे", "घ्या", "घ्या"), "take!"),
-        Rule("v.dene.imp", ("दे", "दे", "द्या", "द्या"), "give!"),
-        Rule("v.baghne.imp", ("बघ", "बघ", "बघा", "बघा"), "look!"),
-        Rule("v.aikne.imp", ("ऐक", "ऐक", "ऐका", "ऐका"), "listen!"),
-        Rule("v.sangne.imp", ("सांग", "सांग", "सांगा", "सांगा"), "tell!"),
-        Rule("v.thambne.imp", ("थांब", "थांब", "थांबा", "थांबा"), "wait!"),
+        Rule("cop.past.m", ("होतास", "होतास", "होतात", "होतात"), "you were (m)"),
+        Rule("cop.past.f", ("होतीस", "होतीस", "होतात", "होतात"), "you were (f)"),
         Rule("greet.hello", ("ए", "हॅलो", "नमस्कार", "नमस्कार"), "hello"),
         Rule("greet.thanks", ("थँक्स", "धन्यवाद", "धन्यवाद", "मनःपूर्वक धन्यवाद"), "thanks"),
         Rule("greet.sorry", ("सॉरी", "सॉरी", "माफ करा", "क्षमस्व"), "sorry"),
@@ -1683,6 +1789,85 @@ URDU = LanguageTable(
     ),
 )
 
+# --------------------------------------------------------------------------
+# Odia verb paradigms.
+#
+# The smallest table in the project at 13 rules. Two gaps the gold set found:
+# no finite verb forms at all, so anything without an imperative in it detected
+# nothing; and the ତୁ imperatives were listed without their halanta, so
+# "ଏଠିକି ଆସ୍।" and "ମୋତେ କୁହ୍।" did not match. Both spellings occur, so both are
+# listed rather than picking one.
+#
+# Each entry is (ତୁ, ତୁମେ, ଆପଣ). Lowest-confidence table in the project —
+# drafted from grammars, and the place a speaker's review is worth most.
+# --------------------------------------------------------------------------
+
+_OR_PARADIGMS: Dict[str, Dict[str, Tuple[str, str, str]]] = {
+    "kariba": {  # to do
+        "cont": ("କରୁଛୁ", "କରୁଛ", "କରୁଛନ୍ତି"),
+        "future": ("କରିବୁ", "କରିବ", "କରିବେ"),
+        "imp": ("କର୍", "କର", "କରନ୍ତୁ"),
+    },
+    "asiba": {  # to come
+        "cont": ("ଆସୁଛୁ", "ଆସୁଛ", "ଆସୁଛନ୍ତି"),
+        "future": ("ଆସିବୁ", "ଆସିବ", "ଆସିବେ"),
+        "imp": ("ଆସ୍", "ଆସ", "ଆସନ୍ତୁ"),
+    },
+    "jiba": {  # to go
+        "cont": ("ଯାଉଛୁ", "ଯାଉଛ", "ଯାଉଛନ୍ତି"),
+        "future": ("ଯିବୁ", "ଯିବ", "ଯିବେ"),
+        "imp": ("ଯା", "ଯାଅ", "ଯାଆନ୍ତୁ"),
+    },
+    "kahiba": {  # to say
+        "cont": ("କହୁଛୁ", "କହୁଛ", "କହୁଛନ୍ତି"),
+        "imp": ("କୁହ୍", "କୁହ", "କୁହନ୍ତୁ"),
+    },
+    "basiba": {  # to sit
+        "cont": ("ବସୁଛୁ", "ବସୁଛ", "ବସୁଛନ୍ତି"),
+        "imp": ("ବସ୍", "ବସ", "ବସନ୍ତୁ"),
+    },
+    "dekhiba": {  # to see
+        "cont": ("ଦେଖୁଛୁ", "ଦେଖୁଛ", "ଦେଖୁଛନ୍ତି"),
+        "imp": ("ଦେଖ୍", "ଦେଖ", "ଦେଖନ୍ତୁ"),
+    },
+    "suniba": {  # to hear
+        "cont": ("ଶୁଣୁଛୁ", "ଶୁଣୁଛ", "ଶୁଣୁଛନ୍ତି"),
+        "imp": ("ଶୁଣ୍", "ଶୁଣ", "ଶୁଣନ୍ତୁ"),
+    },
+    "khaiba": {  # to eat
+        "cont": ("ଖାଉଛୁ", "ଖାଉଛ", "ଖାଉଛନ୍ତି"),
+        "imp": ("ଖା", "ଖାଅ", "ଖାଆନ୍ତୁ"),
+    },
+    "rahiba": {"cont": ("ରହୁଛୁ", "ରହୁଛ", "ରହୁଛନ୍ତି")},
+    "janiba": {"cont": ("ଜାଣୁଛୁ", "ଜାଣୁଛ", "ଜାଣୁଛନ୍ତି")},
+    "deba": {"imp": ("ଦେ", "ଦିଅ", "ଦିଅନ୍ତୁ")},
+    "neba": {"imp": ("ନେ", "ନିଅ", "ନିଅନ୍ତୁ")},
+    "lekhiba": {"imp": ("ଲେଖ୍", "ଲେଖ", "ଲେଖନ୍ତୁ")},
+    "padhiba": {"imp": ("ପଢ଼୍", "ପଢ଼", "ପଢ଼ନ୍ତୁ")},
+    "kshama_kariba": {"imp": ("କ୍ଷମା କର୍", "କ୍ଷମା କର", "କ୍ଷମା କରନ୍ତୁ")},
+    "sahajya_kariba": {"imp": ("ସାହାଯ୍ୟ କର୍", "ସାହାଯ୍ୟ କର", "ସାହାଯ୍ୟ କରନ୍ତୁ")},
+}
+
+_OR_TENSE_ORDER = ("cont", "future", "imp")
+
+
+def _or_verb_rules() -> Tuple[Rule, ...]:
+    out = []
+    for tense in _OR_TENSE_ORDER:
+        for verb, paradigm in _OR_PARADIGMS.items():
+            forms = paradigm.get(tense)
+            if not forms:
+                continue
+            tu, tume, apana = forms
+            if len({tu, tume, apana}) == 1:
+                continue
+            out.append(
+                Rule(f"v.{verb}.{tense}", (tu, tume, apana, apana),
+                     f"{verb} · {tense}")
+            )
+    return tuple(out)
+
+
 ODIA = LanguageTable(
     code="or",
     name="Odia",
@@ -1696,17 +1881,18 @@ ODIA = LanguageTable(
         "peer": ("", "ସାଙ୍ଗ", "ଭାଇ", "ସାର୍"),
         "official": ("", "ସାର୍", "ସାର୍", "ସାର୍"),
     },
-    rules=(
+    # The old hand-written imperatives are gone: v.kara.imp had ତୁମେ taking
+    # କରନ୍ତୁ, the ଆପଣ form, which put the honorific one level too low. The
+    # generated paradigm has ("କର୍", "କର", "କରନ୍ତୁ").
+    rules=_or_verb_rules() + (
         Rule("pron.2sg.nom", ("ତୁ", "ତୁମେ", "ଆପଣ", "ଆପଣ"), "you"),
         Rule("pron.2sg.gen", ("ତୋର", "ତୁମର", "ଆପଣଙ୍କର", "ଆପଣଙ୍କର"), "your"),
+        # The genitive also occurs without the final ର, which is the form in
+        # "ଆପଣଙ୍କ ନାଁ କଣ?" — it matched nothing until now.
+        Rule("pron.2sg.gen.short", ("ତୋ", "ତୁମ", "ଆପଣଙ୍କ", "ଆପଣଙ୍କ"), "your (short)"),
         Rule("pron.2sg.acc", ("ତୋତେ", "ତୁମକୁ", "ଆପଣଙ୍କୁ", "ଆପଣଙ୍କୁ"), "to you"),
         Rule("cop.pres", ("ଅଛୁ", "ଅଛ", "ଅଛନ୍ତି", "ଅଛନ୍ତି"), "you are"),
-        Rule("v.kara.imp", ("କର", "କରନ୍ତୁ", "କରନ୍ତୁ", "କରନ୍ତୁ"), "do!"),
-        Rule("v.jaa.imp", ("ଯା", "ଯାଅ", "ଯାଆନ୍ତୁ", "ଯାଆନ୍ତୁ"), "go!"),
-        Rule("v.aasa.imp", ("ଆସ", "ଆସ", "ଆସନ୍ତୁ", "ଆସନ୍ତୁ"), "come!"),
-        Rule("v.kaha.imp", ("କହ", "କୁହ", "କୁହନ୍ତୁ", "କୁହନ୍ତୁ"), "say!"),
-        Rule("v.dekha.imp", ("ଦେଖ", "ଦେଖ", "ଦେଖନ୍ତୁ", "ଦେଖନ୍ତୁ"), "look!"),
-        Rule("v.basa.imp", ("ବସ", "ବସ", "ବସନ୍ତୁ", "ବସନ୍ତୁ"), "sit!"),
+        Rule("cop.past", ("ଥିଲୁ", "ଥିଲ", "ଥିଲେ", "ଥିଲେ"), "you were"),
         Rule("greet.hello", ("ଏ", "ହେଲୋ", "ନମସ୍କାର", "ନମସ୍କାର"), "hello"),
         Rule("greet.thanks", ("ଥ୍ୟାଙ୍କ୍ସ", "ଧନ୍ୟବାଦ", "ଧନ୍ୟବାଦ", "ବହୁତ ଧନ୍ୟବାଦ"), "thanks"),
         Rule("greet.sorry", ("ସରି", "ସରି", "କ୍ଷମା କରନ୍ତୁ", "କ୍ଷମା କରନ୍ତୁ"), "sorry"),
