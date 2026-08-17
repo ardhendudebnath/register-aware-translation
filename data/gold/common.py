@@ -97,6 +97,16 @@ class LanguageSet:
     #: row. Naming the group here drops the invented expectation and leaves the
     #: real one standing.
     formal_lexical_groups: Tuple[str, ...] = ()
+    #: Per-group column overrides, for groups realising fewer levels than the
+    #: language does.
+    #:
+    #: Marathi has three pronouns — तू, तुम्ही, आपण — but only two imperatives:
+    #: तुम्ही and आपण both take या. Written as a three-column triad that puts
+    #: the identical string in two columns, and the row then asks the detector
+    #: to tell two identical sentences apart, so one of the two can only fail.
+    #: Declaring the group ``(1, 2, 2)`` says what is true — this construction
+    #: has two rungs — instead of inventing a third.
+    column_overrides: Dict[str, Tuple[int, int, int]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.confidence not in CONFIDENCE:
@@ -117,9 +127,10 @@ class LanguageSet:
         tell the harness that a distinction exists where it does not.
         """
         for group, triads in self.triads:
+            columns = self.column_overrides.get(group, self.columns)
             for low, mid, high, domain, context, construction in triads:
                 by_level: Dict[int, str] = {}
-                for level, text in zip(self.columns, (low, mid, high)):
+                for level, text in zip(columns, (low, mid, high)):
                     by_level.setdefault(level, text)
 
                 expected = {str(level): text for level, text in by_level.items()}
