@@ -547,11 +547,27 @@ _HI_PARADIGMS: Dict[str, Dict[str, Tuple[str, str, str]]] = {
         "prohibitive": ("मत जा", "मत जाओ", "मत जाइए"),
         "imp": ("जा", "जाओ", "जाइए"),
     },
+    "lautna": {  # to return
+        "pres.m": ("लौटता है", "लौटते हो", "लौटते हैं"),
+        "pres.f": ("लौटती है", "लौटती हो", "लौटती हैं"),
+        "future.m": ("लौटेगा", "लौटोगे", "लौटेंगे"),
+        "future.f": ("लौटेगी", "लौटोगी", "लौटेंगी"),
+        "imp": ("लौट", "लौटो", "लौटिए"),
+    },
     "ana": {  # to come
         "pres.m": ("आता है", "आते हो", "आते हैं"),
         "pres.f": ("आती है", "आती हो", "आती हैं"),
         "cont.m": ("आ रहा है", "आ रहे हो", "आ रहे हैं"),
         "cont.f": ("आ रही है", "आ रही हो", "आ रही हैं"),
+        # The perfective agrees with the pronoun like everything else, and it
+        # appears bare under negation ("तू क्यों नहीं आया?") as well as with
+        # the copula ("तू क्यों आया है?"), so both are forms in their own
+        # right. The person guards keep the bare one off third-person
+        # subjects, which share it.
+        "perf.m": ("आया", "आए", "आए"),
+        "perf.f": ("आई", "आई", "आईं"),
+        "perf.pres.m": ("आया है", "आए हो", "आए हैं"),
+        "perf.pres.f": ("आई है", "आई हो", "आई हैं"),
         "future.m": ("आएगा", "आओगे", "आएँगे"),
         "future.f": ("आएगी", "आओगी", "आएँगी"),
         "prohibitive": ("मत आ", "मत आओ", "मत आइए"),
@@ -608,7 +624,13 @@ _HI_PARADIGMS: Dict[str, Dict[str, Tuple[str, str, str]]] = {
     },
     "baithna": {"imp": ("बैठ", "बैठो", "बैठिए")},
     "uthna": {"imp": ("उठ", "उठो", "उठिए")},
+    "manna": {  # to mind, to take offence
+        "prohibitive": ("मत मान", "मत मानो", "मत मानिए"),
+    },
     "rukna": {
+        "pres.m": ("रुकता है", "रुकते हो", "रुकते हैं"),
+        "future.m": ("रुकेगा", "रुकोगे", "रुकेंगे"),
+        "future.f": ("रुकेगी", "रुकोगी", "रुकेंगी"),
         "imp": ("रुक", "रुको", "रुकिए"),
         "prohibitive": ("मत रुक", "मत रुको", "मत रुकिए"),
     },
@@ -635,6 +657,12 @@ _HI_PARADIGMS: Dict[str, Dict[str, Tuple[str, str, str]]] = {
     "janna": {  # to know
         "pres.m": ("जानता है", "जानते हो", "जानते हैं"),
         "pres.f": ("जानती है", "जानती हो", "जानती हैं"),
+        # Hindi drops the copula under negation — "तू नहीं जानता?", not
+        # "तू नहीं जानता है?" — so the bare participle is a form in its own
+        # right. It is also the third-person participle, which is why the
+        # generator makes these require a preceding नहीं.
+        "pres.neg.m": ("जानता", "जानते", "जानते"),
+        "pres.neg.f": ("जानती", "जानती", "जानतीं"),
     },
     "chahna": {  # to want
         "pres.m": ("चाहता है", "चाहते हो", "चाहते हैं"),
@@ -662,8 +690,10 @@ _HI_PARADIGMS: Dict[str, Dict[str, Tuple[str, str, str]]] = {
 #: last, because it is the shortest string and would otherwise win ties against
 #: the continuous and present forms that contain it.
 _HI_TENSE_ORDER = (
-    "cont.m", "cont.f", "future.m", "future.f", "prohibitive",
-    "pres.m", "pres.f", "subj", "imp",
+    "cont.m", "cont.f", "perf.pres.m", "perf.pres.f",
+    "future.m", "future.f", "prohibitive",
+    "pres.m", "pres.f", "pres.neg.m", "pres.neg.f",
+    "perf.m", "perf.f", "subj", "imp",
 )
 
 #: A second-person pronoun to the left, for the tenses whose तुम form collides
@@ -673,6 +703,46 @@ _HI_2P_CONTEXT = r"(?:तू|तुम|आप|तूने|तुमने|आ�
 
 #: Tenses that need it.
 _HI_NEEDS_PRONOUN = {"subj"}
+
+# --------------------------------------------------------------------------
+# Hindi has the Urdu copula problem, which is no surprise — they are the same
+# grammar in two scripts. है is the तू copula *and* the third-person copula,
+# and unguarded it matched every statement in the language: "आपका नाम क्या है?"
+# read Close off the copula while the आपका said Polite, and "तेरा नाम क्या है?"
+# was conjugated down to "तुम्हारा नाम क्या हो?" on a verb whose subject is the
+# name, not the listener.
+#
+# What licenses the second-person reading is the nominative तू and only that.
+# तेरा is a genitive modifying a noun. Hindi is verb-final, so a bounded
+# backscan from the copula reaches the pronoun.
+# --------------------------------------------------------------------------
+
+#: तूने as well as तू: the ergative fuses the postposition onto the pronoun, so
+#: a boundary-respecting match for तू does not find it inside तूने — and the
+#: perfective, which is exactly where ergative subjects live, would then have
+#: nothing licensing it.
+_HI_TU_BEFORE = rf"{LEFT}(?:तू|तूने){RIGHT}(?:\s+\S+){{0,10}}\s+"
+
+#: The mirror of the same problem at the other end of the scale. The आप forms
+#: are plural agreement, which Hindi also uses for हम and वे — so "हम कल
+#: जाएँगे" (we will go tomorrow) read as Polite, and asking for Close
+#: conjugated it to "हम कल जाएगा".
+_HI_PLURAL_SUBJECT = rf"{LEFT}(?:हम|वे|ये|हमने|उन्होंने|इन्होंने){RIGHT}(?:\s+\S+){{0,10}}\s+"
+
+#: The negated present drops the copula, leaving a bare participle that is also
+#: the third-person one. नहीं is what marks the construction.
+_HI_NEGATIVE_BEFORE = r"नहीं\s+"
+
+#: A bare stem before an auxiliary is not an imperative: Hindi builds its
+#: progressives, modals and compound verbs on the same form the तू imperative
+#: takes, so "कर सकता है" and "चल रही है" look like commands to a matcher that
+#: stops at the word.
+_HI_AUX_AFTER = (
+    r"\s+(?:रहा|रही|रहे"                        # progressive
+    r"|सकता|सकती|सकते|सको|सके|सकें"             # modal: can
+    r"|पाता|पाती|पाते|चुका|चुकी|चुके"           # manage to, have already
+    r"|गया|गयी|गई|गये|गए|लिया|ली|लिए|दिया|दी|दिए)"  # compound verbs
+)
 
 
 def _hi_verb_rules() -> Tuple[Rule, ...]:
@@ -686,15 +756,27 @@ def _hi_verb_rules() -> Tuple[Rule, ...]:
             if len({tu, tum, aap}) == 1:
                 continue  # carries no register information
 
+            guards = []
+            if tense not in ("imp", "prohibitive"):
+                # Every finite तू form is singular, which is also the
+                # third-person agreement — "वह क्या करता है?" is the same
+                # string as the तू question.
+                guards.append((tu, "", "", _HI_TU_BEFORE, "", ""))
+                # And every आप form is plural agreement, which हम and वे share.
+                guards.append((aap, _HI_PLURAL_SUBJECT, "", "", "", ""))
             # Only guard where the imperative genuinely collides.
             imperative = paradigm.get("imp")
             collides = bool(imperative) and imperative[1] == tum
-            before = _HI_2P_CONTEXT if (tense in _HI_NEEDS_PRONOUN or
-                                        (tense.startswith("pres") and collides)) else ""
+            if tense in _HI_NEEDS_PRONOUN or (tense.startswith("pres") and collides):
+                guards.append((tum, "", "", _HI_2P_CONTEXT, "", ""))
 
             out.append(
                 Rule(f"v.{verb}.{tense}", (tu, tum, aap, aap),
-                     f"{verb} · {tense}", require_before=before)
+                     f"{verb} · {tense}",
+                     guard_after=_HI_AUX_AFTER if tense == "imp" else "",
+                     require_before=(_HI_NEGATIVE_BEFORE
+                                     if tense.startswith("pres.neg") else ""),
+                     form_guards=tuple(guards))
             )
     return tuple(out)
 
@@ -725,12 +807,65 @@ HINDI = LanguageTable(
         Rule("pron.2sg.gen.m", ("तेरा", "तुम्हारा", "आपका", "आपका"), "your (m)"),
         Rule("pron.2sg.gen.f", ("तेरी", "तुम्हारी", "आपकी", "आपकी"), "your (f)"),
         Rule("pron.2sg.gen.pl", ("तेरे", "तुम्हारे", "आपके", "आपके"), "your (pl/obl)"),
-        Rule("cop.pres", ("है", "हो", "हैं", "हैं"), "you are"),
-        Rule("cop.past.m", ("था", "थे", "थे", "थे"), "you were (m)"),
-        Rule("cop.past.f", ("थी", "थीं", "थीं", "थीं"), "you were (f)"),
+        # है and था are third person as much as they are तू; हो and हैं are
+        # not. हो also needs its auxiliary reading blocked — "बारिश हो रही है"
+        # is the weather.
+        Rule("cop.pres", ("है", "हो", "हैं", "हैं"), "you are",
+             form_guards=(
+                 ("है", "", "", _HI_TU_BEFORE, "", ""),
+                 ("हो", "", _HI_AUX_AFTER, "", "", ""),
+                 ("हैं", _HI_PLURAL_SUBJECT, "", "", "", ""),
+             )),
+        Rule("cop.past.m", ("था", "थे", "थे", "थे"), "you were (m)",
+             form_guards=(("था", "", "", _HI_TU_BEFORE, "", ""),)),
+        Rule("cop.past.f", ("थी", "थीं", "थीं", "थीं"), "you were (f)",
+             form_guards=(("थी", "", "", _HI_TU_BEFORE, "", ""),)),
+        # Hindi agrees the predicate adjective with the pronoun, and nothing
+        # was moving it: "तू कैसा है?" upgraded to "तुम कैसा हो?" — the right
+        # pronoun left in the wrong concord.
+        # Only as a predicate adjective, which is what the copula after it
+        # marks. The same word is also the manner adverb "how", and there it is
+        # invariant and about the verb rather than the listener: "तू कैसे
+        # आया?" (how did you come?) must keep कैसे at every level, and was
+        # being agreed down to "तू कैसा आया?".
+        # rewrite_only, and not for the usual reason. The honorific कैसे fills
+        # three of the four slots, so it is nearly uninformative — but a vote
+        # is a vote, and spreading a third across three levels *diluted* the
+        # confidence of the pronoun and copula beside it. "आप कैसे हैं?" still
+        # came out Polite, at 0.44 instead of 0.5, and the pipeline gates the
+        # register engine at 0.5 — so the sentence fell through to the
+        # statistical classifier and came back Close. The rule only fires with
+        # a second-person pronoun already in front of it, and that pronoun has
+        # voted; this one has nothing to add and should only do its own job.
+        Rule("adj.kaisa", ("कैसा", "कैसे", "कैसे", "कैसे"), "how (m)",
+             require_before=_HI_2P_CONTEXT,
+             require_after=r"\s+(?:है|हो|हैं|था|थे|थी|थीं)",
+             rewrite_only=True),
         Rule("greet.hello", ("ओए", "हैलो", "नमस्ते", "नमस्कार"), "hello"),
-        Rule("greet.thanks", ("थैंक्स", "शुक्रिया", "धन्यवाद", "बहुत धन्यवाद"), "thanks"),
+        # धन्यवाद is neutral below Formal — the gold says so plainly, with the
+        # word constant across all four columns and only the pronoun moving —
+        # and हार्दिक is what lifts it, which is the form the gold's own Formal
+        # row uses. शुक्रिया and थैंक्स go: both are real Hindi, but pinning
+        # them to levels made "तुझे धन्यवाद" read Polite off the noun instead
+        # of Close off the तुझे.
+        Rule("greet.thanks", ("धन्यवाद", "धन्यवाद", "धन्यवाद", "हार्दिक धन्यवाद"),
+             "thanks"),
         Rule("greet.sorry", ("सॉरी", "सॉरी", "माफ़ कीजिए", "क्षमा कीजिए"), "sorry"),
+        # कृपया is what separates Formal from Polite in a request — the आप
+        # imperative covers both — so it has to be readable, not merely
+        # insertable. ज़रा stays out: it means "a little" and softens a request
+        # at any level.
+        Rule("polite.particle", ("", "", "", "कृपया"), "please"),
+        # Written-register vocabulary. These are the words that make a sentence
+        # Formal when the pronoun has already gone as far as आप can take it:
+        # आभारी over शुक्रगुज़ार, खेद over अफ़सोस, महोदय over साहब.
+        Rule("voc.sir", ("", "भाई", "साहब", "महोदय"), "sir"),
+        Rule("lex.grateful", ("खुश", "खुश", "शुक्रगुज़ार", "आभारी"), "grateful"),
+        Rule("lex.regret", ("दुख", "दुख", "अफ़सोस", "खेद"), "regret"),
+        # The Perso-Arabic/Sanskritic pair again, this time in the register of
+        # official paperwork: अर्ज़ी is what you file at a counter, आवेदन what
+        # the form calls it.
+        Rule("lex.application", ("अर्ज़ी", "अर्ज़ी", "अर्ज़ी", "आवेदन"), "application"),
     ),
 )
 
@@ -817,12 +952,56 @@ _MR_PARADIGMS: Dict[str, Dict[str, Tuple[str, str, str]]] = {
     "vicharne": {"imp": ("विचार", "विचारा", "विचारा")},
     "bolavne": {"imp": ("बोलाव", "बोलावा", "बोलावा")},
     "madat_karne": {"imp": ("मदत कर", "मदत करा", "मदत करा")},
-    "maf_karne": {"imp": ("माफ कर", "माफ करा", "माफ करा")},
+    # The one imperative with a third rung. The verb stops at two like all the
+    # others — तुम्ही and आपण share करा — so the escalation is lexical: माफ is
+    # the everyday word for pardon and क्षमा the Sanskritic one.
+    "maf_karne": {"imp": ("माफ कर", "माफ करा", "क्षमा करा")},
 }
 
 _MR_TENSE_ORDER = ("future", "pres.m", "pres.f", "imp")
 
 _MR_2P_CONTEXT = r"(?:तू|तुम्ही|आपण)(?:\s+\S+){0,10}\s+"
+
+# --------------------------------------------------------------------------
+# Marathi writes its postpositions onto the oblique pronoun rather than beside
+# it: तुझ्या + साठी is one word, तुझ्यासाठी. The oblique rule was in the table
+# and could never fire, because a whole-word match for तुझ्या does not find it
+# inside तुझ्यासाठी — so "हे तुझ्यासाठी आहे" (this is for you), as ordinary a
+# sentence as the language has, detected nothing and rewrote to nothing.
+#
+# The set is small and closed, so the forms are generated rather than listed.
+# --------------------------------------------------------------------------
+
+#: (तू stem, तुम्ही stem, आपण stem).
+_MR_OBLIQUE = ("तुझ्या", "तुमच्या", "आपल्या")
+
+_MR_POSTPOSITIONS = (
+    ("sathi", "साठी"),        # for
+    ("kade", "कडे"),          # to, at
+    ("kadun", "कडून"),        # from, by
+    ("barobar", "बरोबर"),     # with
+    ("shi", "शी"),            # with, to
+    ("mule", "मुळे"),         # because of
+    ("var", "वर"),            # on
+    ("pasun", "पासून"),       # from
+    ("paryant", "पर्यंत"),    # up to
+    ("vishayi", "विषयी"),     # about
+    ("shivay", "शिवाय"),      # without
+    ("sarkha", "सारखा"),      # like (m)
+    ("sarkhe", "सारखे"),      # like (n/pl)
+    ("madhe", "मध्ये"),       # in
+    ("khali", "खाली"),        # under
+)
+
+
+def _mr_postposition_rules() -> Tuple[Rule, ...]:
+    tu, tumhi, aapan = _MR_OBLIQUE
+    return tuple(
+        Rule(f"pron.obl.{name}",
+             (tu + post, tu + post, tumhi + post, aapan + post),
+             f"{post} you")
+        for name, post in _MR_POSTPOSITIONS
+    )
 
 
 def _mr_verb_rules() -> Tuple[Rule, ...]:
@@ -856,8 +1035,13 @@ MARATHI = LanguageTable(
         "peer": ("", "अरे", "दादा", "सर"),
         "official": ("", "साहेब", "साहेब", "सर"),
     },
-    rules=_mr_verb_rules() + (
-        Rule("pron.2sg.nom", ("तू", "तू", "तुम्ही", "आपण"), "you"),
+    rules=_mr_verb_rules() + _mr_postposition_rules() + (
+        # आपण is the honorific "you" *and* the inclusive "we", which the gold
+        # set flags as a real ambiguity. The hortative settles it: "आपण जाऊया"
+        # is "let's go" and is about the speaker too, so it carries no register
+        # toward the listener at all.
+        Rule("pron.2sg.nom", ("तू", "तू", "तुम्ही", "आपण"), "you",
+             guard_after=rf"\s+\S*(?:ऊया|ूया){RIGHT}"),
         Rule("pron.2sg.dat", ("तुला", "तुला", "तुम्हाला", "आपल्याला"), "to you"),
         Rule("pron.2sg.gen.m", ("तुझा", "तुझा", "तुमचा", "आपला"), "your (m)"),
         Rule("pron.2sg.gen.f", ("तुझी", "तुझी", "तुमची", "आपली"), "your (f)"),
@@ -870,9 +1054,21 @@ MARATHI = LanguageTable(
         Rule("cop.pres", ("आहेस", "आहेस", "आहात", "आहात"), "you are"),
         Rule("cop.past.m", ("होतास", "होतास", "होतात", "होतात"), "you were (m)"),
         Rule("cop.past.f", ("होतीस", "होतीस", "होतात", "होतात"), "you were (f)"),
+        # Marathi agrees the predicate adjective with the pronoun, and nothing
+        # was moving it: "तू कसा आहेस?" upgraded to "तुम्ही कसा आहात?", the
+        # right pronoun left in the wrong concord. Same gap Urdu had with कیسا.
+        Rule("adj.kasa", ("कसा", "कसा", "कसे", "कसे"), "how (m)",
+             require_before=_MR_2P_CONTEXT),
+        Rule("adj.kashi", ("कशी", "कशी", "कशा", "कशा"), "how (f)",
+             require_before=_MR_2P_CONTEXT),
         Rule("greet.hello", ("ए", "हॅलो", "नमस्कार", "नमस्कार"), "hello"),
         Rule("greet.thanks", ("थँक्स", "धन्यवाद", "धन्यवाद", "मनःपूर्वक धन्यवाद"), "thanks"),
         Rule("greet.sorry", ("सॉरी", "सॉरी", "माफ करा", "क्षमस्व"), "sorry"),
+        # कृपया is what separates Formal from Polite in a request — the
+        # imperative covers both — so it has to be readable, not merely
+        # insertable. जरा stays out: it means "a little" and softens a request
+        # at any level, "जरा ऐक" included.
+        Rule("polite.particle", ("", "", "", "कृपया"), "please"),
     ),
 )
 
@@ -2955,8 +3151,10 @@ URDU = LanguageTable(
         # concord.
         # Masculine only: the feminine کیسی is the same at every level, so it
         # carries no register information and the table refuses it.
+        # rewrite_only for the same reason as Hindi's: کیسے fills three slots,
+        # so its vote says almost nothing while still diluting the pronoun's.
         Rule("adj.kaisa", ("کیسا", "کیسے", "کیسے", "کیسے"), "how (m)",
-             require_before=_UR_2P_CONTEXT),
+             require_before=_UR_2P_CONTEXT, rewrite_only=True),
         Rule("greet.hello", ("اوے", "ہیلو", "السلام علیکم", "السلام علیکم"), "hello"),
         # شکریہ is neutral across every level below Formal — the shape Tamil,
         # Spanish, Italian and Portuguese all ended up with — so it never

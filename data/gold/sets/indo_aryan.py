@@ -192,6 +192,7 @@ HINDI = LanguageSet(
              "family", "uncle", "v.future + vocative"),
         ]),
     ],
+    formal_lexical_groups=("courtesy",),
     formal=[
         ("कृपया थोड़ा प्रतीक्षा कीजिए।", "request", "official"),
         ("कृपया यहाँ हस्ताक्षर कीजिए।", "admin", "official"),
@@ -201,7 +202,6 @@ HINDI = LanguageSet(
         ("मुझे खेद है।", "apology", "official"),
         ("कृपया इस विषय पर विचार कीजिए।", "admin", "official"),
         ("कृपया अपना परिचय पत्र दिखाइए।", "admin", "official"),
-        ("आपके सहयोग के लिए धन्यवाद।", "workplace", "official"),
         ("कृपया पंक्ति में खड़े रहिए।", "admin", "official"),
         ("आपका आवेदन स्वीकार कर लिया गया है।", "admin", "official"),
         ("महोदय, आपके समय के लिए धन्यवाद।", "workplace", "official"),
@@ -238,6 +238,13 @@ HINDI = LanguageSet(
          "honorific repeated across a conjunction"),
         ("वह क्या करता है?", None, "third person",
          "वह is third person — no second-person marker, detection must abstain"),
+        # Was filed as Formal because it is a thing you say at work. That is a
+        # fact about the context, not the sentence: आपके is honorific and
+        # धन्यवाद is neutral, and nothing in it reaches past Polite. Hindi gets
+        # to Formal lexically — हार्दिक, कृपया, महोदय — and this has none of
+        # them. The identical Tamil row sits in `hard` for the same reason.
+        ("आपके सहयोग के लिए धन्यवाद।", 2, "honorific, no lexical Formal",
+         "आपके is honorific; plain धन्यवाद does not reach Formal"),
     ],
 )
 
@@ -367,6 +374,15 @@ MARATHI = LanguageSet(
             ("मला सांग.", "मला सांगा.", "मला सांगा.", "everyday", "colleague", "v.imp.sangne"),
             ("थोडं थांब.", "थोडं थांबा.", "थोडं थांबा.", "everyday", "stranger", "v.imp.thambne"),
         ]),
+        # Its own group, because it is the one apology that *does* reach a
+        # third rung — not by the verb, which stops at two like every other
+        # imperative, but lexically: माफ is the everyday word and क्षमा the
+        # Sanskritic one. Left in the imperative group it would have been
+        # flattened to two columns and the escalation lost.
+        ("apology", [
+            ("मला माफ कर.", "मला माफ करा.", "मला क्षमा करा.",
+             "apology", "stranger", "v.imp.karne + lex"),
+        ]),
         ("modal", [
             ("तू मला मदत करू शकतोस का?", "तुम्ही मला मदत करू शकता का?",
              "आपण मला मदत करू शकता का?", "request", "stranger", "v.shakne"),
@@ -374,17 +390,18 @@ MARATHI = LanguageSet(
              "shopping", "shopkeeper", "pron.dat"),
         ]),
         ("courtesy", [
-            ("मला माफ कर.", "मला माफ करा.", "मला माफ करा.",
-             "apology", "stranger", "v.imp.karne"),
             ("तुझे आभार.", "तुमचे आभार.", "आपले आभार.",
              "greeting", "acquaintance", "pron.gen"),
         ]),
     ],
+    # तुम्ही and आपण share one imperative — या, बसा, ऐका — so that group has
+    # two rungs where the pronouns have three.
+    column_overrides={"imperative": (1, 2, 2)},
+    formal_lexical_groups=("courtesy",),
     formal=[
         ("कृपया थोडा वेळ थांबा.", "request", "official"),
         ("कृपया इथे सही करा.", "admin", "official"),
         ("आपले मनःपूर्वक आभार.", "greeting", "official"),
-        ("मला क्षमा करा.", "apology", "official"),
         ("आपल्या सहकार्याबद्दल धन्यवाद.", "workplace", "official"),
     ],
     no_marker=[
