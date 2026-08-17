@@ -28,7 +28,7 @@ Conventions
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 __all__ = [
     "Rule",
@@ -1178,6 +1178,7 @@ _TA_PARADIGMS: Dict[str, Dict[str, Tuple[str, str]]] = {
     "kelu_alt": {"imp": ("கேளு", "கேளுங்கள்")},
     "saapidu": {  # to eat
         "pres": ("சாப்பிடுகிறாய்", "சாப்பிடுகிறீர்கள்"),
+        "past": ("சாப்பிட்டாய்", "சாப்பிட்டீர்கள்"),
         "imp": ("சாப்பிடு", "சாப்பிடுங்கள்"),
     },
     "pesu": {  # to speak
@@ -1206,23 +1207,67 @@ _TA_PARADIGMS: Dict[str, Dict[str, Tuple[str, str]]] = {
 _TA_TENSE_ORDER = ("pres", "past", "future", "imp")
 
 
-def _ta_verb_rules() -> Tuple[Rule, ...]:
+def _dravidian_verb_rules(
+    paradigms: Dict[str, Dict[str, Tuple[str, str]]],
+    tense_order: Tuple[str, ...],
+    *,
+    question: Optional[Callable[[str], str]] = None,
+    guard_before: str = "",
+) -> Tuple[Rule, ...]:
+    """
+    Expand a two-column Dravidian paradigm into rules.
+
+    Tamil, Telugu and Kannada share a shape: one familiar pronoun, one
+    honorific, and a canon of ``(1, 1, 2, 3)`` — the familiar form is Casual,
+    the honorific covers Polite *and* Formal, and the extra deference above
+    Polite is lexical rather than morphological. So each paradigm entry is a
+    pair and becomes ``(fam, fam, hon, hon)``.
+
+    ``question`` supplies the yes/no interrogative, which in Telugu and Kannada
+    is a clitic fused onto the finite verb (తిన్నావు → తిన్నావా). Written
+    solid, it defeats a whole-word match, so the interrogative has to be
+    generated as its own form rather than left to the matcher. Imperatives are
+    excluded — they do not take the clitic.
+    """
     out = []
-    for tense in _TA_TENSE_ORDER:
-        for verb, paradigm in _TA_PARADIGMS.items():
+    for tense in tense_order:
+        for verb, paradigm in paradigms.items():
             forms = paradigm.get(tense)
             if not forms:
                 continue
-            nee, neengal = forms
-            if nee == neengal:
+            fam, hon = forms
+            if fam == hon:
                 continue
-            # Tamil canon is (1, 1, 2, 3): நீ is Casual, and நீங்கள் covers
-            # both Polite and Formal, the extra deference being lexical.
             out.append(
-                Rule(f"v.{verb}.{tense}", (nee, nee, neengal, neengal),
-                     f"{verb} · {tense}")
+                Rule(f"v.{verb}.{tense}", (fam, fam, hon, hon),
+                     f"{verb} · {tense}", guard_before=guard_before)
             )
+            if question is not None and tense != "imp":
+                q_fam, q_hon = question(fam), question(hon)
+                if q_fam != fam and q_fam != q_hon:
+                    out.append(
+                        Rule(f"v.{verb}.{tense}.q",
+                             (q_fam, q_fam, q_hon, q_hon),
+                             f"{verb} · {tense} · question",
+                             guard_before=guard_before)
+                    )
     return tuple(out)
+
+
+def _ta_question(form: str) -> str:
+    """
+    Tamil yes/no questions append -ஆ to the finite verb, which absorbs the
+    stem-final virama: சாப்பிட்டாய் → சாப்பிட்டாயா, சாப்பிட்டீர்கள் →
+    சாப்பிட்டீர்களா.
+    """
+    stem = form[:-1] if form.endswith("்") else form
+    return stem + "ா"
+
+
+def _ta_verb_rules() -> Tuple[Rule, ...]:
+    return _dravidian_verb_rules(
+        _TA_PARADIGMS, _TA_TENSE_ORDER, question=_ta_question
+    )
 
 
 TAMIL = LanguageTable(
@@ -1265,6 +1310,124 @@ TAMIL = LanguageTable(
     ),
 )
 
+# --------------------------------------------------------------------------
+# Telugu — నువ్వు / మీరు
+# --------------------------------------------------------------------------
+
+#: (నువ్వు form, మీరు form). The agreement is a clean suffix alternation —
+#: -వు against -రు — but the stems are not: వచ్చు suppletes to రా in the
+#: imperative, and చేయు has చేస్- in the non-past against చేశ- in the past.
+#: Storing whole forms rather than stem+suffix keeps those irregularities
+#: honest instead of forcing them through a rule that does not fit.
+_TE_PARADIGMS: Dict[str, Dict[str, Tuple[str, str]]] = {
+    "undu": {  # to be, to stay
+        "pres": ("ఉన్నావు", "ఉన్నారు"),
+        "future": ("ఉంటావు", "ఉంటారు"),
+        "imp": ("ఉండు", "ఉండండి"),
+    },
+    "vaccu": {  # to come
+        "cont": ("వస్తున్నావు", "వస్తున్నారు"),
+        "future": ("వస్తావు", "వస్తారు"),
+        "past": ("వచ్చావు", "వచ్చారు"),
+        "imp": ("రా", "రండి"),
+    },
+    "vellu": {  # to go
+        "cont": ("వెళ్తున్నావు", "వెళ్తున్నారు"),
+        "future": ("వెళ్తావు", "వెళ్తారు"),
+        "past": ("వెళ్ళావు", "వెళ్ళారు"),
+        "imp": ("వెళ్ళు", "వెళ్ళండి"),
+    },
+    "cheyyi": {  # to do
+        "cont": ("చేస్తున్నావు", "చేస్తున్నారు"),
+        "future": ("చేస్తావు", "చేస్తారు"),
+        "past": ("చేశావు", "చేశారు"),
+        "imp": ("చెయ్యి", "చెయ్యండి"),
+    },
+    "cheyu_alt": {"imp": ("చేయి", "చేయండి")},
+    "cheppu": {  # to tell
+        "cont": ("చెబుతున్నావు", "చెబుతున్నారు"),
+        "future": ("చెబుతావు", "చెబుతారు"),
+        "past": ("చెప్పావు", "చెప్పారు"),
+        "imp": ("చెప్పు", "చెప్పండి"),
+    },
+    "choodu": {  # to see
+        "cont": ("చూస్తున్నావు", "చూస్తున్నారు"),
+        "future": ("చూస్తావు", "చూస్తారు"),
+        "past": ("చూశావు", "చూశారు"),
+        "imp": ("చూడు", "చూడండి"),
+    },
+    "tinu": {  # to eat
+        "cont": ("తింటున్నావు", "తింటున్నారు"),
+        "future": ("తింటావు", "తింటారు"),
+        "past": ("తిన్నావు", "తిన్నారు"),
+        "imp": ("తిను", "తినండి"),
+    },
+    "taagu": {  # to drink
+        "future": ("తాగుతావు", "తాగుతారు"),
+        "past": ("తాగావు", "తాగారు"),
+        "imp": ("తాగు", "తాగండి"),
+    },
+    "ivvu": {  # to give
+        "cont": ("ఇస్తున్నావు", "ఇస్తున్నారు"),
+        "future": ("ఇస్తావు", "ఇస్తారు"),
+        "past": ("ఇచ్చావు", "ఇచ్చారు"),
+        "imp": ("ఇవ్వు", "ఇవ్వండి"),
+    },
+    "vinu": {  # to listen
+        "cont": ("వింటున్నావు", "వింటున్నారు"),
+        "future": ("వింటావు", "వింటారు"),
+        "past": ("విన్నావు", "విన్నారు"),
+        "imp": ("విను", "వినండి"),
+    },
+    "maatlaadu": {  # to speak
+        "cont": ("మాట్లాడుతున్నావు", "మాట్లాడుతున్నారు"),
+        "future": ("మాట్లాడతావు", "మాట్లాడతారు"),
+        "imp": ("మాట్లాడు", "మాట్లాడండి"),
+    },
+    "raayi": {  # to write
+        "future": ("రాస్తావు", "రాస్తారు"),
+        "past": ("రాశావు", "రాశారు"),
+        "imp": ("రాయి", "రాయండి"),
+    },
+    "chaduvu": {  # to read
+        "future": ("చదువుతావు", "చదువుతారు"),
+        "past": ("చదివావు", "చదివారు"),
+        "imp": ("చదువు", "చదవండి"),
+    },
+    "aagu": {  # to stop, to wait
+        "future": ("ఆగుతావు", "ఆగుతారు"),
+        "past": ("ఆగావు", "ఆగారు"),
+        "imp": ("ఆగు", "ఆగండి"),
+    },
+    "pampu": {  # to send
+        "future": ("పంపుతావు", "పంపుతారు"),
+        "past": ("పంపావు", "పంపారు"),
+        "imp": ("పంపు", "పంపండి"),
+    },
+    "teliyu": {"future": ("తెలుసుకుంటావు", "తెలుసుకుంటారు")},
+    "kurcho": {"imp": ("కూర్చో", "కూర్చోండి")},
+    "kshaminchu": {"imp": ("క్షమించు", "క్షమించండి")},
+    "veyyi": {"imp": ("వెయ్యి", "వేయండి")},
+    "teccu": {"imp": ("తీసుకో", "తీసుకోండి")},
+}
+
+_TE_TENSE_ORDER = ("cont", "pres", "past", "future", "imp")
+
+
+def _te_question(form: str) -> str:
+    """
+    Telugu yes/no questions fuse -ఆ onto the finite verb, replacing the final
+    ు: తిన్నావు → తిన్నావా, తిన్నారు → తిన్నారా.
+    """
+    return form[:-1] + "ా" if form.endswith("ు") else form
+
+
+def _te_verb_rules() -> Tuple[Rule, ...]:
+    return _dravidian_verb_rules(
+        _TE_PARADIGMS, _TE_TENSE_ORDER, question=_te_question
+    )
+
+
 TELUGU = LanguageTable(
     code="te",
     name="Telugu",
@@ -1282,24 +1445,155 @@ TELUGU = LanguageTable(
         "peer": ("", "బాబు", "అన్నా", "సర్"),
         "official": ("", "అయ్యా", "అయ్యా", "సర్"),
     },
-    rules=(
+    rules=_te_verb_rules() + (
         Rule("pron.2sg.nom", ("నువ్వు", "నువ్వు", "మీరు", "మీరు"), "you"),
         Rule("pron.2sg.acc", ("నిన్ను", "నిన్ను", "మిమ్మల్ని", "మిమ్మల్ని"), "you (obj)"),
         Rule("pron.2sg.gen", ("నీ", "నీ", "మీ", "మీ"), "your"),
         Rule("pron.2sg.dat", ("నీకు", "నీకు", "మీకు", "మీకు"), "to you"),
-        Rule("v.raa.imp", ("రా", "రా", "రండి", "రండి"), "come!"),
-        Rule("v.vellu.imp", ("వెళ్ళు", "వెళ్ళు", "వెళ్ళండి", "వెళ్ళండి"), "go!"),
-        Rule("v.cheppu.imp", ("చెప్పు", "చెప్పు", "చెప్పండి", "చెప్పండి"), "tell!"),
-        Rule("v.cheyyi.imp", ("చెయ్యి", "చెయ్యి", "చెయ్యండి", "చెయ్యండి"), "do!"),
-        Rule("v.choodu.imp", ("చూడు", "చూడు", "చూడండి", "చూడండి"), "look!"),
-        Rule("v.kurcho.imp", ("కూర్చో", "కూర్చో", "కూర్చోండి", "కూర్చోండి"), "sit!"),
-        Rule("v.vinu.imp", ("విను", "విను", "వినండి", "వినండి"), "listen!"),
-        Rule("v.ivvu.imp", ("ఇవ్వు", "ఇవ్వు", "ఇవ్వండి", "ఇవ్వండి"), "give!"),
+        Rule("pron.2sg.soc", ("నీతో", "నీతో", "మీతో", "మీతో"), "with you"),
+        Rule("pron.2sg.loc", ("నీ దగ్గర", "నీ దగ్గర", "మీ దగ్గర", "మీ దగ్గర"), "at you"),
+        Rule("pron.2sg.abl", ("నీ నుండి", "నీ నుండి", "మీ నుండి", "మీ నుండి"), "from you"),
         Rule("greet.hello", ("ఏయ్", "హలో", "నమస్కారం", "నమస్కారం"), "hello"),
+        # దయచేసి is what separates Formal from Polite in Telugu — మీరు covers
+        # both — so it has to be readable, not merely insertable. కొంచెం stays
+        # out for the same reason Tamil's கொஞ்சம் does: it means "a little" and
+        # is an ordinary adverb, so "కొంచెం ఆగు" is perfectly casual.
+        Rule("polite.particle", ("", "", "", "దయచేసి"), "please"),
+        # ధన్యవాదాలు spans Casual and Polite rather than sitting at one of
+        # them. Pinned to Casual it outvoted the మీకు in "మీకు ధన్యవాదాలు",
+        # which is Polite by the pronoun and neutral by the noun.
         Rule("greet.thanks", ("థాంక్స్", "ధన్యవాదాలు", "ధన్యవాదాలు", "చాలా ధన్యవాదాలు"), "thanks"),
         Rule("greet.sorry", ("సారీ", "సారీ", "క్షమించండి", "క్షమించండి"), "sorry"),
     ),
 )
+
+# --------------------------------------------------------------------------
+# Kannada — ನೀನು / ನೀವು
+# --------------------------------------------------------------------------
+
+#: (ನೀನು form, ನೀವು form). ಹೇಗಿದ್ದೀಯ is listed as its own verb rather than
+#: derived: ಹೇಗೆ + ಇದ್ದೀಯ is written solid, so a rule for the copula alone
+#: never matches the commonest greeting in the language.
+_KN_PARADIGMS: Dict[str, Dict[str, Tuple[str, str]]] = {
+    "iru": {  # to be, to stay
+        "pres": ("ಇದ್ದೀಯ", "ಇದ್ದೀರಿ"),
+        "cont": ("ಇರುತ್ತಿದ್ದೀಯ", "ಇರುತ್ತಿದ್ದೀರಿ"),
+        "future": ("ಇರುತ್ತೀಯ", "ಇರುತ್ತೀರಿ"),
+        "past": ("ಇದ್ದೆ", "ಇದ್ದಿರಿ"),
+        "imp": ("ಇರು", "ಇರಿ"),
+    },
+    "hegiru": {"pres": ("ಹೇಗಿದ್ದೀಯ", "ಹೇಗಿದ್ದೀರಿ")},  # how are you
+    "baru": {  # to come
+        "cont": ("ಬರುತ್ತಿದ್ದೀಯ", "ಬರುತ್ತಿದ್ದೀರಿ"),
+        "future": ("ಬರುತ್ತೀಯ", "ಬರುತ್ತೀರಿ"),
+        "past": ("ಬಂದೆ", "ಬಂದಿರಿ"),
+        "imp": ("ಬಾ", "ಬನ್ನಿ"),
+    },
+    "hogu": {  # to go
+        "cont": ("ಹೋಗುತ್ತಿದ್ದೀಯ", "ಹೋಗುತ್ತಿದ್ದೀರಿ"),
+        "future": ("ಹೋಗುತ್ತೀಯ", "ಹೋಗುತ್ತೀರಿ"),
+        "past": ("ಹೋದೆ", "ಹೋದಿರಿ"),
+        "imp": ("ಹೋಗು", "ಹೋಗಿ"),
+    },
+    "maadu": {  # to do
+        "cont": ("ಮಾಡುತ್ತಿದ್ದೀಯ", "ಮಾಡುತ್ತಿದ್ದೀರಿ"),
+        "future": ("ಮಾಡುತ್ತೀಯ", "ಮಾಡುತ್ತೀರಿ"),
+        "past": ("ಮಾಡಿದೆ", "ಮಾಡಿದಿರಿ"),
+        "imp": ("ಮಾಡು", "ಮಾಡಿ"),
+    },
+    "helu": {  # to tell
+        "cont": ("ಹೇಳುತ್ತಿದ್ದೀಯ", "ಹೇಳುತ್ತಿದ್ದೀರಿ"),
+        "future": ("ಹೇಳುತ್ತೀಯ", "ಹೇಳುತ್ತೀರಿ"),
+        "past": ("ಹೇಳಿದೆ", "ಹೇಳಿದಿರಿ"),
+        "imp": ("ಹೇಳು", "ಹೇಳಿ"),
+    },
+    "nodu": {  # to look
+        "cont": ("ನೋಡುತ್ತಿದ್ದೀಯ", "ನೋಡುತ್ತಿದ್ದೀರಿ"),
+        "future": ("ನೋಡುತ್ತೀಯ", "ನೋಡುತ್ತೀರಿ"),
+        "past": ("ನೋಡಿದೆ", "ನೋಡಿದಿರಿ"),
+        "imp": ("ನೋಡು", "ನೋಡಿ"),
+    },
+    "kelu": {  # to ask, to listen
+        "cont": ("ಕೇಳುತ್ತಿದ್ದೀಯ", "ಕೇಳುತ್ತಿದ್ದೀರಿ"),
+        "future": ("ಕೇಳುತ್ತೀಯ", "ಕೇಳುತ್ತೀರಿ"),
+        "past": ("ಕೇಳಿದೆ", "ಕೇಳಿದಿರಿ"),
+        "imp": ("ಕೇಳು", "ಕೇಳಿ"),
+    },
+    "tinnu": {  # to eat
+        "cont": ("ತಿನ್ನುತ್ತಿದ್ದೀಯ", "ತಿನ್ನುತ್ತಿದ್ದೀರಿ"),
+        "future": ("ತಿನ್ನುತ್ತೀಯ", "ತಿನ್ನುತ್ತೀರಿ"),
+        "past": ("ತಿಂದೆ", "ತಿಂದಿರಿ"),
+        "imp": ("ತಿನ್ನು", "ತಿನ್ನಿ"),
+    },
+    "kudi": {  # to drink
+        "future": ("ಕುಡಿಯುತ್ತೀಯ", "ಕುಡಿಯುತ್ತೀರಿ"),
+        "past": ("ಕುಡಿದೆ", "ಕುಡಿದಿರಿ"),
+        "imp": ("ಕುಡಿ", "ಕುಡಿಯಿರಿ"),
+    },
+    "kodu": {  # to give
+        "future": ("ಕೊಡುತ್ತೀಯ", "ಕೊಡುತ್ತೀರಿ"),
+        "past": ("ಕೊಟ್ಟೆ", "ಕೊಟ್ಟಿರಿ"),
+        "imp": ("ಕೊಡು", "ಕೊಡಿ"),
+    },
+    "bare": {  # to write
+        "future": ("ಬರೆಯುತ್ತೀಯ", "ಬರೆಯುತ್ತೀರಿ"),
+        "past": ("ಬರೆದೆ", "ಬರೆದಿರಿ"),
+        "imp": ("ಬರೆ", "ಬರೆಯಿರಿ"),
+    },
+    "odu": {  # to read
+        "future": ("ಓದುತ್ತೀಯ", "ಓದುತ್ತೀರಿ"),
+        "past": ("ಓದಿದೆ", "ಓದಿದಿರಿ"),
+        "imp": ("ಓದು", "ಓದಿ"),
+    },
+    "nillu": {  # to stop, to stand
+        "future": ("ನಿಲ್ಲುತ್ತೀಯ", "ನಿಲ್ಲುತ್ತೀರಿ"),
+        "past": ("ನಿಂತೆ", "ನಿಂತಿರಿ"),
+        "imp": ("ನಿಲ್ಲು", "ನಿಲ್ಲಿ"),
+    },
+    "kaayu": {  # to wait
+        "future": ("ಕಾಯುತ್ತೀಯ", "ಕಾಯುತ್ತೀರಿ"),
+        "past": ("ಕಾದೆ", "ಕಾದಿರಿ"),
+        "imp": ("ಕಾಯಿ", "ಕಾಯಿರಿ"),
+    },
+    "maatanaadu": {  # to speak
+        "future": ("ಮಾತನಾಡುತ್ತೀಯ", "ಮಾತನಾಡುತ್ತೀರಿ"),
+        "imp": ("ಮಾತನಾಡು", "ಮಾತನಾಡಿ"),
+    },
+    "kalisu": {  # to send
+        "future": ("ಕಳಿಸುತ್ತೀಯ", "ಕಳಿಸುತ್ತೀರಿ"),
+        "past": ("ಕಳಿಸಿದೆ", "ಕಳಿಸಿದಿರಿ"),
+        "imp": ("ಕಳಿಸು", "ಕಳಿಸಿ"),
+    },
+    "tegeduko": {"imp": ("ತೆಗೆದುಕೋ", "ತೆಗೆದುಕೊಳ್ಳಿ")},  # to take
+    "kulitu": {"imp": ("ಕುಳಿತುಕೋ", "ಕುಳಿತುಕೊಳ್ಳಿ")},  # to sit
+    "kshamisu": {"imp": ("ಕ್ಷಮಿಸು", "ಕ್ಷಮಿಸಿ")},  # to forgive
+}
+
+_KN_TENSE_ORDER = ("cont", "pres", "past", "future", "imp")
+
+#: Kannada past syncretises 1sg and 2sg: ಮಾಡಿದೆ is both "I did" and "you did".
+#: Left ungated, every "ನಾನು ... ಮಾಡಿದೆ" would be read as the listener's
+#: register when it is the speaker's own verb and carries none. The pattern
+#: scans back over a few intervening words because Kannada is verb-final and
+#: the subject rarely abuts the verb.
+_KN_FIRST_PERSON = r"ನಾನು(?:\s+\S+){0,4}\s*"
+
+
+def _kn_question(form: str) -> str:
+    """
+    Kannada yes/no questions fuse -ಆ onto the finite verb: ಮಾಡುತ್ತೀಯ →
+    ಮಾಡುತ್ತೀಯಾ, ಮಾಡುತ್ತೀರಿ → ಮಾಡುತ್ತೀರಾ. Forms ending in ಿ replace it; the
+    rest, ending in an inherent -a, simply take the sign.
+    """
+    return form[:-1] + "ಾ" if form.endswith("ಿ") else form + "ಾ"
+
+
+def _kn_verb_rules() -> Tuple[Rule, ...]:
+    return _dravidian_verb_rules(
+        _KN_PARADIGMS, _KN_TENSE_ORDER,
+        question=_kn_question, guard_before=_KN_FIRST_PERSON,
+    )
+
 
 KANNADA = LanguageTable(
     code="kn",
@@ -1318,21 +1612,24 @@ KANNADA = LanguageTable(
         "peer": ("", "ಗುರು", "ಅಣ್ಣಾ", "ಸರ್"),
         "official": ("", "ಸ್ವಾಮಿ", "ಸ್ವಾಮಿ", "ಸರ್"),
     },
-    rules=(
+    rules=_kn_verb_rules() + (
         Rule("pron.2sg.nom", ("ನೀನು", "ನೀನು", "ನೀವು", "ನೀವು"), "you"),
         Rule("pron.2sg.acc", ("ನಿನ್ನನ್ನು", "ನಿನ್ನನ್ನು", "ನಿಮ್ಮನ್ನು", "ನಿಮ್ಮನ್ನು"), "you (obj)"),
         Rule("pron.2sg.gen", ("ನಿನ್ನ", "ನಿನ್ನ", "ನಿಮ್ಮ", "ನಿಮ್ಮ"), "your"),
         Rule("pron.2sg.dat", ("ನಿನಗೆ", "ನಿನಗೆ", "ನಿಮಗೆ", "ನಿಮಗೆ"), "to you"),
-        Rule("v.baa.imp", ("ಬಾ", "ಬಾ", "ಬನ್ನಿ", "ಬನ್ನಿ"), "come!"),
-        Rule("v.hogu.imp", ("ಹೋಗು", "ಹೋಗು", "ಹೋಗಿ", "ಹೋಗಿ"), "go!"),
-        Rule("v.helu.imp", ("ಹೇಳು", "ಹೇಳು", "ಹೇಳಿ", "ಹೇಳಿ"), "tell!"),
-        Rule("v.maadu.imp", ("ಮಾಡು", "ಮಾಡು", "ಮಾಡಿ", "ಮಾಡಿ"), "do!"),
-        Rule("v.nodu.imp", ("ನೋಡು", "ನೋಡು", "ನೋಡಿ", "ನೋಡಿ"), "look!"),
-        Rule("v.kulitu.imp", ("ಕುಳಿತುಕೋ", "ಕುಳಿತುಕೋ", "ಕುಳಿತುಕೊಳ್ಳಿ", "ಕುಳಿತುಕೊಳ್ಳಿ"), "sit!"),
-        Rule("v.kelu.imp", ("ಕೇಳು", "ಕೇಳು", "ಕೇಳಿ", "ಕೇಳಿ"), "listen!"),
-        Rule("v.kodu.imp", ("ಕೊಡು", "ಕೊಡು", "ಕೊಡಿ", "ಕೊಡಿ"), "give!"),
+        Rule("pron.2sg.soc", ("ನಿನ್ನೊಂದಿಗೆ", "ನಿನ್ನೊಂದಿಗೆ", "ನಿಮ್ಮೊಂದಿಗೆ", "ನಿಮ್ಮೊಂದಿಗೆ"), "with you"),
+        Rule("pron.2sg.ins", ("ನಿನ್ನಿಂದ", "ನಿನ್ನಿಂದ", "ನಿಮ್ಮಿಂದ", "ನಿಮ್ಮಿಂದ"), "by/from you"),
+        Rule("pron.2sg.loc", ("ನಿನ್ನಲ್ಲಿ", "ನಿನ್ನಲ್ಲಿ", "ನಿಮ್ಮಲ್ಲಿ", "ನಿಮ್ಮಲ್ಲಿ"), "at you"),
         Rule("greet.hello", ("ಏ", "ಹಲೋ", "ನಮಸ್ಕಾರ", "ನಮಸ್ಕಾರ"), "hello"),
-        Rule("greet.thanks", ("ಥ್ಯಾಂಕ್ಸ್", "ಧನ್ಯವಾದ", "ಧನ್ಯವಾದಗಳು", "ಅನಂತ ಧನ್ಯವಾದಗಳು"), "thanks"),
+        # ದಯವಿಟ್ಟು is what separates Formal from Polite in Kannada — ನೀವು covers
+        # both — so it has to be readable, not merely insertable. ಸ್ವಲ್ಪ stays
+        # out: it means "a little" and is an ordinary adverb, so "ಸ್ವಲ್ಪ ನಿಲ್ಲು"
+        # is perfectly casual.
+        Rule("polite.particle", ("", "", "", "ದಯವಿಟ್ಟು"), "please"),
+        # ಧನ್ಯವಾದ spans Casual and Polite rather than sitting at one of them.
+        # Pinned to Casual it outvoted the ನಿಮಗೆ in "ನಿಮಗೆ ಧನ್ಯವಾದ", which is
+        # Polite by the pronoun and neutral by the noun.
+        Rule("greet.thanks", ("ಥ್ಯಾಂಕ್ಸ್", "ಧನ್ಯವಾದ", "ಧನ್ಯವಾದ", "ಅನಂತ ಧನ್ಯವಾದಗಳು"), "thanks"),
         Rule("greet.sorry", ("ಸಾರಿ", "ಸಾರಿ", "ಕ್ಷಮಿಸಿ", "ಕ್ಷಮಿಸಿ"), "sorry"),
     ),
 )

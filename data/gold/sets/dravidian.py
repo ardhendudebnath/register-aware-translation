@@ -80,12 +80,11 @@ TAMIL = LanguageSet(
              "transit", "driver", "v.imp.irangu"),
         ]),
     ],
+    formal_lexical_groups=("courtesy",),
     formal=[
         ("தயவுசெய்து கொஞ்சம் காத்திருங்கள்.", "request", "official"),
         ("தயவுசெய்து இங்கே கையெழுத்திடுங்கள்.", "admin", "official"),
         ("உங்களுக்கு மிக்க நன்றி.", "greeting", "official"),
-        ("மன்னிக்கவும்.", "apology", "official"),
-        ("உங்கள் ஒத்துழைப்புக்கு நன்றி.", "workplace", "official"),
     ],
     no_marker=[
         ("இன்று வானிலை நன்றாக இருக்கிறது.", "weather"),
@@ -100,6 +99,15 @@ TAMIL = LanguageSet(
         ("வா.", 1, "imperative", "நீ imperative"),
         ("வாருங்கள்.", 2, "imperative", "நீங்கள் imperative"),
         ("அவன் என்ன செய்கிறான்?", None, "third person", "no second-person marker"),
+        # These were filed as Formal because they are things you say to an
+        # official. That is a fact about the context, not about the sentence:
+        # both are bare honorific forms carrying no Formal marker, and both are
+        # equally at home with a stranger. Formal in Tamil is reached
+        # lexically — தயவுசெய்து, மிக்க — and neither has it.
+        ("மன்னிக்கவும்.", 2, "honorific, no lexical Formal",
+         "honorific form; Formal needs தயவுசெய்து or மிக்க"),
+        ("உங்கள் ஒத்துழைப்புக்கு நன்றி.", 2, "honorific, no lexical Formal",
+         "உங்கள் is honorific; plain நன்றி does not reach Formal"),
     ],
 )
 
@@ -151,11 +159,11 @@ TELUGU = LanguageSet(
              "greeting", "acquaintance", "pron.dat"),
         ]),
     ],
+    formal_lexical_groups=("courtesy",),
     formal=[
         ("దయచేసి కొంచెం వేచి ఉండండి.", "request", "official"),
         ("దయచేసి ఇక్కడ సంతకం చేయండి.", "admin", "official"),
         ("మీకు చాలా ధన్యవాదాలు.", "greeting", "official"),
-        ("క్షమించండి.", "apology", "official"),
     ],
     no_marker=[
         ("ఈరోజు వాతావరణం బాగుంది.", "weather"),
@@ -169,6 +177,10 @@ TELUGU = LanguageSet(
         ("చెప్పు.", 1, "imperative", "నువ్వు imperative"),
         ("చెప్పండి.", 2, "imperative", "మీరు imperative"),
         ("అతను ఏమి చేస్తాడు?", None, "third person", "no second-person marker"),
+        # Filed as Formal for its context rather than its content: a bare
+        # honorific with no Formal marker. Formal needs దయచేసి or చాలా.
+        ("క్షమించండి.", 2, "honorific, no lexical Formal",
+         "honorific form; Formal needs దయచేసి or చాలా"),
     ],
 )
 
@@ -217,11 +229,11 @@ KANNADA = LanguageSet(
              "greeting", "acquaintance", "pron.dat"),
         ]),
     ],
+    formal_lexical_groups=("courtesy",),
     formal=[
         ("ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಕಾಯಿರಿ.", "request", "official"),
         ("ದಯವಿಟ್ಟು ಇಲ್ಲಿ ಸಹಿ ಮಾಡಿ.", "admin", "official"),
         ("ನಿಮಗೆ ಅನಂತ ಧನ್ಯವಾದಗಳು.", "greeting", "official"),
-        ("ಕ್ಷಮಿಸಿ.", "apology", "official"),
     ],
     no_marker=[
         ("ಇಂದು ಹವಾಮಾನ ಚೆನ್ನಾಗಿದೆ.", "weather"),
@@ -235,6 +247,10 @@ KANNADA = LanguageSet(
         ("ಹೇಳು.", 1, "imperative", "ನೀನು imperative"),
         ("ಹೇಳಿ.", 2, "imperative", "ನೀವು imperative"),
         ("ಅವನು ಏನು ಮಾಡುತ್ತಾನೆ?", None, "third person", "no second-person marker"),
+        # Filed as Formal for its context rather than its content: a bare
+        # honorific with no Formal marker. Formal needs ದಯವಿಟ್ಟು or ಅನಂತ.
+        ("ಕ್ಷಮಿಸಿ.", 2, "honorific, no lexical Formal",
+         "honorific form; Formal needs ದಯವಿಟ್ಟು or ಅನಂತ"),
     ],
 )
 
