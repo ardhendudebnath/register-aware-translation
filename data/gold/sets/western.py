@@ -261,6 +261,7 @@ SPANISH = LanguageSet(
              "greeting", "acquaintance", "pron.prep"),
         ]),
     ],
+    formal_lexical_groups=("courtesy",),
     formal=[
         ("Le agradezco mucho su ayuda.", "greeting", "official"),
         ("Le pido disculpas.", "apology", "official"),
@@ -325,6 +326,7 @@ ITALIAN = LanguageSet(
              "greeting", "acquaintance", "pron.tonic"),
         ]),
     ],
+    formal_lexical_groups=("courtesy",),
     formal=[
         ("La ringrazio molto.", "greeting", "official"),
         ("Le chiedo scusa.", "apology", "official"),
