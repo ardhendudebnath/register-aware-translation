@@ -522,6 +522,8 @@ def rewrite(
     cursor = 0
 
     for hit in _find_hits(text, matcher):
+        if hit.rule.detect_only:
+            continue  # readable, but not safe to change on its own
         replacement = hit.rule.forms[level]
 
         # A few rules cannot answer from the tuple alone — French "votre" needs

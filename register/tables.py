@@ -116,6 +116,17 @@ class Rule:
     #: Casual — the rule was supplying evidence for a level the word does not
     #: actually carry.
     rewrite_only: bool = False
+    #: The mirror of it: read this rule as evidence, but never rewrite with it.
+    #:
+    #: For forms that identify the register reliably and cannot be *changed*
+    #: on their own. German is the case: du and Sie say which register a
+    #: sentence is in beyond doubt, but swapping the pronoun alone produces
+    #: "Du sind", because German moves the pronoun and the verb together. The
+    #: clause rules own the rewriting and pair the two; this lets the pronoun
+    #: still be read where no clause rule matched, which was most of the
+    #: language — the clause rules cover an enumerated verb list, and "Wohin
+    #: fährst du?" detected nothing at all with a du sitting in it.
+    detect_only: bool = False
     #: Name of a selector in :mod:`register.selectors`, for rules whose
     #: replacement cannot be read straight out of the tuple because it depends
     #: on surrounding words. French ``votre`` carries no gender, so downgrading
@@ -1991,6 +2002,46 @@ _DE_VERBS = (
     ("wohnen", "wohnst", "wohnen", "you live"),
     ("heissen", "heißt", "heißen", "you are called"),
     ("verstehen", "verstehst", "verstehen", "you understand"),
+    # The list is the whole of German's coverage — the clause rules are the
+    # only thing that rewrites a subject — so a verb missing from it is a
+    # sentence the engine cannot touch. "Wohin fährst du?" was one.
+    ("fahren", "fährst", "fahren", "you travel"),
+    ("essen", "isst", "essen", "you eat"),
+    ("trinken", "trinkst", "trinken", "you drink"),
+    ("lesen", "liest", "lesen", "you read"),
+    ("schreiben", "schreibst", "schreiben", "you write"),
+    ("fragen", "fragst", "fragen", "you ask"),
+    ("warten", "wartest", "warten", "you wait"),
+    ("bleiben", "bleibst", "bleiben", "you stay"),
+    ("finden", "findest", "finden", "you find"),
+    ("denken", "denkst", "denken", "you think"),
+    ("glauben", "glaubst", "glauben", "you believe"),
+    ("bringen", "bringst", "bringen", "you bring"),
+    ("sitzen", "sitzt", "sitzen", "you sit"),
+    ("stehen", "stehst", "stehen", "you stand"),
+    ("lernen", "lernst", "lernen", "you learn"),
+    ("spielen", "spielst", "spielen", "you play"),
+    ("kaufen", "kaufst", "kaufen", "you buy"),
+    ("zahlen", "zahlst", "zahlen", "you pay"),
+    ("hoeren", "hörst", "hören", "you hear"),
+    ("schlafen", "schläfst", "schlafen", "you sleep"),
+    ("suchen", "suchst", "suchen", "you look for"),
+    ("zeigen", "zeigst", "zeigen", "you show"),
+    ("sagen", "sagst", "sagen", "you say"),
+    ("meinen", "meinst", "meinen", "you mean"),
+    ("brauchen_alt", "benötigst", "benötigen", "you require"),
+    ("moechten_haben", "hättest gern", "hätten gern", "you would like"),
+)
+
+#: Third-person singular verbs. Capitalised "Sie" is the polite pronoun, but it
+#: is also sentence-initial "she", and only the agreement separates them:
+#: "Sie ist nett" is about her, "Sie sind nett" about the listener.
+_DE_THIRD_SINGULAR = (
+    r"\s+(?:ist|hat|kann|will|muss|darf|soll|wird|mag|möchte|könnte|würde|"
+    r"hätte|wäre|macht|geht|kommt|sieht|spricht|weiß|nimmt|gibt|braucht|"
+    r"hilft|arbeitet|wohnt|heißt|versteht|fährt|isst|trinkt|liest|schreibt|"
+    r"fragt|wartet|bleibt|findet|denkt|glaubt|bringt|sitzt|steht|lernt|"
+    r"spielt|kauft|zahlt|hört|schläft|sucht|zeigt|sagt|meint)\b"
 )
 
 
@@ -2037,6 +2088,19 @@ GERMAN = LanguageTable(
     canon=(1, 1, 2, 3),
     please=("", "", "bitte ", "bitte "),
     rules=_de_clause_rules() + (
+        # detect_only. The clause rules do the rewriting, because German moves
+        # the pronoun and the verb together and a bare swap gives "Du sind" —
+        # but they only cover the verbs listed above, and until now anything
+        # outside that list read as nothing at all. The pronoun is unambiguous
+        # evidence; it just cannot be changed by itself.
+        # Guarded off the object slot as well, or it shadows the accusative
+        # rule below — both match "Sie", this one is declared first, and being
+        # detect_only it would swallow the span and rewrite nothing, leaving
+        # "Das ist für Sie" stuck at every level.
+        Rule("pron.2sg.nom", ("du", "du", "Sie", "Sie"), "you", cased=True,
+             detect_only=True, guard_before=_DE_OBJECT_CONTEXT,
+             form_guards=(("Sie", _DE_OBJECT_CONTEXT, _DE_THIRD_SINGULAR,
+                           "", "", ""),)),
         Rule("pron.2sg.acc", ("dich", "dich", "Sie", "Sie"), "you (acc)",
              cased=True, require_before=_DE_OBJECT_CONTEXT),
         Rule("pron.2sg.dat", ("dir", "dir", "Ihnen", "Ihnen"), "you (dat)", cased=True),
@@ -2047,8 +2111,33 @@ GERMAN = LanguageTable(
         Rule("poss.dat.f", ("deiner", "deiner", "Ihrer", "Ihrer"), "your (dat f)", cased=True),
         Rule("greet.hello", ("Hi", "Hallo", "Guten Tag", "Guten Tag"), "hello"),
         Rule("greet.bye", ("Tschüss", "Tschüss", "Auf Wiedersehen", "Auf Wiedersehen"), "goodbye"),
-        Rule("greet.thanks", ("Danke", "Danke", "Vielen Dank", "Herzlichen Dank"), "thanks"),
-        Rule("greet.sorry", ("Sorry", "Sorry", "Entschuldigung", "Entschuldigen Sie bitte"), "sorry"),
+        # Danke is neutral across everything below Formal — the gold says so,
+        # with "Danke dir" and "Danke Ihnen" differing only in the pronoun —
+        # and Herzlichen is what lifts it. It used to escalate at Polite, so
+        # "Danke dir" came back as "Vielen Dank Ihnen", which is not a thing
+        # anyone says.
+        Rule("greet.thanks", ("Danke", "Danke", "Danke", "Herzlichen Dank"), "thanks"),
+        Rule("greet.sorry", ("Sorry", "Sorry", "Entschuldigung", "Verzeihung"), "sorry"),
+        # entschuldigen as an imperative rather than an interjection: it agrees
+        # like any other verb, and pinning "Entschuldigen Sie bitte" to Formal
+        # alone made the ordinary polite apology read as the formal one.
+        Rule("v.entschuldigen.imp",
+             ("Entschuldige", "Entschuldige", "Entschuldigen Sie", "Entschuldigen Sie"),
+             "excuse me", cased=True),
+        # detect_only: a fixed formal turn of phrase with no natural casual
+        # counterpart. Rewriting it down collapsed the whole clause to
+        # "Danke.", which is not what the sentence said and does not read as
+        # Close either. Better to recognise it and leave it alone.
+        Rule("clause.bedanken", ("Danke", "Danke", "Vielen Dank",
+                                 "Ich bedanke mich vielmals"), "I thank you",
+             detect_only=True),
+        # A sign-off and a salutation are pure register: no content at all, and
+        # the choice between them is the entire message.
+        Rule("close.signoff", ("Bis dann", "Liebe Grüße", "Viele Grüße",
+                               "Mit freundlichen Grüßen"), "sign-off", cased=True),
+        Rule("open.salutation", ("Hey", "Hallo zusammen", "Guten Tag",
+                                 "Sehr geehrte Damen und Herren"),
+             "salutation", cased=True),
     ),
 )
 
