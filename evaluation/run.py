@@ -103,7 +103,13 @@ def _languages_with_cases() -> List[str]:
 
 
 def _print_failures(report) -> None:
-    for metric in (report.register, report.detection, report.semantic):
+    # Exactness was missing from this list, which meant --verbose silently
+    # printed nothing for the one metric that was failing. Nepali sat at 59.1%
+    # exact for several rounds with no way to see why.
+    metrics = [report.register, report.detection, report.semantic]
+    if report.exactness is not None:
+        metrics.append(report.exactness)
+    for metric in metrics:
         if not metric.failures:
             continue
         print(f"    {metric.name}: {len(metric.failures)} failure(s)")

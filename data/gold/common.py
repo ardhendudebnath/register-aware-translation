@@ -76,6 +76,15 @@ class LanguageSet:
     hard: List[Hard] = field(default_factory=list)
     #: Anything a reviewer needs to know before starting.
     note: str = ""
+    #: True when the language has a Formal level the triads do not cover.
+    #:
+    #: Triads carry three columns. For most languages that is enough, because
+    #: Formal reuses the top column's form and differs only lexically. Nepali
+    #: does not: हजुर is a fourth pronoun above तपाईं, so filling in
+    #: ``expected["3"]`` from the तपाईं column invents a gold rendering the
+    #: language disagrees with, and then marks the engine wrong for producing
+    #: the right one. Formal rows for these languages live in ``formal``.
+    formal_distinct: bool = False
 
     def __post_init__(self) -> None:
         if self.confidence not in CONFIDENCE:
@@ -103,9 +112,11 @@ class LanguageSet:
 
                 expected = {str(level): text for level, text in by_level.items()}
                 # Formal falls back to the highest level the triad supplies,
-                # unless the language marks it separately in `formal`.
-                top = max(by_level)
-                expected.setdefault("3", by_level[top])
+                # unless the language has a distinct Formal the triads do not
+                # reach — see `formal_distinct`.
+                if not self.formal_distinct:
+                    top = max(by_level)
+                    expected.setdefault("3", by_level[top])
 
                 for level, text in sorted(by_level.items()):
                     yield {

@@ -2569,6 +2569,90 @@ ASSAMESE = LanguageTable(
     ),
 )
 
+# --------------------------------------------------------------------------
+# Nepali verb paradigms. (तँ, तिमी, तपाईं)
+#
+# Nepali produced a profile no other language did: 93.3% detection against
+# 59.1% exactness. It found the register reliably and then rendered it wrong,
+# because the pronoun rules were there and the verb rules were not — so
+# "तँ कस्तो छस्?" upgraded to "तिमी कस्तो छस्?" instead of "तिमी कस्तो छौ?".
+# The pronoun moved and the copula stayed behind, in every single sentence.
+#
+# Nepali agreement is heavier than its neighbours': the honorific level takes a
+# whole -नुहुन्छ construction rather than a suffix swap, so the तपाईं column is
+# not derivable from the others.
+# --------------------------------------------------------------------------
+
+_NE_PARADIGMS: Dict[str, Dict[str, Tuple[str, str, str]]] = {
+    "hunu": {  # to be
+        "pres": ("छस्", "छौ", "हुनुहुन्छ"),
+        "past": ("थिइस्", "थियौ", "हुनुहुन्थ्यो"),
+    },
+    "garnu": {  # to do
+        "pres": ("गर्छस्", "गर्छौ", "गर्नुहुन्छ"),
+        "past": ("गरिस्", "गर्यौ", "गर्नुभयो"),
+        "imp": ("गर्", "गर", "गर्नुहोस्"),
+    },
+    "jaanu": {  # to go
+        "pres": ("जान्छस्", "जान्छौ", "जानुहुन्छ"),
+        "imp": ("जा", "जाऊ", "जानुहोस्"),
+    },
+    "aaunu": {  # to come
+        "pres": ("आउँछस्", "आउँछौ", "आउनुहुन्छ"),
+        "imp": ("आइज", "आऊ", "आउनुहोस्"),
+    },
+    "basnu": {  # to sit, to live
+        "pres": ("बस्छस्", "बस्छौ", "बस्नुहुन्छ"),
+        "imp": ("बस्", "बस", "बस्नुहोस्"),
+    },
+    "bhannu": {  # to say
+        "pres": ("भन्छस्", "भन्छौ", "भन्नुहुन्छ"),
+        "imp": ("भन्", "भन", "भन्नुहोस्"),
+    },
+    "khaanu": {  # to eat
+        "pres": ("खान्छस्", "खान्छौ", "खानुहुन्छ"),
+        "imp": ("खा", "खाऊ", "खानुहोस्"),
+    },
+    "hernu": {  # to look
+        "pres": ("हेर्छस्", "हेर्छौ", "हेर्नुहुन्छ"),
+        "imp": ("हेर्", "हेर", "हेर्नुहोस्"),
+    },
+    "sunnu": {  # to hear
+        "pres": ("सुन्छस्", "सुन्छौ", "सुन्नुहुन्छ"),
+        "imp": ("सुन्", "सुन", "सुन्नुहोस्"),
+    },
+    "saknu": {"pres": ("सक्छस्", "सक्छौ", "सक्नुहुन्छ")},          # can
+    "jaannu": {"pres": ("जान्दछस्", "जान्दछौ", "जान्नुहुन्छ")},     # to know
+    "parkhanu": {"imp": ("पर्ख्", "पर्ख", "पर्खनुहोस्")},          # to wait
+    "dinu": {"imp": ("दे", "देऊ", "दिनुहोस्")},                   # to give
+    "linu": {"imp": ("ले", "लेऊ", "लिनुहोस्")},                   # to take
+    "lekhnu": {"imp": ("लेख्", "लेख", "लेख्नुहोस्")},              # to write
+    "padhnu": {"imp": ("पढ्", "पढ", "पढ्नुहोस्")},                # to read
+    "maaf_garnu": {"imp": ("माफ गर्", "माफ गर", "माफ गर्नुहोस्")},
+}
+
+_NE_TENSE_ORDER = ("pres", "past", "imp")
+
+
+def _ne_verb_rules() -> Tuple[Rule, ...]:
+    out = []
+    for tense in _NE_TENSE_ORDER:
+        for verb, paradigm in _NE_PARADIGMS.items():
+            forms = paradigm.get(tense)
+            if not forms:
+                continue
+            ta, timi, tapai = forms
+            if len({ta, timi, tapai}) == 1:
+                continue
+            # Nepali canon is (0, 1, 2, 3) with हजुर at Formal, but the verb
+            # does not change again above तपाईं — only the pronoun does.
+            out.append(
+                Rule(f"v.{verb}.{tense}", (ta, timi, tapai, tapai),
+                     f"{verb} · {tense}")
+            )
+    return tuple(out)
+
+
 NEPALI = LanguageTable(
     code="ne",
     name="Nepali",
@@ -2582,17 +2666,22 @@ NEPALI = LanguageTable(
         "peer": ("", "साथी", "दाइ", "सर"),
         "official": ("", "हजुर", "हजुर", "सर"),
     },
-    rules=(
+    rules=_ne_verb_rules() + (
         Rule("pron.2sg.nom", ("तँ", "तिमी", "तपाईं", "हजुर"), "you"),
         Rule("pron.2sg.gen", ("तेरो", "तिम्रो", "तपाईंको", "हजुरको"), "your"),
         Rule("pron.2sg.acc", ("तँलाई", "तिमीलाई", "तपाईंलाई", "हजुरलाई"), "to you"),
-        Rule("cop.pres", ("होस्", "हौ", "हुनुहुन्छ", "हुनुहुन्छ"), "you are"),
-        Rule("v.garnu.imp", ("गर्", "गर", "गर्नुहोस्", "गर्नुहोस्"), "do!"),
-        Rule("v.janu.imp", ("जा", "जाऊ", "जानुहोस्", "जानुहोस्"), "go!"),
-        Rule("v.aunu.imp", ("आइज", "आऊ", "आउनुहोस्", "आउनुहोस्"), "come!"),
-        Rule("v.bhannu.imp", ("भन्", "भन", "भन्नुहोस्", "भन्नुहोस्"), "say!"),
-        Rule("v.basnu.imp", ("बस्", "बस", "बस्नुहोस्", "बस्नुहोस्"), "sit!"),
-        Rule("v.hernu.imp", ("हेर्", "हेर", "हेर्नुहोस्", "हेर्नुहोस्"), "look!"),
+        # Nepali has two copulas and हुनुहुन्छ is the honorific of both:
+        #
+        #   छ-series  attributive   तँ कस्तो छस् / तिमी कस्तो छौ
+        #   हो-series identificational  तँ को होस् / तिमी को हौ
+        #
+        # Upward both collapse to हुनुहुन्छ, which is unambiguous. Downward it
+        # is a real fork, and the engine has to pick one: it takes the छ-series,
+        # because "कस्तो" — the commonest frame by far — is attributive.
+        # Flagged for a speaker; this is a low-confidence table.
+        Rule("cop.ho", ("होस्", "हौ", "हुनुहुन्छ", "हुनुहुन्छ"), "you are (identity)"),
+        # कृपया marks Formal above तपाईं, so it has to be readable.
+        Rule("polite.particle", ("", "", "", "कृपया"), "please"),
         Rule("greet.hello", ("ए", "हेलो", "नमस्ते", "नमस्कार"), "hello"),
         Rule("greet.thanks", ("थ्याङ्क्स", "धन्यवाद", "धन्यवाद", "धेरै धन्यवाद"), "thanks"),
         Rule("greet.sorry", ("सरी", "सरी", "माफ गर्नुहोस्", "क्षमा गर्नुहोस्"), "sorry"),

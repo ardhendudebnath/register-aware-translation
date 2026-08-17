@@ -62,9 +62,19 @@ def test_new_tables_are_well_formed(code):
         ("as", "আপুনি কেনে আছে", CLOSE, "তই কেনে আছ"),
         ("as", "তুমি কেনে আছা", POLITE, "আপুনি কেনে আছে"),
         # Nepali — तँ / तिमी / तपाईं
-        ("ne", "तपाईं कस्तो हुनुहुन्छ", CASUAL, "तिमी कस्तो हौ"),
-        ("ne", "तपाईं कस्तो हुनुहुन्छ", CLOSE, "तँ कस्तो होस्"),
-        ("ne", "तिमी कस्तो हौ", POLITE, "तपाईं कस्तो हुनुहुन्छ"),
+        #
+        # Nepali has two copulas and हुनुहुन्छ is the honorific of both: the
+        # छ-series is attributive (कस्तो छौ) and the हो-series identificational
+        # (को हौ). Going up they collapse; coming down is a genuine fork, and
+        # the engine takes the छ-series because "कस्तो" is attributive.
+        #
+        # These rows asserted the हो-series, which reads oddly with कस्तो.
+        # Both are defensible Nepali and this is a low-confidence table, so
+        # the choice is flagged rather than settled.
+        ("ne", "तपाईं कस्तो हुनुहुन्छ", CASUAL, "तिमी कस्तो छौ"),
+        ("ne", "तपाईं कस्तो हुनुहुन्छ", CLOSE, "तँ कस्तो छस्"),
+        # The हो-series still upgrades correctly, which is unambiguous.
+        ("ne", "तिमी को हौ", POLITE, "तपाईं को हुनुहुन्छ"),
     ],
 )
 def test_new_language_rewrite(lang, source, level, expected):
