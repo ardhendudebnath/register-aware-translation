@@ -207,8 +207,14 @@ class _Matcher:
         for rule in table.rules:
             guards = self._guards(rule)
             overrides = {
-                form: self._guards(rule, guard_before=before, require_before=required)
-                for form, before, required in rule.form_guards
+                spec[0]: self._guards(
+                    rule,
+                    guard_before=spec[1] or None,
+                    guard_after=spec[2] or None,
+                    require_before=spec[3] or None,
+                    require_after=spec[4] or None,
+                )
+                for spec in rule.form_guards
             }
             seen_forms = set()
             for form in rule.forms:
@@ -266,16 +272,19 @@ class _Matcher:
 
     @staticmethod
     def _guards(rule: Rule, guard_before: Optional[str] = None,
-                require_before: Optional[str] = None) -> _Guards:
+                guard_after: Optional[str] = None,
+                require_before: Optional[str] = None,
+                require_after: Optional[str] = None) -> _Guards:
         flags = re.IGNORECASE if not rule.cased else 0
-        if guard_before is not None or require_before is not None:
-            rule = replace(
-                rule,
-                guard_before=(guard_before if guard_before is not None
-                              else rule.guard_before),
-                require_before=(require_before if require_before is not None
-                                else rule.require_before),
-            )
+        overrides = {
+            "guard_before": guard_before,
+            "guard_after": guard_after,
+            "require_before": require_before,
+            "require_after": require_after,
+        }
+        supplied = {k: v for k, v in overrides.items() if v is not None}
+        if supplied:
+            rule = replace(rule, **supplied)
         # The *_before patterns are anchored to the end of the prefix, so they
         # mean "immediately before the match".
         def _before(pattern: str) -> Optional[re.Pattern]:

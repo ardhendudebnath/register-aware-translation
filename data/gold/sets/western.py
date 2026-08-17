@@ -464,17 +464,34 @@ JAPANESE = LanguageSet(
         ("よろしくお願いいたします。", "correspondence", "official"),
         ("恐れ入りますが、少々お待ちください。", "request", "official"),
     ],
+    # Japanese does not have "no register" the way the others do.
+    #
+    # Everywhere else in this project a sentence with no second-person
+    # reference carries no register, and the detector must abstain. Japanese
+    # です and ます mark the speaker's stance toward the *listener*, so
+    # "今日はいい天気です" is fully polite while being about the weather. An
+    # earlier draft filed these as no-marker rows by applying the
+    # Indo-European rule to a language it does not fit, and then counted the
+    # detector wrong for reading them correctly.
+    #
+    # Genuinely unmarked Japanese is plain-form, so that is what these are now.
     no_marker=[
-        ("今日はいい天気です。", "weather"),
-        ("これはいくらですか。", "shopping"),
-        ("電車が遅れています。", "transit"),
-        ("東京に住んでいます。", "smalltalk"),
-        ("雨が降っています。", "weather"),
+        ("今日はいい天気だな", "weather"),
+        ("電車が遅れてる", "transit"),
+        ("雨が降ってる", "weather"),
     ],
     hard=[
         ("する。", 1, "bare plain form", "no politeness spine at all"),
         ("します。", 2, "masu form", "the sentence-final spine is the whole signal"),
         ("いたします。", 3, "humble form", "keigo"),
+        ("今日はいい天気です。", 2, "polite about a non-person",
+         "です is polite regardless of who or what the sentence is about — "
+         "there is no second person here and it is still Polite"),
+        ("これはいくらですか。", 2, "polite question", "ですか"),
+        ("電車が遅れています。", 2, "polite continuous", "ています"),
+        ("少々お待ちください。", 2, "honorific request",
+         "the だ inside ください is not a copula — matching is substring-based "
+         "in Japanese, so this is the case that guard exists for"),
     ],
 )
 
