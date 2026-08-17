@@ -1162,6 +1162,10 @@ _GU_TENSE_ORDER = ("future", "pres", "imp")
 #: આપ is the verb. Reused from the pronoun rule below.
 _GU_2P_CONTEXT = r"(?:તું|તમે|આપ)(?:\s+\S+){0,10}\s+"
 
+#: The nominative તું alone, for the finite forms it shares with the third
+#: person. Gujarati is verb-final, so the pronoun heads the clause.
+_GU_TU_BEFORE = rf"{LEFT}તું{RIGHT}(?:\s+\S+){{0,10}}\s+"
+
 #: An imperative closes its clause. Required by the verbs whose imperative
 #: collides with something else: આપ is also the formal pronoun, જો is also the
 #: conjunction "if". Generated rules are declared before the pronoun rules, so
@@ -1190,11 +1194,19 @@ def _gu_verb_rules() -> Tuple[Rule, ...]:
                 if tense == "imp" and verb in _GU_COLLIDING_IMPERATIVES
                 else ""
             )
+            # The તું form of a finite tense is also the third-person form —
+            # "તું કરે છે" and "તે કરે છે" are the same string — so it needs a
+            # તું in front of it to count. Without that, "તે શું કરે છે?" (what
+            # does he do?) read as Casual at full confidence.
+            guards = ()
+            if tense != "imp" and not before:
+                guards = ((tu, "", "", _GU_TU_BEFORE, "", ""),)
             # Gujarati canon is (1, 1, 2, 3): તું is Casual, not Close.
             out.append(
                 Rule(f"v.{verb}.{tense}", (tu, tu, tame, aap),
                      f"{verb} · {tense}",
-                     require_before=before, require_after=after)
+                     require_before=before, require_after=after,
+                     form_guards=guards)
             )
     return tuple(out)
 
@@ -1246,7 +1258,13 @@ GUJARATI = LanguageTable(
         Rule("cop.past.m", ("હતો", "હતો", "હતા", "હતા"), "you were (m)"),
         Rule("cop.past.f", ("હતી", "હતી", "હતાં", "હતાં"), "you were (f)"),
         Rule("greet.hello", ("એ", "હેલો", "નમસ્તે", "નમસ્કાર"), "hello"),
-        Rule("greet.thanks", ("થેંક્સ", "આભાર", "આભાર", "ખૂબ આભાર"), "thanks"),
+        # Gujarati reaches Formal with a pronoun — આપ — so the intensifier is
+        # optional rather than load-bearing, and આભાર holds every level the
+        # dial can produce. Forcing ખૂબ made "આપનો આભાર" unstable at its own
+        # level: already Formal, yet rewritten on arriving there. Same as
+        # Malayalam നന്ദി, and the opposite of Tamil, which has no formal
+        # pronoun and needs the lexical step.
+        Rule("greet.thanks", ("થેંક્સ", "આભાર", "આભાર", "આભાર"), "thanks"),
         Rule("greet.sorry", ("સોરી", "સોરી", "માફ કરશો", "ક્ષમા કરશો"), "sorry"),
     ),
 )
@@ -1354,7 +1372,9 @@ PUNJABI = LanguageTable(
         # is what stops "ਤੇਰਾ ਧੰਨਵਾਦ" reading Polite off the noun instead of
         # Casual off the ਤੇਰਾ — and unlike rewrite_only it leaves ਬਹੁਤ ਧੰਨਵਾਦ
         # free to be the evidence a Formal sentence needs.
-        Rule("greet.thanks", ("ਥੈਂਕਸ", "ਧੰਨਵਾਦ", "ਧੰਨਵਾਦ", "ਬਹੁਤ ਧੰਨਵਾਦ"), "thanks"),
+        Rule("greet.thanks", ("ਧੰਨਵਾਦ", "ਧੰਨਵਾਦ", "ਧੰਨਵਾਦ", "ਬਹੁਤ ਬਹੁਤ ਧੰਨਵਾਦ"), "thanks"),
+        # ਅਫ਼ਸੋਸ is the written-register regret, above ਦੁਖ.
+        Rule("lex.regret", ("ਦੁਖ", "ਦੁਖ", "ਦੁਖ", "ਅਫ਼ਸੋਸ"), "regret"),
         Rule("greet.sorry", ("ਸੌਰੀ", "ਸੌਰੀ", "ਮਾਫ਼ ਕਰਨਾ", "ਖਿਮਾ ਕਰਨਾ"), "sorry"),
     ),
 )
@@ -2211,6 +2231,26 @@ FRENCH = LanguageTable(
         Rule("clause.as_tu", ("as-tu", "as-tu", "avez-vous", "avez-vous"), "have you"),
         Rule("clause.es_tu", ("es-tu", "es-tu", "êtes-vous", "êtes-vous"), "are you"),
         Rule("clause.stp", ("s'il te plaît", "s'il te plaît", "s'il vous plaît", "s'il vous plaît"), "please"),
+        # Reflexive questions move three things at once — the clitic, the verb
+        # ending and the inverted subject — so they have to be one rule.
+        # Rewriting them piecemeal produced "Comment t'appelles-vous ?", which
+        # is the polite pronoun on the familiar verb, and "Comment tu
+        # appelez-tu ?" coming back down.
+        #
+        # Written against the *normalised* text: `normalise` above expands t'
+        # to "te " before anything is matched, so a rule spelling it "t'appelles"
+        # can never fire. The elision is put back afterwards.
+        Rule("clause.appeler.inv",
+             ("te appelles-tu", "te appelles-tu",
+              "vous appelez-vous", "vous appelez-vous"), "what are you called"),
+        Rule("clause.sens.inv",
+             ("te sens-tu", "te sens-tu", "vous sentez-vous", "vous sentez-vous"),
+             "how do you feel"),
+        # Veuillez is the formal imperative of vouloir and the standard opener
+        # of a written instruction — the register of a notice rather than a
+        # request between people. Nothing matched it, so both formal rows read
+        # as no register at all.
+        Rule("clause.veuillez", ("", "", "", "Veuillez"), "kindly (formal imperative)"),
         # Subject "vous": neither in a clitic slot nor after a preposition.
         Rule("pron.2sg.nom", ("tu", "tu", "vous", "vous"), "you",
              guard_before=f"(?:{_FR_CLITIC_CONTEXT}|{_FR_PREP_CONTEXT})"),
@@ -2231,8 +2271,33 @@ FRENCH = LanguageTable(
         Rule("poss.pl", ("tes", "tes", "vos", "vos"), "your (pl)"),
         Rule("greet.hello", ("Coucou", "Salut", "Bonjour", "Bonjour"), "hello"),
         Rule("greet.bye", ("Ciao", "Salut", "Au revoir", "Au revoir"), "goodbye"),
-        Rule("greet.thanks", ("Merci", "Merci", "Merci beaucoup", "Je vous remercie"), "thanks"),
-        Rule("greet.sorry", ("Désolé", "Désolé", "Excusez-moi", "Je vous prie de m'excuser"), "sorry"),
+        # Merci is neutral below Formal — "Merci à toi" and "Merci à vous"
+        # differ only in the pronoun — so it no longer escalates at Polite,
+        # and no longer outvotes the vous beside it. Same shape as five other
+        # languages here.
+        Rule("greet.thanks", ("Merci", "Merci", "Merci", "Merci beaucoup"), "thanks"),
+        # greet.sorry no longer owns "Excusez-moi": the imperative rule below
+        # does, and with both holding it the first-declared won and dragged
+        # "Excusez-moi" down to "Désolé" instead of "Excuse-moi".
+        Rule("greet.sorry", ("Désolé", "Désolé", "Je suis désolé",
+                             "Je vous prie de m'excuser"), "sorry"),
+        # excuser as an imperative rather than an interjection: it agrees like
+        # any other verb, and only the honorific half was in the table, so
+        # "Excuse-moi" read as nothing and could not be climbed.
+        Rule("v.excuser.imp", ("Excuse-moi", "Excuse-moi", "Excusez-moi", "Excusez-moi"),
+             "excuse me"),
+        # detect_only, and the middle slots are the tu counterpart rather than
+        # a ladder: the vous form of remercier *is* the formal register, so it
+        # is the only rung that carries information. Rewriting with it would
+        # substitute a clause for the word Merci — the "La ringrazio a Lei"
+        # mistake — so it only ever reads.
+        Rule("clause.remercier", ("je te remercie", "je te remercie",
+                                  "je te remercie", "je vous remercie"),
+             "I thank you", detect_only=True),
+        # A sign-off is pure register: no content at all, and the choice
+        # between them is the whole message.
+        Rule("close.signoff", ("Bisous", "À plus", "Bien à vous", "Cordialement"),
+             "sign-off"),
     ),
 )
 
@@ -2898,12 +2963,47 @@ _JA_PARADIGMS: Tuple[Tuple[str, str, str, str], ...] = (
 _JA_CLAUSE_FINAL = r"(?:[。．.!?！？、，]|$|ね|よ|な|ぞ|わ)"
 
 
+# --------------------------------------------------------------------------
+# Japanese humble verbs collapse distinctions the plain forms keep, so one
+# keigo form serves two verbs and the downgrade has to guess. いただきます is
+# humble for 食べる and 飲む both; まいります for 行く and 来る.
+#
+# The object settles the first: 食べる takes food and 飲む takes drink, and the
+# noun is right there in front of the verb. A destination settles the second.
+# Without them the first-declared verb simply won, so "お茶をいただきます" came
+# down to "お茶を食べる" — drinking tea rendered as eating it.
+#
+# The guards go on the *keigo* form alone. Put on the rule they would also
+# bind 行く, and "明日行く。" would need a destination to be recognised at all.
+# --------------------------------------------------------------------------
+
+_JA_DRINK = r"(?:お茶|茶|水|お水|コーヒー|紅茶|ビール|お酒|酒|ジュース|ミルク|牛乳|スープ)を"
+_JA_DESTINATION = r"(?:へ|に)"
+
+#: verb -> (keigo form, pattern that must precede it, pattern that must not)
+_JA_KEIGO_GUARDS = {
+    "nomu": (_JA_DRINK, ""),
+    "taberu": ("", _JA_DRINK),
+    "iku": (_JA_DESTINATION, ""),
+    "kuru": ("", _JA_DESTINATION),
+    "nomu.past": (_JA_DRINK, ""),
+    "taberu.past": ("", _JA_DRINK),
+    "iku.past": (_JA_DESTINATION, ""),
+    "kuru.past": ("", _JA_DESTINATION),
+}
+
+
 def _ja_verb_rules() -> Tuple[Rule, ...]:
-    return tuple(
-        Rule(f"v.{name}", (plain, plain, masu, keigo), name)
-        for name, plain, masu, keigo in _JA_PARADIGMS
-        if len({plain, masu, keigo}) > 1
-    )
+    out = []
+    for name, plain, masu, keigo in _JA_PARADIGMS:
+        if len({plain, masu, keigo}) <= 1:
+            continue
+        require, forbid = _JA_KEIGO_GUARDS.get(name, ("", ""))
+        guards = ((keigo, forbid, "", require, "", ""),) if (require or forbid) else ()
+        out.append(
+            Rule(f"v.{name}", (plain, plain, masu, keigo), name, form_guards=guards)
+        )
+    return tuple(out)
 
 
 JAPANESE = LanguageTable(
@@ -2918,8 +3018,15 @@ JAPANESE = LanguageTable(
         Rule("polite.arigatou", ("ありがと", "ありがとう", "ありがとうございます", "誠にありがとうございます"), "thanks"),
         Rule("polite.gomen", ("ごめん", "ごめんね", "すみません", "申し訳ございません"), "sorry"),
         Rule("polite.onegai", ("頼む", "お願い", "お願いします", "お願いいたします"), "please"),
-        Rule("polite.osoreirimasu", ("悪いけど", "すみませんが", "恐れ入りますが",
+        # 恐れ入りますが used to fill both honorific slots, so it split its vote
+        # and a request opening with it read as Polite. 恐縮ですが is the
+        # ordinary polite hedge and 恐れ入りますが the deferential one.
+        Rule("polite.osoreirimasu", ("悪いけど", "すみませんが", "恐縮ですが",
                                      "恐れ入りますが"), "excuse me, but"),
+        # The request ladder. お待ちください is the polite request form and had
+        # no rule at all, so "少々お待ちください。" read as nothing.
+        Rule("polite.kudasai", ("待って", "待ってください", "お待ちください",
+                                "お待ちくださいませ"), "please wait"),
         # The copula drops entirely before the question particle: plain
         # "これはいくらか。" against polite "これはいくらですか。". Rewriting です to
         # だ blindly produced "だか", which is not Japanese. Longer than cop.da,
@@ -3493,6 +3600,16 @@ _AS_CLAUSE_FINAL = r"\s*(?:[।!?.,]|$)"
 _AS_SHORT_IMPERATIVES = {"kaba", "loa"}
 
 
+#: A second-person pronoun to the left. Assamese present and imperative are
+#: identical in the তই and তুমি forms and differ only in the আপুনি one — আহ,
+#: আহা for both, then আহে against আহক. The present is declared first, so it won
+#: every match and "ইয়ালৈ আহ।" (come here) climbed to "ইয়ালৈ আহে।", which is
+#: the present indicative, not the imperative the sentence was.
+#:
+#: The subject settles it: a present tense has one, an imperative does not.
+_AS_2P_CONTEXT = r"(?:তই|তুমি|আপুনি)(?:\s+\S+){0,10}\s+"
+
+
 def _as_verb_rules() -> Tuple[Rule, ...]:
     out = []
     for tense in _AS_TENSE_ORDER:
@@ -3508,9 +3625,13 @@ def _as_verb_rules() -> Tuple[Rule, ...]:
                 if tense == "imp" and verb in _AS_SHORT_IMPERATIVES
                 else ""
             )
+            imperative = paradigm.get("imp")
+            collides = (tense != "imp" and imperative is not None
+                        and imperative[:2] == (toi, tumi))
             out.append(
                 Rule(f"v.{verb}.{tense}", (toi, tumi, apuni, apuni),
-                     f"{verb} · {tense}", require_after=after)
+                     f"{verb} · {tense}", require_after=after,
+                     require_before=_AS_2P_CONTEXT if collides else "")
             )
     return tuple(out)
 
@@ -3546,7 +3667,9 @@ ASSAMESE = LanguageTable(
         # way down.
         Rule("polite.particle", ("", "", "", "অনুগ্ৰহ কৰি"), "please"),
         Rule("greet.hello", ("এই", "হেলো", "নমস্কাৰ", "নমস্কাৰ"), "hello"),
-        Rule("greet.thanks", ("থেংকছ", "ধন্যবাদ", "ধন্যবাদ", "বহুত ধন্যবাদ"), "thanks"),
+        # Neutral below Formal, so asking for Close no longer swaps in the
+        # English loan: "তোক ধন্যবাদ" came back as "তোক থেংকছ".
+        Rule("greet.thanks", ("ধন্যবাদ", "ধন্যবাদ", "ধন্যবাদ", "বহুত ধন্যবাদ"), "thanks"),
         Rule("greet.sorry", ("চৰি", "চৰি", "ক্ষমা কৰিব", "ক্ষমা কৰিব"), "sorry"),
     ),
 )
@@ -3665,7 +3788,9 @@ NEPALI = LanguageTable(
         # कृपया marks Formal above तपाईं, so it has to be readable.
         Rule("polite.particle", ("", "", "", "कृपया"), "please"),
         Rule("greet.hello", ("ए", "हेलो", "नमस्ते", "नमस्कार"), "hello"),
-        Rule("greet.thanks", ("थ्याङ्क्स", "धन्यवाद", "धन्यवाद", "धेरै धन्यवाद"), "thanks"),
+        Rule("greet.thanks", ("धन्यवाद", "धन्यवाद", "धन्यवाद", "धेरै धन्यवाद"), "thanks"),
+        # क्षमाप्रार्थी is the written-register apology, above माफ.
+        Rule("lex.apology", ("माफ", "माफ", "माफ", "क्षमाप्रार्थी"), "apology"),
         Rule("greet.sorry", ("सरी", "सरी", "माफ गर्नुहोस्", "क्षमा गर्नुहोस्"), "sorry"),
     ),
 )
