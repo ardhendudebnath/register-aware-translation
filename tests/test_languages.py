@@ -50,7 +50,11 @@ def test_new_tables_are_well_formed(code):
     [
         # Urdu — تو / تم / آپ
         ("ur", "آپ کیسے ہیں", CASUAL, "تم کیسے ہو"),
-        ("ur", "آپ کیسے ہیں", CLOSE, "تو کیسے ہے"),
+        # Urdu makes the predicate agree with the pronoun, and تو takes the
+        # masculine singular: "تو کیسا ہے؟", not "تو کیسے ہے؟". This row
+        # asserted the honorific concord kept against the Close pronoun, which
+        # is the pronoun moving and the adjective staying behind.
+        ("ur", "آپ کیسے ہیں", CLOSE, "تو کیسا ہے"),
         ("ur", "تم کیسے ہو", POLITE, "آپ کیسے ہیں"),
         ("ur", "جاؤ", POLITE, "جائیے"),
         # Odia — ତୁ / ତୁମେ / ଆପଣ
