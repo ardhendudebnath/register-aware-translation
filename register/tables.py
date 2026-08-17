@@ -69,6 +69,15 @@ class Rule:
     guard_after: str = ""
     require_before: str = ""
     require_after: str = ""
+    #: Per-form ``guard_before`` overrides, as (form, regex) pairs.
+    #:
+    #: Needed where a rule's forms are not equally ambiguous. Portuguese "estás"
+    #: is unmistakably second person, but "está" is equally "he/she/it is" — so
+    #: "A loja está fechada" ("the shop is closed") was reading as Polite. A
+    #: rule-level guard cannot express that: blocking clause-initial position
+    #: would also kill "Estás bem?", which needs no guard at all. Only the
+    #: syncretic form carries the restriction.
+    form_guards: Tuple[Tuple[str, str], ...] = ()
     #: Use this rule when rewriting, but never as evidence when detecting.
     #:
     #: For words that are register-*neutral* in themselves but have a polite
@@ -121,6 +130,16 @@ class LanguageTable:
     #: (pattern, replacement) pairs run *after* rewriting, to put the language's
     #: orthography back — "te attends" -> "t'attends".
     elide: Tuple[Tuple[str, str], ...] = ()
+    #: Subject pronoun to *insert* when the verb form alone cannot carry the
+    #: level, one per level; "" means never insert at that level.
+    #:
+    #: Portuguese is the case this exists for. It conjugates você and o senhor
+    #: identically, so upgrading "És muito simpático" to the verb form "É muito
+    #: simpático" is correct and still ambiguous — a Portuguese speaker says
+    #: "Você é muito simpático". No amount of extra rules fixes that, because
+    #: the missing information is a whole word that was never in the source.
+    #: Level 0 stays empty: the tu conjugation is distinct, so it needs no help.
+    insert_subject: Tuple[str, str, str, str] = ("", "", "", "")
 
     def __post_init__(self) -> None:
         if len(self.canon) != 4:
@@ -1698,6 +1717,9 @@ _PT_IMPERATIVES: Tuple[Tuple[str, str, str, str], ...] = (
     ("vir", "vem", "venha", "come!"),
     ("dar", "dá", "dê", "give!"),
     ("esperar", "espera", "espere", "wait!"),
+    ("aguardar", "aguarda", "aguarde", "wait!"),
+    ("ouvir", "ouve", "ouça", "listen!"),
+    ("seguir", "segue", "siga", "follow!"),
     # desculpar is deliberately absent: "Desculpa"/"Desculpe" is carried by
     # greet.sorry below, which also has the level-3 "Peço desculpa". Two rules
     # for one word disagreed about its level and produced "Desculpa" ->
@@ -1713,11 +1735,27 @@ _PT_IMPERATIVES: Tuple[Tuple[str, str, str, str], ...] = (
 #: third-person subjects removes the common false positives.
 _PT_3P_SUBJECT = r"\b(?:ele|ela|eles|elas|quem|que)\s+"
 
+#: The syncretic forms of ser and estar are also the third-person forms, and
+#: Portuguese drops subjects freely, so they need far more than a pronoun list:
+#: a determiner and noun ("A loja está"), a fronted adverb ("Hoje está"), or
+#: nothing at all ("Está a chover"). Only these two verbs are this ambiguous
+#: — and only in their polite form, which is why this is a per-form guard.
+_PT_IMPERSONAL = (
+    r"\b(?:ele|ela|eles|elas|quem|que|isto|isso|aquilo|tudo|nada)\s+"
+    r"|\b(?:o|a|os|as|um|uma|uns|umas|este|esta|esse|essa|aquele|aquela)\s+\w+\s+"
+    r"|\b(?:hoje|ontem|amanhã|aqui|ali|lá|agora|ainda|já|também)\s*"
+    r"|^\s*"
+)
+
+_PT_SYNCRETIC = {"ser": "é", "estar": "está"}
+
 
 def _pt_verb_rules() -> Tuple[Rule, ...]:
     out = [
         Rule(f"v.{stem}", (tu, polite, polite, polite), gloss,
-             guard_before=_PT_3P_SUBJECT)
+             guard_before=_PT_3P_SUBJECT,
+             form_guards=(((_PT_SYNCRETIC[stem], _PT_IMPERSONAL),)
+                          if stem in _PT_SYNCRETIC else ()))
         for stem, tu, polite, gloss in _PT_VERBS
     ]
     out += [
@@ -1732,6 +1770,7 @@ PORTUGUESE = LanguageTable(
     name="Portuguese",
     canon=(0, 1, 2, 2),
     please=("", "", "por favor ", "por favor "),
+    insert_subject=("", "você", "o senhor", "o senhor"),
     rules=_pt_verb_rules() + (
         Rule("pron.2sg.nom", ("tu", "você", "o senhor", "o senhor"), "you"),
         Rule("pron.2sg.obj", ("te", "lhe", "lhe", "lhe"), "you (obj)"),
@@ -1745,7 +1784,11 @@ PORTUGUESE = LanguageTable(
         Rule("poss.f.pl", ("tuas", "suas", "suas", "suas"), "your (f pl)"),
         Rule("greet.hello", ("Oi", "Olá", "Bom dia", "Bom dia"), "hello"),
         Rule("greet.bye", ("Tchau", "Tchau", "Até logo", "Passe bem"), "goodbye"),
-        Rule("greet.thanks", ("Valeu", "Obrigado", "Muito obrigado", "Agradeço muito"), "thanks"),
+        # Obrigado is said at every level; only "Valeu" (slangy) and the
+        # elaborations are marked. Letting it vote made "Obrigado ao senhor"
+        # read as Casual, outvoting the senhor.
+        Rule("greet.thanks", ("Valeu", "Obrigado", "Muito obrigado", "Agradeço muito"),
+             "thanks", rewrite_only=True),
         # "Desculpa" is the tu form and "Desculpe" the você/o senhor one — it
         # is an imperative, not an invariant interjection, so it moves with the
         # register like any other verb.

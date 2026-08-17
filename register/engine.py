@@ -35,7 +35,7 @@ the bare ``du -> Sie`` rule.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .boundaries import delimited
@@ -206,12 +206,17 @@ class _Matcher:
 
         for rule in table.rules:
             guards = self._guards(rule)
+            overrides = {
+                form: self._guards(rule, guard_before=override)
+                for form, override in rule.form_guards
+            }
             seen_forms = set()
             for form in rule.forms:
                 form = form.strip()
                 if not form or form in seen_forms:
                     continue
                 seen_forms.add(form)
+                form_guards = overrides.get(form, guards)
                 for variant, cased in self._variants(form, rule):
                     self.patterns.append(
                         _Pattern(
@@ -220,7 +225,7 @@ class _Matcher:
                             form=form,
                             length=len(variant),
                             cased=cased,
-                            guards=guards,
+                            guards=form_guards,
                         )
                     )
 
@@ -260,8 +265,10 @@ class _Matcher:
         return variants
 
     @staticmethod
-    def _guards(rule: Rule) -> _Guards:
+    def _guards(rule: Rule, guard_before: Optional[str] = None) -> _Guards:
         flags = re.IGNORECASE if not rule.cased else 0
+        if guard_before is not None:
+            rule = replace(rule, guard_before=guard_before)
         # The *_before patterns are anchored to the end of the prefix, so they
         # mean "immediately before the match".
         def _before(pattern: str) -> Optional[re.Pattern]:
@@ -516,6 +523,13 @@ def rewrite(
         # never really touched, scoring an unchanged "Scusa." at 0.29.
         edits = []
 
+    # Portuguese needs a subject pronoun the source never carried; see
+    # _insert_subject_pronoun. Runs before the softener and vocative so those
+    # attach to the finished clause.
+    result, subject_edit = _insert_subject_pronoun(result, table, level, edits)
+    if subject_edit is not None:
+        edits.append(subject_edit)
+
     if speaker_gender:
         result, gender_edits = apply_speaker_gender(result, table.code, speaker_gender)
         for edit in gender_edits:
@@ -670,6 +684,83 @@ def politeness_warning(text: str, language: str, intended_level) -> Optional[str
 # --------------------------------------------------------------------------
 # Internals
 # --------------------------------------------------------------------------
+
+
+def _insert_subject_pronoun(
+    text: str,
+    table: LanguageTable,
+    level: int,
+    edits: List[Edit],
+) -> Tuple[str, Optional[Edit]]:
+    """
+    Add the subject pronoun the target level needs but the source never had.
+
+    Every other rewrite in this engine is a substitution: something was there,
+    something else goes in its place. This one creates a word out of nothing,
+    which is why it is a separate pass and why it is deliberately narrow.
+
+    It fires only when all of these hold:
+
+    * the language declares an ``insert_subject`` form for this level
+    * the sentence has no second-person subject already — otherwise "Você é"
+      would grow a second one every time it was re-levelled
+    * a *finite* verb was actually rewritten, so there is a clause to attach to
+      and we are not decorating an imperative ("Fale" must not become
+      "Você fale")
+
+    The pronoun goes immediately before that verb, which is the neutral
+    Portuguese order and the only position that is right in both statements
+    ("Você é...") and wh-questions ("Onde você mora?").
+    """
+    pronoun = table.insert_subject[level] if table.insert_subject else ""
+    if not pronoun or not text.strip():
+        return text, None
+
+    # Already has an explicit second-person subject?
+    for form in table.insert_subject:
+        if form and re.search(delimited(re.escape(form)), text, re.IGNORECASE):
+            return text, None
+    pronoun_rule = next(
+        (r for r in table.rules if r.name == "pron.2sg.nom"), None
+    )
+    if pronoun_rule is not None:
+        for form in pronoun_rule.forms:
+            if form and re.search(delimited(re.escape(form)), text, re.IGNORECASE):
+                return text, None
+
+    verb_edit = next(
+        (e for e in edits
+         if e.rule.startswith("v.")
+         and ".imp" not in e.rule
+         and e.after
+         and e.after in text),
+        None,
+    )
+    if verb_edit is None:
+        return text, None
+
+    index = text.find(verb_edit.after)
+    if index < 0:
+        return text, None
+
+    if not text[:index].strip():
+        # Clause-initial: the pronoun takes the capital and the verb loses it.
+        head = pronoun[:1].upper() + pronoun[1:]
+        rewritten = (
+            text[:index] + head + " " + text[index].lower() + text[index + 1:]
+        )
+    else:
+        rewritten = text[:index] + pronoun + " " + text[index:]
+
+    return rewritten, Edit(
+        rule="subject.insert",
+        gloss="subject pronoun required by the target level",
+        before="",
+        after=pronoun,
+        start=index,
+        from_levels=(),
+        to_level=level,
+    )
 
 
 def _polite_pronoun(table: LanguageTable) -> str:
