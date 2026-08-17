@@ -364,31 +364,37 @@ PORTUGUESE = LanguageSet(
     confidence="medium",
     note="Three-way, but usage splits by region: tu is everyday in Portugal "
          "and regional in Brazil, where você is the default. Drafted toward "
-         "European Portuguese.",
+         "European Portuguese.\n"
+         "  Portuguese conjugates você and o senhor identically — the third "
+         "level lives on the *pronoun*, not the verb. So the mid and high "
+         "columns carry their pronoun explicitly. An earlier draft dropped it "
+         "('Como está?') and then expected the detector to recover a "
+         "distinction the language does not encode in that sentence; those "
+         "rows were measuring nothing.",
     triads=[
         ("pronouns", [
-            ("Como estás?", "Como está?", "Como está o senhor?",
-             "greeting", "friend", "v.estar"),
-            ("Onde moras?", "Onde mora?", "Onde mora o senhor?",
-             "smalltalk", "stranger", "v.morar"),
-            ("Isto é para ti.", "Isto é para si.", "Isto é para o senhor.",
+            ("Como estás?", "Como está você?", "Como está o senhor?",
+             "greeting", "friend", "v.estar + pron"),
+            ("Onde moras?", "Onde você mora?", "Onde mora o senhor?",
+             "smalltalk", "stranger", "v.morar + pron"),
+            ("Isto é para ti.", "Isto é para você.", "Isto é para o senhor.",
              "everyday", "family", "pron.prep"),
-            ("É o teu livro?", "É o seu livro?", "É o seu livro?",
-             "everyday", "colleague", "poss"),
+            ("É o teu livro?", "É o seu livro, você?", "É o seu livro, senhor?",
+             "everyday", "colleague", "poss + vocative"),
         ]),
         ("verbs", [
-            ("És muito simpático.", "É muito simpático.",
-             "O senhor é muito simpático.", "compliment", "acquaintance", "v.ser"),
-            ("Tens tempo?", "Tem tempo?", "O senhor tem tempo?",
-             "request", "colleague", "v.ter"),
-            ("Podes ajudar-me?", "Pode ajudar-me?", "O senhor pode ajudar-me?",
-             "request", "stranger", "v.poder"),
-            ("Falas inglês?", "Fala inglês?", "O senhor fala inglês?",
-             "smalltalk", "stranger", "v.falar"),
+            ("És muito simpático.", "Você é muito simpático.",
+             "O senhor é muito simpático.", "compliment", "acquaintance", "v.ser + pron"),
+            ("Tens tempo?", "Você tem tempo?", "O senhor tem tempo?",
+             "request", "colleague", "v.ter + pron"),
+            ("Podes ajudar-me?", "Você pode ajudar-me?", "O senhor pode ajudar-me?",
+             "request", "stranger", "v.poder + pron"),
+            ("Falas inglês?", "Você fala inglês?", "O senhor fala inglês?",
+             "smalltalk", "stranger", "v.falar + pron"),
         ]),
         ("courtesy", [
             ("Desculpa.", "Desculpe.", "Desculpe.", "apology", "stranger", "v.imp"),
-            ("Obrigado a ti.", "Obrigado a si.", "Obrigado ao senhor.",
+            ("Obrigado a ti.", "Obrigado a você.", "Obrigado ao senhor.",
              "greeting", "acquaintance", "pron.prep"),
         ]),
     ],

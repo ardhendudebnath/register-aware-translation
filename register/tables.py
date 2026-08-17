@@ -434,6 +434,198 @@ BENGALI = LanguageTable(
     ),
 )
 
+# --------------------------------------------------------------------------
+# Hindi verb paradigms.
+#
+# Same lesson Bengali taught, on a smaller table: hand-written rules covered
+# the tenses someone happened to think of. Against 249 gold rows the engine
+# detected only 72.3% and reproduced 57.0% exactly, and the failures were
+# concentrated in tenses that simply had no rule — the continuous, the future,
+# the perfective, and the ergative pronouns that Hindi past tense requires.
+#
+# Each entry is (तू, तुम, आप). Formal reuses the आप column: what separates
+# Polite from Formal in Hindi is lexical (कृपया, Sanskritised vocabulary), not
+# inflectional.
+#
+# Gendered slots are suffixed .m/.f. The participle agrees with the *addressee*
+# here, which is a different axis from the speaker agreement in
+# `register.speaker` — a man saying "you do" to a woman uses करती हो.
+# --------------------------------------------------------------------------
+
+_HI_PARADIGMS: Dict[str, Dict[str, Tuple[str, str, str]]] = {
+    "karna": {  # to do
+        "pres.m": ("करता है", "करते हो", "करते हैं"),
+        "pres.f": ("करती है", "करती हो", "करती हैं"),
+        "cont.m": ("कर रहा है", "कर रहे हो", "कर रहे हैं"),
+        "cont.f": ("कर रही है", "कर रही हो", "कर रही हैं"),
+        "future.m": ("करेगा", "करोगे", "करेंगे"),
+        "future.f": ("करेगी", "करोगी", "करेंगी"),
+        "subj": ("करे", "करो", "करें"),
+        "prohibitive": ("मत कर", "मत करो", "मत कीजिए"),
+        "imp": ("कर", "करो", "कीजिए"),
+    },
+    "jana": {  # to go
+        "pres.m": ("जाता है", "जाते हो", "जाते हैं"),
+        "pres.f": ("जाती है", "जाती हो", "जाती हैं"),
+        "cont.m": ("जा रहा है", "जा रहे हो", "जा रहे हैं"),
+        "cont.f": ("जा रही है", "जा रही हो", "जा रही हैं"),
+        "future.m": ("जाएगा", "जाओगे", "जाएँगे"),
+        "future.f": ("जाएगी", "जाओगी", "जाएँगी"),
+        "prohibitive": ("मत जा", "मत जाओ", "मत जाइए"),
+        "imp": ("जा", "जाओ", "जाइए"),
+    },
+    "ana": {  # to come
+        "pres.m": ("आता है", "आते हो", "आते हैं"),
+        "pres.f": ("आती है", "आती हो", "आती हैं"),
+        "cont.m": ("आ रहा है", "आ रहे हो", "आ रहे हैं"),
+        "cont.f": ("आ रही है", "आ रही हो", "आ रही हैं"),
+        "future.m": ("आएगा", "आओगे", "आएँगे"),
+        "future.f": ("आएगी", "आओगी", "आएँगी"),
+        "prohibitive": ("मत आ", "मत आओ", "मत आइए"),
+        "imp": ("आ", "आओ", "आइए"),
+    },
+    "rahna": {  # to live, to stay
+        "pres.m": ("रहता है", "रहते हो", "रहते हैं"),
+        "pres.f": ("रहती है", "रहती हो", "रहती हैं"),
+        "future.m": ("रहेगा", "रहोगे", "रहेंगे"),
+        "imp": ("रह", "रहो", "रहिए"),
+    },
+    "bolna": {  # to speak
+        "pres.m": ("बोलता है", "बोलते हो", "बोलते हैं"),
+        "pres.f": ("बोलती है", "बोलती हो", "बोलती हैं"),
+        "cont.m": ("बोल रहा है", "बोल रहे हो", "बोल रहे हैं"),
+        "prohibitive": ("मत बोल", "मत बोलो", "मत बोलिए"),
+        "imp": ("बोल", "बोलो", "बोलिए"),
+    },
+    "kahna": {  # to say
+        "pres.m": ("कहता है", "कहते हो", "कहते हैं"),
+        "imp": ("कह", "कहो", "कहिए"),
+    },
+    "batana": {  # to tell
+        "pres.m": ("बताता है", "बताते हो", "बताते हैं"),
+        "future.m": ("बताएगा", "बताओगे", "बताएँगे"),
+        "imp": ("बता", "बताओ", "बताइए"),
+    },
+    "dekhna": {  # to see
+        "pres.m": ("देखता है", "देखते हो", "देखते हैं"),
+        "cont.m": ("देख रहा है", "देख रहे हो", "देख रहे हैं"),
+        "imp": ("देख", "देखो", "देखिए"),
+    },
+    "sunna": {  # to hear
+        "pres.m": ("सुनता है", "सुनते हो", "सुनते हैं"),
+        "imp": ("सुन", "सुनो", "सुनिए"),
+    },
+    "khana": {  # to eat
+        "pres.m": ("खाता है", "खाते हो", "खाते हैं"),
+        "cont.m": ("खा रहा है", "खा रहे हो", "खा रहे हैं"),
+        "future.m": ("खाएगा", "खाओगे", "खाएँगे"),
+        "imp": ("खा", "खाओ", "खाइए"),
+    },
+    "pina": {  # to drink
+        "pres.m": ("पीता है", "पीते हो", "पीते हैं"),
+        "imp": ("पी", "पियो", "पीजिए"),
+    },
+    "lena": {  # to take
+        "future.m": ("लेगा", "लोगे", "लेंगे"),
+        "imp": ("ले", "लो", "लीजिए"),
+    },
+    "dena": {  # to give
+        "future.m": ("देगा", "दोगे", "देंगे"),
+        "imp": ("दे", "दो", "दीजिए"),
+    },
+    "baithna": {"imp": ("बैठ", "बैठो", "बैठिए")},
+    "uthna": {"imp": ("उठ", "उठो", "उठिए")},
+    "rukna": {
+        "imp": ("रुक", "रुको", "रुकिए"),
+        "prohibitive": ("मत रुक", "मत रुको", "मत रुकिए"),
+    },
+    "chalna": {
+        "pres.m": ("चलता है", "चलते हो", "चलते हैं"),
+        "imp": ("चल", "चलो", "चलिए"),
+    },
+    "sona": {
+        "pres.m": ("सोता है", "सोते हो", "सोते हैं"),
+        "imp": ("सो", "सोओ", "सोइए"),
+    },
+    "padhna": {  # to read, to study
+        "pres.m": ("पढ़ता है", "पढ़ते हो", "पढ़ते हैं"),
+        "imp": ("पढ़", "पढ़ो", "पढ़िए"),
+    },
+    "likhna": {
+        "pres.m": ("लिखता है", "लिखते हो", "लिखते हैं"),
+        "imp": ("लिख", "लिखो", "लिखिए"),
+    },
+    "samajhna": {  # to understand
+        "pres.m": ("समझता है", "समझते हो", "समझते हैं"),
+        "imp": ("समझ", "समझो", "समझिए"),
+    },
+    "janna": {  # to know
+        "pres.m": ("जानता है", "जानते हो", "जानते हैं"),
+        "pres.f": ("जानती है", "जानती हो", "जानती हैं"),
+    },
+    "chahna": {  # to want
+        "pres.m": ("चाहता है", "चाहते हो", "चाहते हैं"),
+    },
+    "sakna": {  # can — the most common request frame in Hindi
+        "pres.m": ("सकता है", "सकते हो", "सकते हैं"),
+        "pres.f": ("सकती है", "सकती हो", "सकती हैं"),
+        "future.m": ("सकेगा", "सकोगे", "सकेंगे"),
+    },
+    "milna": {"future.m": ("मिलेगा", "मिलोगे", "मिलेंगे"), "imp": ("मिल", "मिलो", "मिलिए")},
+    "lana": {"imp": ("ला", "लाओ", "लाइए")},
+    "kharidna": {"imp": ("खरीद", "खरीदो", "खरीदिए")},
+    "bulana": {"imp": ("बुला", "बुलाओ", "बुलाइए")},
+    "puchhna": {"imp": ("पूछ", "पूछो", "पूछिए")},
+    "utarna": {"imp": ("उतर", "उतरो", "उतरिए")},
+    "kholna": {"imp": ("खोल", "खोलो", "खोलिए")},
+    "band_karna": {"imp": ("बंद कर", "बंद करो", "बंद कीजिए")},
+    "hatna": {"imp": ("हट", "हटो", "हटिए")},
+    "letna": {"imp": ("लेट", "लेटो", "लेटिए")},
+    "maf_karna": {"imp": ("माफ़ कर", "माफ़ करो", "माफ़ कीजिए")},
+    "intezar": {"imp": ("इंतज़ार कर", "इंतज़ार करो", "इंतज़ार कीजिए")},
+}
+
+#: Declaration order. Longer, more specific tenses first; the bare imperative
+#: last, because it is the shortest string and would otherwise win ties against
+#: the continuous and present forms that contain it.
+_HI_TENSE_ORDER = (
+    "cont.m", "cont.f", "future.m", "future.f", "prohibitive",
+    "pres.m", "pres.f", "subj", "imp",
+)
+
+#: A second-person pronoun to the left, for the tenses whose तुम form collides
+#: with the imperative — करो is both "you do" and "do!". Same idea as Bengali,
+#: same generous window: the pronoun is often several words back.
+_HI_2P_CONTEXT = r"(?:तू|तुम|आप|तूने|तुमने|आपने)(?:\s+\S+){0,10}\s+"
+
+#: Tenses that need it.
+_HI_NEEDS_PRONOUN = {"subj"}
+
+
+def _hi_verb_rules() -> Tuple[Rule, ...]:
+    out = []
+    for tense in _HI_TENSE_ORDER:
+        for verb, paradigm in _HI_PARADIGMS.items():
+            forms = paradigm.get(tense)
+            if not forms:
+                continue
+            tu, tum, aap = forms
+            if len({tu, tum, aap}) == 1:
+                continue  # carries no register information
+
+            # Only guard where the imperative genuinely collides.
+            imperative = paradigm.get("imp")
+            collides = bool(imperative) and imperative[1] == tum
+            before = _HI_2P_CONTEXT if (tense in _HI_NEEDS_PRONOUN or
+                                        (tense.startswith("pres") and collides)) else ""
+
+            out.append(
+                Rule(f"v.{verb}.{tense}", (tu, tum, aap, aap),
+                     f"{verb} · {tense}", require_before=before)
+            )
+    return tuple(out)
+
+
 HINDI = LanguageTable(
     code="hi",
     name="Hindi",
@@ -447,26 +639,22 @@ HINDI = LanguageTable(
         "peer": ("", "यार", "भाई", "सर"),
         "official": ("", "साहब", "साहब", "सर"),
     },
-    rules=(
+    rules=_hi_verb_rules() + (
+        # Ergative — Hindi marks the subject of a perfective transitive with ने,
+        # so the whole past tense is invisible without these. "तुमने खाना खाया?"
+        # had no rule at all.
+        Rule("pron.2sg.erg", ("तूने", "तुमने", "आपने", "आपने"), "you (ergative)"),
         Rule("pron.2sg.nom", ("तू", "तुम", "आप", "आप"), "you"),
         Rule("pron.2sg.acc", ("तुझे", "तुम्हें", "आपको", "आपको"), "to you"),
+        Rule("pron.2sg.acc.ko", ("तुझको", "तुमको", "आपको", "आपको"), "to you (को)"),
+        Rule("pron.2sg.abl", ("तुझसे", "तुमसे", "आपसे", "आपसे"), "from/with you"),
+        Rule("pron.2sg.obl", ("तुझ", "तुम", "आप", "आप"), "you (oblique)"),
         Rule("pron.2sg.gen.m", ("तेरा", "तुम्हारा", "आपका", "आपका"), "your (m)"),
         Rule("pron.2sg.gen.f", ("तेरी", "तुम्हारी", "आपकी", "आपकी"), "your (f)"),
         Rule("pron.2sg.gen.pl", ("तेरे", "तुम्हारे", "आपके", "आपके"), "your (pl/obl)"),
         Rule("cop.pres", ("है", "हो", "हैं", "हैं"), "you are"),
-        Rule("v.karna.pres.m", ("करता है", "करते हो", "करते हैं", "करते हैं"), "you do (m)"),
-        Rule("v.karna.pres.f", ("करती है", "करती हो", "करती हैं", "करती हैं"), "you do (f)"),
-        Rule("v.karna.imp", ("कर", "करो", "कीजिए", "कीजिए"), "do!"),
-        Rule("v.jana.imp", ("जा", "जाओ", "जाइए", "जाइए"), "go!"),
-        Rule("v.ana.imp", ("आ", "आओ", "आइए", "आइए"), "come!"),
-        Rule("v.baithna.imp", ("बैठ", "बैठो", "बैठिए", "बैठिए"), "sit!"),
-        Rule("v.bolna.imp", ("बोल", "बोलो", "बोलिए", "बोलिए"), "speak!"),
-        Rule("v.lena.imp", ("ले", "लो", "लीजिए", "लीजिए"), "take!"),
-        Rule("v.dena.imp", ("दे", "दो", "दीजिए", "दीजिए"), "give!"),
-        Rule("v.dekhna.imp", ("देख", "देखो", "देखिए", "देखिए"), "look!"),
-        Rule("v.sunna.imp", ("सुन", "सुनो", "सुनिए", "सुनिए"), "listen!"),
-        Rule("v.batana.imp", ("बता", "बताओ", "बताइए", "बताइए"), "tell!"),
-        Rule("v.rukna.imp", ("रुक", "रुको", "रुकिए", "रुकिए"), "wait!"),
+        Rule("cop.past.m", ("था", "थे", "थे", "थे"), "you were (m)"),
+        Rule("cop.past.f", ("थी", "थीं", "थीं", "थीं"), "you were (f)"),
         Rule("greet.hello", ("ओए", "हैलो", "नमस्ते", "नमस्कार"), "hello"),
         Rule("greet.thanks", ("थैंक्स", "शुक्रिया", "धन्यवाद", "बहुत धन्यवाद"), "thanks"),
         Rule("greet.sorry", ("सॉरी", "सॉरी", "माफ़ कीजिए", "क्षमा कीजिए"), "sorry"),
@@ -1007,25 +1195,120 @@ ITALIAN = LanguageTable(
     ),
 )
 
+# --------------------------------------------------------------------------
+# Portuguese verbs.
+#
+# The thinnest table in the project at 13 rules, and it measured accordingly:
+# 47.6% detection against the gold set, the worst of the twenty. Most failures
+# were simply verbs with no rule — "Onde moras?" and "Falas inglês?" detected
+# nothing at all, because morar and falar were not in the table.
+#
+# Each entry is (tu, você, o senhor). Note that você and o senhor share their
+# verb form throughout: Portuguese marks the third level on the pronoun, not
+# the verb, so a verb-only sentence is genuinely ambiguous between them. That
+# is a property of the language, not a gap — the pronoun is what settles it.
+# --------------------------------------------------------------------------
+
+_PT_VERBS: Tuple[Tuple[str, str, str, str], ...] = (
+    # stem,        tu,          você / o senhor,  gloss
+    ("ser", "és", "é", "you are"),
+    ("estar", "estás", "está", "you are (state)"),
+    ("ter", "tens", "tem", "you have"),
+    ("poder", "podes", "pode", "you can"),
+    ("querer", "queres", "quer", "you want"),
+    ("ir", "vais", "vai", "you go"),
+    ("vir", "vens", "vem", "you come"),
+    ("fazer", "fazes", "faz", "you do"),
+    ("dizer", "dizes", "diz", "you say"),
+    ("dar", "dás", "dá", "you give"),
+    ("ver", "vês", "vê", "you see"),
+    ("saber", "sabes", "sabe", "you know"),
+    ("conhecer", "conheces", "conhece", "you know (someone)"),
+    ("falar", "falas", "fala", "you speak"),
+    ("morar", "moras", "mora", "you live"),
+    ("trabalhar", "trabalhas", "trabalha", "you work"),
+    ("comer", "comes", "come", "you eat"),
+    ("beber", "bebes", "bebe", "you drink"),
+    ("gostar", "gostas", "gosta", "you like"),
+    ("precisar", "precisas", "precisa", "you need"),
+    ("entender", "entendes", "entende", "you understand"),
+    ("chegar", "chegas", "chega", "you arrive"),
+    ("ficar", "ficas", "fica", "you stay"),
+    ("levar", "levas", "leva", "you take"),
+    ("comprar", "compras", "compra", "you buy"),
+    ("pagar", "pagas", "paga", "you pay"),
+    ("esperar", "esperas", "espera", "you wait"),
+    ("ajudar", "ajudas", "ajuda", "you help"),
+    ("abrir", "abres", "abre", "you open"),
+    ("viver", "vives", "vive", "you live"),
+)
+
+#: Imperatives. Portuguese builds the polite imperative from the subjunctive,
+#: so these are not derivable from the indicative forms above.
+_PT_IMPERATIVES: Tuple[Tuple[str, str, str, str], ...] = (
+    ("falar", "fala", "fale", "speak!"),
+    ("comer", "come", "coma", "eat!"),
+    ("abrir", "abre", "abra", "open!"),
+    ("ir", "vai", "vá", "go!"),
+    ("ser", "sê", "seja", "be!"),
+    ("ter", "tem", "tenha", "have!"),
+    ("fazer", "faz", "faça", "do!"),
+    ("dizer", "diz", "diga", "say!"),
+    ("vir", "vem", "venha", "come!"),
+    ("dar", "dá", "dê", "give!"),
+    ("esperar", "espera", "espere", "wait!"),
+    # desculpar is deliberately absent: "Desculpa"/"Desculpe" is carried by
+    # greet.sorry below, which also has the level-3 "Peço desculpa". Two rules
+    # for one word disagreed about its level and produced "Desculpa" ->
+    # "Desculpe" when asked for Casual.
+    ("entrar", "entra", "entre", "come in!"),
+    ("sentar", "senta", "sente", "sit!"),
+    ("olhar", "olha", "olhe", "look!"),
+)
+
+#: A verb form only counts as second person when the subject is not third —
+#: "é" is both "you are" (você) and "he/she is". Portuguese drops subject
+#: pronouns freely, so this cannot be fully resolved; blocking the clear
+#: third-person subjects removes the common false positives.
+_PT_3P_SUBJECT = r"\b(?:ele|ela|eles|elas|quem|que)\s+"
+
+
+def _pt_verb_rules() -> Tuple[Rule, ...]:
+    out = [
+        Rule(f"v.{stem}", (tu, polite, polite, polite), gloss,
+             guard_before=_PT_3P_SUBJECT)
+        for stem, tu, polite, gloss in _PT_VERBS
+    ]
+    out += [
+        Rule(f"v.{stem}.imp", (tu, polite, polite, polite), gloss)
+        for stem, tu, polite, gloss in _PT_IMPERATIVES
+    ]
+    return tuple(out)
+
+
 PORTUGUESE = LanguageTable(
     code="pt",
     name="Portuguese",
     canon=(0, 1, 2, 2),
     please=("", "", "por favor ", "por favor "),
-    rules=(
+    rules=_pt_verb_rules() + (
         Rule("pron.2sg.nom", ("tu", "você", "o senhor", "o senhor"), "you"),
         Rule("pron.2sg.obj", ("te", "lhe", "lhe", "lhe"), "you (obj)"),
+        # The tonic pronouns were missing entirely, so "Isto é para ti" had
+        # nothing to match on.
+        Rule("pron.2sg.tonic", ("ti", "si", "si", "si"), "you (after preposition)"),
+        Rule("pron.2sg.com", ("contigo", "consigo", "consigo", "consigo"), "with you"),
         Rule("poss.m", ("teu", "seu", "seu", "seu"), "your (m)"),
         Rule("poss.f", ("tua", "sua", "sua", "sua"), "your (f)"),
-        Rule("v.ser", ("és", "é", "é", "é"), "you are"),
-        Rule("v.ter", ("tens", "tem", "tem", "tem"), "you have"),
-        Rule("v.poder", ("podes", "pode", "pode", "pode"), "you can"),
-        Rule("v.querer", ("queres", "quer", "quer", "quer"), "you want"),
-        Rule("v.estar", ("estás", "está", "está", "está"), "you are (state)"),
+        Rule("poss.m.pl", ("teus", "seus", "seus", "seus"), "your (m pl)"),
+        Rule("poss.f.pl", ("tuas", "suas", "suas", "suas"), "your (f pl)"),
         Rule("greet.hello", ("Oi", "Olá", "Bom dia", "Bom dia"), "hello"),
         Rule("greet.bye", ("Tchau", "Tchau", "Até logo", "Passe bem"), "goodbye"),
         Rule("greet.thanks", ("Valeu", "Obrigado", "Muito obrigado", "Agradeço muito"), "thanks"),
-        Rule("greet.sorry", ("Desculpa", "Desculpa", "Desculpe", "Peço desculpa"), "sorry"),
+        # "Desculpa" is the tu form and "Desculpe" the você/o senhor one — it
+        # is an imperative, not an invariant interjection, so it moves with the
+        # register like any other verb.
+        Rule("greet.sorry", ("Desculpa", "Desculpe", "Desculpe", "Peço desculpa"), "sorry"),
     ),
 )
 
