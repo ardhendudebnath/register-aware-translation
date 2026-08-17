@@ -85,6 +85,18 @@ class LanguageSet:
     #: language disagrees with, and then marks the engine wrong for producing
     #: the right one. Formal rows for these languages live in ``formal``.
     formal_distinct: bool = False
+    #: Triad groups whose Formal rendering *is* lexically distinct, in a
+    #: language where most groups' is not.
+    #:
+    #: Tamil, Telugu and Kannada share one honorific pronoun across Polite and
+    #: Formal, so for nearly every triad the Formal fallback is right. Courtesy
+    #: is the exception: நன்றி → மிக்க நன்றி, ధన్యవాదాలు → చాలా ధన్యవాదాలు,
+    #: ಧನ್ಯವಾದ → ಅನಂತ ಧನ್ಯವಾದಗಳು. Left to the fallback these sets assert two
+    #: contradictory things about one sentence — the triad says Formal keeps
+    #: the plain thanks, while ``formal`` lists the upgraded thanks as a Formal
+    #: row. Naming the group here drops the invented expectation and leaves the
+    #: real one standing.
+    formal_lexical_groups: Tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.confidence not in CONFIDENCE:
@@ -113,8 +125,8 @@ class LanguageSet:
                 expected = {str(level): text for level, text in by_level.items()}
                 # Formal falls back to the highest level the triad supplies,
                 # unless the language has a distinct Formal the triads do not
-                # reach — see `formal_distinct`.
-                if not self.formal_distinct:
+                # reach — see `formal_distinct` and `formal_lexical_groups`.
+                if not self.formal_distinct and group not in self.formal_lexical_groups:
                     top = max(by_level)
                     expected.setdefault("3", by_level[top])
 
