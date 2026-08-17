@@ -2950,38 +2950,80 @@ ENGLISH = LanguageTable(
         # or a hedge. That also means a bare imperative — "Send it over." —
         # genuinely carries no register, and the detector abstaining on it is
         # correct rather than a gap.
+        # The canon is (1, 1, 2, 3): English has no Close level distinct from
+        # Casual, which is what "no T/V distinction" amounts to here. So slot 0
+        # is never a rewrite target, and the informal forms that used to sit
+        # there alone — wanna, yeah, gonna, loads of — could be read but never
+        # produced. Asking for Casual returned the *neutral* form instead:
+        # "I wanna go" came back as "I want to go", which is not a register
+        # step, it is just a different sentence.
+        #
+        # They occupy slot 1 now, beside slot 0, the way greet.thanks and
+        # greet.sorry already did. The neutral forms they displaced — want to,
+        # yes, a lot of — leave the table altogether, which is right: they are
+        # unmarked English and abstaining on them is the correct answer.
         Rule("polite.particle", ("", "", "please", "kindly"), "please"),
         Rule("clause.can_you", ("can you", "can you", "could you", "could you kindly"), "request"),
         Rule("clause.could_i", ("can i", "can I", "could I", "might I"), "may I"),
-        Rule("clause.i_think", ("i reckon", "I think", "I believe",
+        Rule("clause.i_think", ("i reckon", "i reckon", "I believe",
                                 "I am of the view"), "I think"),
-        Rule("clause.writing", ("just a note", "I'm writing", "I am writing",
+        Rule("clause.writing", ("just a note", "just a note", "I am writing",
                                 "I am writing to enquire"), "correspondence opener"),
-        Rule("clause.sorry_but", ("sorry but", "sorry, but", "I am afraid",
+        Rule("clause.sorry_but", ("sorry but", "sorry but", "I am afraid",
                                   "I regret to say"), "softened refusal"),
-        Rule("clause.need_help", ("need a hand", "need help",
+        Rule("clause.need_help", ("need a hand", "need a hand",
                                   "need some assistance", "require assistance"), "help"),
-        Rule("word.ok", ("kk", "ok", "very well", "certainly"), "assent"),
-        Rule("word.buy", ("grab", "buy", "purchase", "purchase"), "buy"),
-        Rule("word.show", ("show", "show", "indicate", "indicate"), "show"),
-        Rule("word.start", ("kick off", "start", "begin", "commence"), "start"),
-        Rule("word.enough", ("enough", "enough", "sufficient", "sufficient"), "enough"),
-        Rule("word.about", ("about", "about", "regarding", "with regard to"), "about"),
-        Rule("word.but", ("but", "but", "however", "however"), "but"),
-        Rule("word.so", ("so", "so", "therefore", "therefore"), "so"),
-        Rule("clause.want_to", ("wanna", "want to", "would like to", "should like to"), "want to"),
-        Rule("clause.going_to", ("gonna", "going to", "going to", "intending to"), "going to"),
-        Rule("clause.got_to", ("gotta", "have to", "need to", "am required to"), "have to"),
-        Rule("clause.let_me_know", ("lmk", "let me know", "please let me know", "kindly inform me"), "inform me"),
-        Rule("word.yes", ("yeah", "yes", "yes", "certainly"), "yes"),
-        Rule("word.no", ("nope", "no", "no", "unfortunately not"), "no"),
-        Rule("word.kids", ("kids", "kids", "children", "children"), "children"),
-        Rule("word.lots", ("loads of", "a lot of", "many", "a great deal of"), "many"),
-        Rule("word.ask", ("ask", "ask", "request", "request"), "ask"),
+        Rule("clause.want_to", ("wanna", "wanna", "would like to", "should like to"), "want to"),
+        Rule("clause.going_to", ("gonna", "gonna", "going to", "intending to"), "going to"),
+        Rule("clause.got_to", ("gotta", "gotta", "need to", "am required to"), "have to"),
+        Rule("clause.let_me_know", ("lmk", "lmk", "please let me know", "kindly inform me"), "inform me"),
+        Rule("word.ok", ("kk", "kk", "very well", "very well"), "assent"),
+        Rule("word.yes", ("yeah", "yeah", "yes", "certainly"), "yes"),
+        Rule("word.no", ("nope", "nope", "no", "unfortunately not"), "no"),
+        Rule("word.lots", ("loads of", "loads of", "many", "a great deal of"), "many"),
+        Rule("word.buy", ("grab", "grab", "purchase", "purchase"), "buy"),
+        Rule("word.start", ("kick off", "kick off", "begin", "commence"), "start"),
+        # These are neutral in themselves and only their elaborations are
+        # marked, so they rewrite but do not vote. A full Casual vote from a
+        # word as ordinary as "about" was enough to outweigh the actual signal:
+        # "I am writing to enquire about the position advertised" scored
+        # Casual, on the strength of the "about".
+        Rule("word.show", ("show", "show", "indicate", "indicate"), "show",
+             rewrite_only=True),
+        Rule("word.enough", ("enough", "enough", "sufficient", "sufficient"), "enough",
+             rewrite_only=True),
+        Rule("word.about", ("about", "about", "regarding", "with regard to"), "about",
+             rewrite_only=True),
+        Rule("word.but", ("but", "but", "however", "however"), "but",
+             rewrite_only=True),
+        Rule("word.so", ("so", "so", "therefore", "therefore"), "so",
+             rewrite_only=True),
+        Rule("word.kids", ("kids", "kids", "children", "children"), "children",
+             rewrite_only=True),
+        Rule("word.ask", ("ask", "ask", "request", "request"), "ask",
+             rewrite_only=True),
         Rule("greet.hello", ("hey", "hi", "hello", "good day"), "hello"),
         Rule("greet.bye", ("bye", "bye", "goodbye", "I bid you goodbye"), "goodbye"),
         Rule("greet.thanks", ("thanks", "thanks", "thank you", "thank you very much"), "thanks"),
         Rule("greet.sorry", ("sorry", "sorry", "I apologise", "I sincerely apologise"), "sorry"),
+        # Written-register formulae. Each is fixed enough that the whole phrase
+        # is the marker, and none had a rule, so a formal letter read as
+        # nothing at all.
+        Rule("clause.grateful", ("thanks a lot", "thanks a lot", "I would appreciate",
+                                 "I would be grateful"), "grateful"),
+        # "please find" and not "please find attached": the formula is
+        # discontinuous — "please find the requested documents attached" — and
+        # only its head is reliably contiguous. The head is enough, and it is
+        # unmistakably correspondence English.
+        #
+        # There is no rule for "assistance" against "help". Written as a
+        # variant set it cannot tell the noun from the verb, so "Can you help
+        # me?" came out as "Can you a hand me?", and it flattened the idiom in
+        # "give me a hand" to "give me help".
+        Rule("clause.please_find", ("here's", "here's", "here is", "please find"),
+             "enclosing"),
+        Rule("close.signoff", ("cheers", "cheers", "best wishes", "Yours sincerely"),
+             "sign-off"),
     ),
 )
 
@@ -3365,16 +3407,33 @@ ODIA = LanguageTable(
     # generated paradigm has ("କର୍", "କର", "କରନ୍ତୁ").
     rules=_or_verb_rules() + (
         Rule("pron.2sg.nom", ("ତୁ", "ତୁମେ", "ଆପଣ", "ଆପଣ"), "you"),
-        Rule("pron.2sg.gen", ("ତୋର", "ତୁମର", "ଆପଣଙ୍କର", "ଆପଣଙ୍କର"), "your"),
-        # The genitive also occurs without the final ର, which is the form in
-        # "ଆପଣଙ୍କ ନାଁ କଣ?" — it matched nothing until now.
+        # Odia has a long and a short genitive at every level, and the two
+        # rules used to pair them symmetrically — long with long, short with
+        # short. That is not how the language distributes them: ତୋର and ତୁମର
+        # are the ordinary informal genitives, while the honorific one is
+        # ordinarily ଆପଣଙ୍କ, the ଙ୍କ already carrying the force that ର adds
+        # lower down. The symmetric pairing meant every upgrade produced
+        # ଆପଣଙ୍କର and every downgrade produced the clipped ତୋ.
+        #
+        # So the primary rule crosses: long below, short above. The other two
+        # exist to catch the variants and send them to the same place.
+        Rule("pron.2sg.gen", ("ତୋର", "ତୁମର", "ଆପଣଙ୍କ", "ଆପଣଙ୍କ"), "your"),
         Rule("pron.2sg.gen.short", ("ତୋ", "ତୁମ", "ଆପଣଙ୍କ", "ଆପଣଙ୍କ"), "your (short)"),
+        Rule("pron.2sg.gen.long", ("ତୋର", "ତୁମର", "ଆପଣଙ୍କର", "ଆପଣଙ୍କର"),
+             "your (long honorific)"),
         Rule("pron.2sg.acc", ("ତୋତେ", "ତୁମକୁ", "ଆପଣଙ୍କୁ", "ଆପଣଙ୍କୁ"), "to you"),
         Rule("cop.pres", ("ଅଛୁ", "ଅଛ", "ଅଛନ୍ତି", "ଅଛନ୍ତି"), "you are"),
         Rule("cop.past", ("ଥିଲୁ", "ଥିଲ", "ଥିଲେ", "ଥିଲେ"), "you were"),
         Rule("greet.hello", ("ଏ", "ହେଲୋ", "ନମସ୍କାର", "ନମସ୍କାର"), "hello"),
-        Rule("greet.thanks", ("ଥ୍ୟାଙ୍କ୍ସ", "ଧନ୍ୟବାଦ", "ଧନ୍ୟବାଦ", "ବହୁତ ଧନ୍ୟବାଦ"), "thanks"),
+        # ଧନ୍ୟବାଦ is neutral below Formal, so asking for Close no longer swaps
+        # in the English loan: "ତୋତେ ଧନ୍ୟବାଦ" came back as "ତୋତେ ଥ୍ୟାଙ୍କ୍ସ".
+        # Same shape as Urdu, Hindi and Portuguese.
+        Rule("greet.thanks", ("ଧନ୍ୟବାଦ", "ଧନ୍ୟବାଦ", "ଧନ୍ୟବାଦ", "ବହୁତ ଧନ୍ୟବାଦ"), "thanks"),
         Rule("greet.sorry", ("ସରି", "ସରି", "କ୍ଷମା କରନ୍ତୁ", "କ୍ଷମା କରନ୍ତୁ"), "sorry"),
+        # ଦୟାକରି is what separates Formal from Polite in a request — ଆପଣ covers
+        # both — so it has to be readable, not merely insertable. ଟିକେ stays
+        # out: it means "a little" and softens a request at any level.
+        Rule("polite.particle", ("", "", "", "ଦୟାକରି"), "please"),
     ),
 )
 
