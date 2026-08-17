@@ -420,6 +420,30 @@ def test_indic_boundaries_do_not_match_inside_words():
     assert "আপনিও" not in rewrite("তুমিও", "bn", POLITE).text
 
 
+@pytest.mark.parametrize(
+    "lang,text,expected",
+    [
+        # U+06D4, the Urdu full stop. Leaving it out of the delimiter class
+        # silently disabled register detection for every sentence-final word in
+        # the language — "یہاں بیٹھو۔" read as no register at all.
+        ("ur", "یہاں بیٹھو۔", CASUAL),
+        ("ur", "یہاں بیٹھیے۔", POLITE),
+        ("ur", "یہاں آ۔", CLOSE),
+        # Devanagari danda, the same class of bug.
+        ("hi", "यहाँ बैठो।", CASUAL),
+        ("bn", "এখানে বসো।", CASUAL),
+    ],
+)
+def test_script_terminators_do_not_break_boundaries(lang, text, expected):
+    """
+    A script's own sentence terminator must count as a word boundary.
+
+    Each script brings its own punctuation, and forgetting one does not fail
+    loudly — it just makes every sentence-final word invisible to the matcher.
+    """
+    assert detect(text, lang).level == expected
+
+
 def test_japanese_matches_without_spaces():
     result = rewrite("わたしはこれをする。", "ja", POLITE)
     assert result.text == "わたしはこれをします。"

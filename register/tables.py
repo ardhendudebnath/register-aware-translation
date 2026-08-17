@@ -697,10 +697,127 @@ MARATHI = LanguageTable(
     ),
 )
 
+# --------------------------------------------------------------------------
+# Gujarati verb paradigms.
+#
+# Another imperative-only table: 15 rules, 58.8% detection. Gujarati marks
+# register on the verb ending throughout the present and future, none of which
+# had rules, so any sentence without an imperative in it detected nothing.
+#
+# Each entry is (તું, તમે, આપ). The આપ column mostly reuses the તમે verb form —
+# Gujarati carries the third level on the pronoun and on the -જો imperative
+# ending rather than through the whole conjugation.
+# --------------------------------------------------------------------------
+
+_GU_PARADIGMS: Dict[str, Dict[str, Tuple[str, str, str]]] = {
+    "karvu": {  # to do
+        "pres": ("કરે છે", "કરો છો", "કરો છો"),
+        "future": ("કરીશ", "કરશો", "કરશો"),
+        "imp": ("કર", "કરો", "કરજો"),
+    },
+    "avvu": {  # to come
+        "pres": ("આવે છે", "આવો છો", "આવો છો"),
+        "future": ("આવીશ", "આવશો", "આવશો"),
+        "imp": ("આવ", "આવો", "આવજો"),
+    },
+    "javu": {  # to go
+        "pres": ("જાય છે", "જાઓ છો", "જાઓ છો"),
+        "future": ("જઈશ", "જશો", "જશો"),
+        "imp": ("જા", "જાઓ", "જજો"),
+    },
+    "rahevu": {  # to live, to stay
+        "pres": ("રહે છે", "રહો છો", "રહો છો"),
+        "imp": ("રહે", "રહો", "રહેજો"),
+    },
+    "bolvu": {  # to speak
+        "pres": ("બોલે છે", "બોલો છો", "બોલો છો"),
+        "imp": ("બોલ", "બોલો", "બોલજો"),
+    },
+    "kahevu": {  # to say
+        "pres": ("કહે છે", "કહો છો", "કહો છો"),
+        "imp": ("કહે", "કહો", "કહેજો"),
+    },
+    "khavu": {  # to eat
+        "pres": ("ખાય છે", "ખાઓ છો", "ખાઓ છો"),
+        "imp": ("ખા", "ખાઓ", "ખાજો"),
+    },
+    "pivu": {"imp": ("પી", "પીઓ", "પીજો")},
+    "jovu": {  # to see
+        "pres": ("જુએ છે", "જુઓ છો", "જુઓ છો"),
+        "imp": ("જો", "જુઓ", "જોજો"),
+    },
+    "sambhalvu": {  # to listen
+        "pres": ("સાંભળે છે", "સાંભળો છો", "સાંભળો છો"),
+        "imp": ("સાંભળ", "સાંભળો", "સાંભળજો"),
+    },
+    "samajvu": {"pres": ("સમજે છે", "સમજો છો", "સમજો છો")},
+    "janvu": {"pres": ("જાણે છે", "જાણો છો", "જાણો છો")},
+    "levu": {"future": ("લઈશ", "લેશો", "લેશો"), "imp": ("લે", "લો", "લેજો")},
+    "apvu": {"future": ("આપીશ", "આપશો", "આપશો"), "imp": ("આપ", "આપો", "આપજો")},
+    "besvu": {"imp": ("બેસ", "બેસો", "બેસજો")},
+    "uthvu": {"imp": ("ઊઠ", "ઊઠો", "ઊઠજો")},
+    "thobhvu": {"imp": ("થોભ", "થોભો", "થોભજો")},
+    "lakhvu": {"pres": ("લખે છે", "લખો છો", "લખો છો"), "imp": ("લખ", "લખો", "લખજો")},
+    "vanchvu": {"pres": ("વાંચે છે", "વાંચો છો", "વાંચો છો"), "imp": ("વાંચ", "વાંચો", "વાંચજો")},
+    "kharidvu": {"imp": ("ખરીદ", "ખરીદો", "ખરીદજો")},
+    "utarvu": {"imp": ("ઉતર", "ઉતરો", "ઉતરજો")},
+    "bolavvu": {"imp": ("બોલાવ", "બોલાવો", "બોલાવજો")},
+    "puchvu": {"imp": ("પૂછ", "પૂછો", "પૂછજો")},
+    "maf_karvu": {"imp": ("માફ કર", "માફ કરો", "માફ કરજો")},
+    "madad_karvu": {"imp": ("મદદ કર", "મદદ કરો", "મદદ કરજો")},
+}
+
+#: Present and future before the imperative, for the usual reason: the તમે
+#: imperative (કરો) is spelled identically to the તમે present stem inside
+#: "કરો છો", and the shorter string would otherwise win the tie.
+_GU_TENSE_ORDER = ("future", "pres", "imp")
+
+#: આપ is both the formal pronoun and the imperative "give!", so a bare trailing
+#: આપ is the verb. Reused from the pronoun rule below.
+_GU_2P_CONTEXT = r"(?:તું|તમે|આપ)(?:\s+\S+){0,10}\s+"
+
+#: An imperative closes its clause. Required by the verbs whose imperative
+#: collides with something else: આપ is also the formal pronoun, જો is also the
+#: conjunction "if". Generated rules are declared before the pronoun rules, so
+#: without this the imperative wins the equal-length tie and "આપ કેમ છો?" reads
+#: as Casual — which is how deepening the table briefly *lowered* Gujarati
+#: register accuracy from 98.5% to 96.1%.
+_GU_CLAUSE_FINAL = r"\s*(?:[।!?.,]|$)"
+_GU_COLLIDING_IMPERATIVES = {"apvu", "jovu"}
+
+
+def _gu_verb_rules() -> Tuple[Rule, ...]:
+    out = []
+    for tense in _GU_TENSE_ORDER:
+        for verb, paradigm in _GU_PARADIGMS.items():
+            forms = paradigm.get(tense)
+            if not forms:
+                continue
+            tu, tame, aap = forms
+            if len({tu, tame, aap}) == 1:
+                continue
+            imperative = paradigm.get("imp")
+            collides = bool(imperative) and imperative[1] == tame
+            before = _GU_2P_CONTEXT if (tense == "pres" and collides) else ""
+            after = (
+                _GU_CLAUSE_FINAL
+                if tense == "imp" and verb in _GU_COLLIDING_IMPERATIVES
+                else ""
+            )
+            # Gujarati canon is (1, 1, 2, 3): તું is Casual, not Close.
+            out.append(
+                Rule(f"v.{verb}.{tense}", (tu, tu, tame, aap),
+                     f"{verb} · {tense}",
+                     require_before=before, require_after=after)
+            )
+    return tuple(out)
+
+
 GUJARATI = LanguageTable(
     code="gu",
     name="Gujarati",
     # Three levels, not four: તું (intimate) / તમે (polite) / આપ (deferential).
+    # See _gu_verb_rules above for the paradigm.
     # The table previously put તમે at both Casual and Polite, which made every
     # તમે sentence a permanent tie the detector had to break arbitrarily — it
     # read "તમે કેમ છો?" as Polite while the annotator called it Casual, and no
@@ -716,7 +833,7 @@ GUJARATI = LanguageTable(
         "peer": ("", "દોસ્ત", "ભાઈ", "સાહેબ"),
         "official": ("", "સાહેબ", "સાહેબ", "સાહેબ"),
     },
-    rules=(
+    rules=_gu_verb_rules() + (
         # આપ is both the formal pronoun "you" and the imperative "give!". A
         # subject pronoun is followed by the rest of its clause, whereas the
         # bare imperative ends the utterance — so a trailing આપ is the verb.
@@ -725,15 +842,14 @@ GUJARATI = LanguageTable(
              guard_after=r"\s*(?:[।.!?,;:]|$)"),
         Rule("pron.2sg.dat", ("તને", "તને", "તમને", "આપને"), "to you"),
         Rule("pron.2sg.gen", ("તારું", "તારું", "તમારું", "આપનું"), "your"),
+        # The other genitive genders and the oblique were missing, so
+        # "આ તારા માટે છે" and "તારો આભાર" matched nothing.
+        Rule("pron.2sg.gen.m", ("તારો", "તારો", "તમારો", "આપનો"), "your (m)"),
+        Rule("pron.2sg.gen.f", ("તારી", "તારી", "તમારી", "આપની"), "your (f)"),
+        Rule("pron.2sg.gen.obl", ("તારા", "તારા", "તમારા", "આપના"), "your (obl/pl)"),
         Rule("cop.pres", ("છે", "છે", "છો", "છો"), "you are"),
-        Rule("v.karvu.imp", ("કર", "કર", "કરો", "કરજો"), "do!"),
-        Rule("v.avvu.imp", ("આવ", "આવ", "આવો", "આવજો"), "come!"),
-        Rule("v.javu.imp", ("જા", "જા", "જાઓ", "જજો"), "go!"),
-        Rule("v.besvu.imp", ("બેસ", "બેસ", "બેસો", "બેસજો"), "sit!"),
-        Rule("v.bolvu.imp", ("બોલ", "બોલ", "બોલો", "બોલજો"), "speak!"),
-        Rule("v.levu.imp", ("લે", "લે", "લો", "લેજો"), "take!"),
-        Rule("v.apvu.imp", ("આપ", "આપ", "આપો", "આપજો"), "give!"),
-        Rule("v.jovu.imp", ("જો", "જો", "જુઓ", "જોજો"), "look!"),
+        Rule("cop.past.m", ("હતો", "હતો", "હતા", "હતા"), "you were (m)"),
+        Rule("cop.past.f", ("હતી", "હતી", "હતાં", "હતાં"), "you were (f)"),
         Rule("greet.hello", ("એ", "હેલો", "નમસ્તે", "નમસ્કાર"), "hello"),
         Rule("greet.thanks", ("થેંક્સ", "આભાર", "આભાર", "ખૂબ આભાર"), "thanks"),
         Rule("greet.sorry", ("સોરી", "સોરી", "માફ કરશો", "ક્ષમા કરશો"), "sorry"),
@@ -1384,6 +1500,155 @@ ENGLISH = LanguageTable(
 # point and run `python -m evaluation.run --lang ur` after any correction.
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# Urdu verb paradigms.
+#
+# Grammatically parallel to Hindi — same تو/تم/آپ system, same tense
+# structure — so the paradigm has the same shape and the same slots. What the
+# gold set found was the same absence: an imperative-only table, so the
+# continuous, the future and the entire perfective past detected nothing.
+# "یہ تیرے لیے ہے" was invisible because the oblique genitive تیرے was missing,
+# and "آپ کیا کر رہے ہیں؟" because the continuous was.
+#
+# Each entry is (تو, تم, آپ); Formal reuses the آپ column, since Urdu marks the
+# extra deference lexically (براہ کرم, معذرت) rather than inflectionally.
+# --------------------------------------------------------------------------
+
+_UR_PARADIGMS: Dict[str, Dict[str, Tuple[str, str, str]]] = {
+    "karna": {
+        "pres.m": ("کرتا ہے", "کرتے ہو", "کرتے ہیں"),
+        "pres.f": ("کرتی ہے", "کرتی ہو", "کرتی ہیں"),
+        "cont.m": ("کر رہا ہے", "کر رہے ہو", "کر رہے ہیں"),
+        "cont.f": ("کر رہی ہے", "کر رہی ہو", "کر رہی ہیں"),
+        "future.m": ("کرے گا", "کرو گے", "کریں گے"),
+        "future.f": ("کرے گی", "کرو گی", "کریں گی"),
+        "prohibitive": ("مت کر", "مت کرو", "مت کیجیے"),
+        "imp": ("کر", "کرو", "کیجیے"),
+    },
+    "jana": {
+        "pres.m": ("جاتا ہے", "جاتے ہو", "جاتے ہیں"),
+        "pres.f": ("جاتی ہے", "جاتی ہو", "جاتی ہیں"),
+        "cont.m": ("جا رہا ہے", "جا رہے ہو", "جا رہے ہیں"),
+        "cont.f": ("جا رہی ہے", "جا رہی ہو", "جا رہی ہیں"),
+        "future.m": ("جائے گا", "جاؤ گے", "جائیں گے"),
+        "prohibitive": ("مت جا", "مت جاؤ", "مت جائیے"),
+        "imp": ("جا", "جاؤ", "جائیے"),
+    },
+    "ana": {
+        "pres.m": ("آتا ہے", "آتے ہو", "آتے ہیں"),
+        "pres.f": ("آتی ہے", "آتی ہو", "آتی ہیں"),
+        "cont.m": ("آ رہا ہے", "آ رہے ہو", "آ رہے ہیں"),
+        "future.m": ("آئے گا", "آؤ گے", "آئیں گے"),
+        "imp": ("آ", "آؤ", "آئیے"),
+    },
+    "rahna": {
+        "pres.m": ("رہتا ہے", "رہتے ہو", "رہتے ہیں"),
+        "pres.f": ("رہتی ہے", "رہتی ہو", "رہتی ہیں"),
+        "imp": ("رہ", "رہو", "رہیے"),
+    },
+    "bolna": {
+        "pres.m": ("بولتا ہے", "بولتے ہو", "بولتے ہیں"),
+        "cont.m": ("بول رہا ہے", "بول رہے ہو", "بول رہے ہیں"),
+        "imp": ("بول", "بولو", "بولیے"),
+    },
+    "kahna": {
+        "pres.m": ("کہتا ہے", "کہتے ہو", "کہتے ہیں"),
+        "imp": ("کہہ", "کہو", "کہیے"),
+    },
+    "batana": {
+        "pres.m": ("بتاتا ہے", "بتاتے ہو", "بتاتے ہیں"),
+        "imp": ("بتا", "بتاؤ", "بتائیے"),
+    },
+    "dekhna": {
+        "pres.m": ("دیکھتا ہے", "دیکھتے ہو", "دیکھتے ہیں"),
+        "cont.m": ("دیکھ رہا ہے", "دیکھ رہے ہو", "دیکھ رہے ہیں"),
+        "imp": ("دیکھ", "دیکھو", "دیکھیے"),
+    },
+    "sunna": {
+        "pres.m": ("سنتا ہے", "سنتے ہو", "سنتے ہیں"),
+        "imp": ("سن", "سنو", "سنیے"),
+    },
+    "khana": {
+        "pres.m": ("کھاتا ہے", "کھاتے ہو", "کھاتے ہیں"),
+        "cont.m": ("کھا رہا ہے", "کھا رہے ہو", "کھا رہے ہیں"),
+        "future.m": ("کھائے گا", "کھاؤ گے", "کھائیں گے"),
+        "imp": ("کھا", "کھاؤ", "کھائیے"),
+    },
+    "pina": {
+        "pres.m": ("پیتا ہے", "پیتے ہو", "پیتے ہیں"),
+        "imp": ("پی", "پیو", "پیجیے"),
+    },
+    "lena": {"future.m": ("لے گا", "لو گے", "لیں گے"), "imp": ("لے", "لو", "لیجیے")},
+    "dena": {"future.m": ("دے گا", "دو گے", "دیں گے"), "imp": ("دے", "دو", "دیجیے")},
+    "samajhna": {
+        "pres.m": ("سمجھتا ہے", "سمجھتے ہو", "سمجھتے ہیں"),
+        "imp": ("سمجھ", "سمجھو", "سمجھیے"),
+    },
+    "janna": {
+        "pres.m": ("جانتا ہے", "جانتے ہو", "جانتے ہیں"),
+        "pres.f": ("جانتی ہے", "جانتی ہو", "جانتی ہیں"),
+    },
+    "chahna": {"pres.m": ("چاہتا ہے", "چاہتے ہو", "چاہتے ہیں")},
+    "sakna": {
+        "pres.m": ("سکتا ہے", "سکتے ہو", "سکتے ہیں"),
+        "pres.f": ("سکتی ہے", "سکتی ہو", "سکتی ہیں"),
+    },
+    "likhna": {
+        "pres.m": ("لکھتا ہے", "لکھتے ہو", "لکھتے ہیں"),
+        "imp": ("لکھ", "لکھو", "لکھیے"),
+    },
+    "padhna": {
+        "pres.m": ("پڑھتا ہے", "پڑھتے ہو", "پڑھتے ہیں"),
+        "imp": ("پڑھ", "پڑھو", "پڑھیے"),
+    },
+    "chalna": {
+        "pres.m": ("چلتا ہے", "چلتے ہو", "چلتے ہیں"),
+        "imp": ("چل", "چلو", "چلیے"),
+    },
+    "sona": {"pres.m": ("سوتا ہے", "سوتے ہو", "سوتے ہیں"), "imp": ("سو", "سوؤ", "سوئیے")},
+    "baithna": {"imp": ("بیٹھ", "بیٹھو", "بیٹھیے")},
+    "uthna": {"imp": ("اٹھ", "اٹھو", "اٹھیے")},
+    "rukna": {"imp": ("رک", "رکو", "رکیے"), "prohibitive": ("مت رک", "مت رکو", "مت رکیے")},
+    "kholna": {"imp": ("کھول", "کھولو", "کھولیے")},
+    "utarna": {"imp": ("اتر", "اترو", "اتریے")},
+    "bulana": {"imp": ("بلا", "بلاؤ", "بلائیے")},
+    "puchhna": {"imp": ("پوچھ", "پوچھو", "پوچھیے")},
+    "hatna": {"imp": ("ہٹ", "ہٹو", "ہٹیے")},
+    "maf_karna": {"imp": ("معاف کر", "معاف کرو", "معاف کیجیے")},
+    "intezar": {"imp": ("انتظار کر", "انتظار کرو", "انتظار کیجیے")},
+}
+
+#: Same ordering rule as Hindi: the bare imperative is the shortest string and
+#: must be declared last so it does not win ties against the longer tenses that
+#: contain it.
+_UR_TENSE_ORDER = (
+    "cont.m", "cont.f", "future.m", "future.f", "prohibitive",
+    "pres.m", "pres.f", "imp",
+)
+
+_UR_2P_CONTEXT = r"(?:تو|تم|آپ)(?:\s+\S+){0,10}\s+"
+
+
+def _ur_verb_rules() -> Tuple[Rule, ...]:
+    out = []
+    for tense in _UR_TENSE_ORDER:
+        for verb, paradigm in _UR_PARADIGMS.items():
+            forms = paradigm.get(tense)
+            if not forms:
+                continue
+            tu, tum, aap = forms
+            if len({tu, tum, aap}) == 1:
+                continue
+            imperative = paradigm.get("imp")
+            collides = bool(imperative) and imperative[1] == tum
+            before = _UR_2P_CONTEXT if (tense.startswith("pres") and collides) else ""
+            out.append(
+                Rule(f"v.{verb}.{tense}", (tu, tum, aap, aap),
+                     f"{verb} · {tense}", require_before=before)
+            )
+    return tuple(out)
+
+
 URDU = LanguageTable(
     code="ur",
     name="Urdu",
@@ -1397,19 +1662,21 @@ URDU = LanguageTable(
         "peer": ("", "یار", "بھائی", "سر"),
         "official": ("", "صاحب", "صاحب", "سر"),
     },
-    rules=(
+    rules=_ur_verb_rules() + (
+        # Ergative — Urdu marks the subject of a perfective transitive with نے,
+        # so without these the whole past tense is unreachable.
+        Rule("pron.2sg.erg", ("تو نے", "تم نے", "آپ نے", "آپ نے"), "you (ergative)"),
         Rule("pron.2sg.nom", ("تو", "تم", "آپ", "آپ"), "you"),
         Rule("pron.2sg.acc", ("تجھے", "تمہیں", "آپ کو", "آپ کو"), "to you"),
+        Rule("pron.2sg.abl", ("تجھ سے", "تم سے", "آپ سے", "آپ سے"), "from/with you"),
         Rule("pron.2sg.gen", ("تیرا", "تمہارا", "آپ کا", "آپ کا"), "your"),
+        # The oblique and feminine genitives were missing, which is why
+        # "یہ تیرے لیے ہے" and "مجھے تیری مدد چاہیے" detected nothing at all.
+        Rule("pron.2sg.gen.f", ("تیری", "تمہاری", "آپ کی", "آپ کی"), "your (f)"),
+        Rule("pron.2sg.gen.obl", ("تیرے", "تمہارے", "آپ کے", "آپ کے"), "your (obl/pl)"),
         Rule("cop.pres", ("ہے", "ہو", "ہیں", "ہیں"), "you are"),
-        Rule("v.karna.imp", ("کر", "کرو", "کیجیے", "کیجیے"), "do!"),
-        Rule("v.jana.imp", ("جا", "جاؤ", "جائیے", "جائیے"), "go!"),
-        Rule("v.ana.imp", ("آ", "آؤ", "آئیے", "آئیے"), "come!"),
-        Rule("v.baithna.imp", ("بیٹھ", "بیٹھو", "بیٹھیے", "بیٹھیے"), "sit!"),
-        Rule("v.bolna.imp", ("بول", "بولو", "بولیے", "بولیے"), "speak!"),
-        Rule("v.dekhna.imp", ("دیکھ", "دیکھو", "دیکھیے", "دیکھیے"), "look!"),
-        Rule("v.sunna.imp", ("سن", "سنو", "سنیے", "سنیے"), "listen!"),
-        Rule("v.batana.imp", ("بتا", "بتاؤ", "بتائیے", "بتائیے"), "tell!"),
+        Rule("cop.past.m", ("تھا", "تھے", "تھے", "تھے"), "you were (m)"),
+        Rule("cop.past.f", ("تھی", "تھیں", "تھیں", "تھیں"), "you were (f)"),
         Rule("greet.hello", ("اوے", "ہیلو", "السلام علیکم", "السلام علیکم"), "hello"),
         Rule("greet.thanks", ("تھینکس", "شکریہ", "شکریہ", "بہت شکریہ"), "thanks"),
         Rule("greet.sorry", ("سوری", "سوری", "معاف کیجیے", "معذرت چاہتا ہوں"), "sorry"),
