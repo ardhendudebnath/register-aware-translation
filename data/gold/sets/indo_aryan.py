@@ -298,6 +298,7 @@ URDU = LanguageSet(
              "greeting", "acquaintance", "pron.gen"),
         ]),
     ],
+    formal_lexical_groups=("courtesy",),
     formal=[
         ("براہ کرم تھوڑا انتظار کیجیے۔", "request", "official"),
         ("براہ کرم یہاں دستخط کیجیے۔", "admin", "official"),

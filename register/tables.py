@@ -30,6 +30,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Dict, Optional, Tuple
 
+from .boundaries import LEFT, RIGHT
+
 __all__ = [
     "Rule",
     "LanguageTable",
@@ -2840,6 +2842,45 @@ _UR_TENSE_ORDER = (
 
 _UR_2P_CONTEXT = r"(?:تو|تم|آپ)(?:\s+\S+){0,10}\s+"
 
+# --------------------------------------------------------------------------
+# The Urdu copula is the project's fourth encounter with one verb form doing
+# two jobs, and the worst of them: ہے is the تو copula *and* the ordinary
+# third-person copula. Unguarded it matched every statement in the language,
+# so "آج موسم بہت اچھا ہے" — the weather is nice — detected Close at full
+# confidence, and "تیرا نام کیا ہے" was conjugated down to "تمہارا نام کیا ہو"
+# on a verb whose subject is the name, not the listener.
+#
+# What licenses the second-person reading is the *nominative* تو, and only
+# that. تیرا is the genitive and modifies a noun — in "تیرا نام کیا ہے" the
+# subject is نام and the copula agrees with it, which is exactly why the gold
+# set keeps ہے unchanged across that row's Close and Casual columns.
+#
+# Urdu is verb-final, so the pronoun sits at the head of the clause and the
+# copula at the end: a bounded backscan reaches it. Every Close row in the
+# gold that carries ہے also carries تو, and no negative row does.
+# --------------------------------------------------------------------------
+
+_UR_TU_BEFORE = rf"{LEFT}تو{RIGHT}(?:\s+\S+){{0,10}}\s+"
+
+#: ہو is the تم copula, but ہونا is also the auxiliary in "بارش ہو رہی ہے"
+#: (it is raining) and the subjunctive in "ہو سکتا ہے". A following participle
+#: or modal marks those, and neither is about the listener.
+_UR_HO_AUX_AFTER = r"\s+(?:رہا|رہی|رہے|گیا|گئی|گئے|چکا|چکی|چکے|سکتا|سکتی|سکے)"
+
+
+#: A bare stem followed by an auxiliary is not an imperative. Urdu builds its
+#: progressives, modals and compound verbs on exactly the form the تو
+#: imperative takes, so "کر سکتا ہے" (can do) and "چل رہی ہے" (is running) look
+#: like commands to a matcher that stops at the word. Unguarded, the first was
+#: rewritten to "کرو سکتے ہو" and the second made "the train is late" read as
+#: Close at full confidence.
+_UR_AUX_AFTER = (
+    r"\s+(?:رہا|رہی|رہے"                        # progressive
+    r"|سکتا|سکتی|سکتے|سکو|سکے|سکیں"             # modal: can
+    r"|پاتا|پاتی|پاتے|چکا|چکی|چکے"              # manage to, have already
+    r"|گیا|گئی|گئے|لیا|لی|لیے|دیا|دی|دیے)"      # compound verbs
+)
+
 
 def _ur_verb_rules() -> Tuple[Rule, ...]:
     out = []
@@ -2851,12 +2892,23 @@ def _ur_verb_rules() -> Tuple[Rule, ...]:
             tu, tum, aap = forms
             if len({tu, tum, aap}) == 1:
                 continue
+            guards = []
+            if tense not in ("imp", "prohibitive"):
+                # Every finite تو form is masculine or feminine *singular*,
+                # which is also the third-person agreement — "وہ کیا کرتا ہے؟"
+                # is the same string as the تو question. It needs the same
+                # nominative تو the copula needs, and for the same reason.
+                guards.append((tu, "", "", _UR_TU_BEFORE, "", ""))
             imperative = paradigm.get("imp")
-            collides = bool(imperative) and imperative[1] == tum
-            before = _UR_2P_CONTEXT if (tense.startswith("pres") and collides) else ""
+            if (imperative and imperative[1] == tum
+                    and tense.startswith("pres")):
+                # The تم present collides with some verb's تم imperative.
+                guards.append((tum, "", "", _UR_2P_CONTEXT, "", ""))
             out.append(
                 Rule(f"v.{verb}.{tense}", (tu, tum, aap, aap),
-                     f"{verb} · {tense}", require_before=before)
+                     f"{verb} · {tense}",
+                     guard_after=_UR_AUX_AFTER if tense == "imp" else "",
+                     form_guards=tuple(guards))
             )
     return tuple(out)
 
@@ -2886,12 +2938,46 @@ URDU = LanguageTable(
         # "یہ تیرے لیے ہے" and "مجھے تیری مدد چاہیے" detected nothing at all.
         Rule("pron.2sg.gen.f", ("تیری", "تمہاری", "آپ کی", "آپ کی"), "your (f)"),
         Rule("pron.2sg.gen.obl", ("تیرے", "تمہارے", "آپ کے", "آپ کے"), "your (obl/pl)"),
-        Rule("cop.pres", ("ہے", "ہو", "ہیں", "ہیں"), "you are"),
-        Rule("cop.past.m", ("تھا", "تھے", "تھے", "تھے"), "you were (m)"),
-        Rule("cop.past.f", ("تھی", "تھیں", "تھیں", "تھیں"), "you were (f)"),
+        Rule("cop.pres", ("ہے", "ہو", "ہیں", "ہیں"), "you are",
+             form_guards=(
+                 ("ہے", "", "", _UR_TU_BEFORE, "", ""),
+                 ("ہو", "", _UR_HO_AUX_AFTER, "", "", ""),
+             )),
+        # تھا is third person too ("وہ کہاں تھا؟"), so it takes the same
+        # requirement as ہے. تھے and تھیں are honorific-or-plural and do not.
+        Rule("cop.past.m", ("تھا", "تھے", "تھے", "تھے"), "you were (m)",
+             form_guards=(("تھا", "", "", _UR_TU_BEFORE, "", ""),)),
+        Rule("cop.past.f", ("تھی", "تھیں", "تھیں", "تھیں"), "you were (f)",
+             form_guards=(("تھی", "", "", _UR_TU_BEFORE, "", ""),)),
+        # Second-person adjective and participle agreement. Urdu makes the
+        # predicate agree with the pronoun, so moving تو to تم without moving
+        # کیسا to کیسے leaves "تم کیسا ہو؟" — the right pronoun in the wrong
+        # concord.
+        # Masculine only: the feminine کیسی is the same at every level, so it
+        # carries no register information and the table refuses it.
+        Rule("adj.kaisa", ("کیسا", "کیسے", "کیسے", "کیسے"), "how (m)",
+             require_before=_UR_2P_CONTEXT),
         Rule("greet.hello", ("اوے", "ہیلو", "السلام علیکم", "السلام علیکم"), "hello"),
-        Rule("greet.thanks", ("تھینکس", "شکریہ", "شکریہ", "بہت شکریہ"), "thanks"),
+        # شکریہ is neutral across every level below Formal — the shape Tamil,
+        # Spanish, Italian and Portuguese all ended up with — so it never
+        # contradicts the pronoun, and بہت بہت شکریہ is left as the Formal
+        # evidence. It used to escalate at Polite, so asking for Polite turned
+        # "آپ کا بہت بہت شکریہ" into "آپ کا بہت شکریہ", which read Formal
+        # anyway; and asking for Close turned "تیرا شکریہ" into "تیرا تھینکس",
+        # swapping in an English loan nobody requested. تھینکس goes with it,
+        # for the same reason Portuguese lost "Valeu": it is real Urdu, but no
+        # level here means it.
+        Rule("greet.thanks", ("شکریہ", "شکریہ", "شکریہ", "بہت بہت شکریہ"), "thanks"),
         Rule("greet.sorry", ("سوری", "سوری", "معاف کیجیے", "معذرت چاہتا ہوں"), "sorry"),
+        # براہ کرم is what separates Formal from Polite in a request — آپ
+        # covers both — so it has to be readable, not merely insertable. ذرا
+        # stays out: it means "a little" and softens requests at any level.
+        Rule("polite.particle", ("", "", "", "براہ کرم"), "please"),
+        # جناب is a Formal vocative, and "مجھے افسوس ہے" is the register of a
+        # written apology rather than a spoken one.
+        Rule("voc.sir", ("", "بھائی", "صاحب", "جناب"), "sir"),
+        Rule("clause.afsos", ("سوری", "سوری", "معاف کیجیے", "مجھے افسوس ہے"),
+             "I am sorry"),
     ),
 )
 
