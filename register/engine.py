@@ -38,7 +38,7 @@ import re
 from dataclasses import dataclass, field, replace
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from .boundaries import delimited
+from .boundaries import LEFT, RIGHT, delimited
 from .selectors import get_selector
 from .speaker import apply_speaker_gender, supports_speaker_gender
 from .levels import (
@@ -173,6 +173,11 @@ class _Guards:
     after: Optional[re.Pattern] = None
     required_before: Optional[re.Pattern] = None
     required_after: Optional[re.Pattern] = None
+    #: The two halves of one `require_adjacent` constraint: satisfied if
+    #: *either* side matches, which is why it cannot be expressed as a
+    #: required_before plus a required_after.
+    adjacent_before: Optional[re.Pattern] = None
+    adjacent_after: Optional[re.Pattern] = None
 
     def allows(self, text: str, start: int, end: int) -> bool:
         prefix, suffix = text[:start], text[end:]
@@ -183,6 +188,10 @@ class _Guards:
         if self.required_before is not None and not self.required_before.search(prefix):
             return False
         if self.required_after is not None and not self.required_after.match(suffix):
+            return False
+        if self.adjacent_before is not None and not (
+            self.adjacent_before.search(prefix) or self.adjacent_after.match(suffix)
+        ):
             return False
         return True
 
@@ -213,6 +222,7 @@ class _Matcher:
                     guard_after=spec[2] or None,
                     require_before=spec[3] or None,
                     require_after=spec[4] or None,
+                    require_adjacent=(spec[5] if len(spec) > 5 else "") or None,
                 )
                 for spec in rule.form_guards
             }
@@ -274,13 +284,15 @@ class _Matcher:
     def _guards(rule: Rule, guard_before: Optional[str] = None,
                 guard_after: Optional[str] = None,
                 require_before: Optional[str] = None,
-                require_after: Optional[str] = None) -> _Guards:
+                require_after: Optional[str] = None,
+                require_adjacent: Optional[str] = None) -> _Guards:
         flags = re.IGNORECASE if not rule.cased else 0
         overrides = {
             "guard_before": guard_before,
             "guard_after": guard_after,
             "require_before": require_before,
             "require_after": require_after,
+            "require_adjacent": require_adjacent,
         }
         supplied = {k: v for k, v in overrides.items() if v is not None}
         if supplied:
@@ -293,11 +305,21 @@ class _Matcher:
         def _after(pattern: str) -> Optional[re.Pattern]:
             return re.compile(pattern, flags) if pattern else None
 
+        # One pattern, compiled for both sides: anchored to the end of the
+        # prefix, and plain for the suffix. `\s*` on the inner edge lets the
+        # word sit against the match with the space between them.
+        adjacent = rule.require_adjacent
         return _Guards(
             before=_before(rule.guard_before),
             after=_after(rule.guard_after),
             required_before=_before(rule.require_before),
             required_after=_after(rule.require_after),
+            adjacent_before=(
+                re.compile(rf"(?:{adjacent})\s*$", flags) if adjacent else None
+            ),
+            adjacent_after=(
+                re.compile(rf"\s*(?:{adjacent})", flags) if adjacent else None
+            ),
         )
 
     @staticmethod
@@ -744,25 +766,31 @@ def _insert_subject_pronoun(
       and we are not decorating an imperative ("Fale" must not become
       "Você fale")
 
-    The pronoun goes immediately before that verb, which is the neutral
-    Portuguese order and the only position that is right in both statements
-    ("Você é...") and wh-questions ("Onde você mora?").
+    The pronoun goes on whichever side of that verb the language wants — see
+    ``subject_position``. Before is the neutral Portuguese order and the only
+    position right in both statements ("Você é...") and wh-questions ("Onde
+    você mora?"); Spanish wants it after ("¿Dónde vive usted?").
     """
-    pronoun = table.insert_subject[level] if table.insert_subject else ""
-    if not pronoun or not text.strip():
+    # `any`, not a truthiness test: the default is a tuple of four empty
+    # strings, which is itself truthy, so a bare check passes for every
+    # language that never declares one — and then the removal branch below
+    # deletes subject pronouns out of French and Italian.
+    if not any(table.insert_subject) or not text.strip():
         return text, None
+    pronoun = table.insert_subject[level]
 
-    # Already has an explicit second-person subject?
-    for form in table.insert_subject:
-        if form and re.search(delimited(re.escape(form)), text, re.IGNORECASE):
-            return text, None
+    already_present = any(
+        form and re.search(delimited(re.escape(form)), text, re.IGNORECASE)
+        for form in table.insert_subject
+    )
     pronoun_rule = next(
         (r for r in table.rules if r.name == "pron.2sg.nom"), None
     )
-    if pronoun_rule is not None:
-        for form in pronoun_rule.forms:
-            if form and re.search(delimited(re.escape(form)), text, re.IGNORECASE):
-                return text, None
+    if pronoun_rule is not None and not already_present:
+        already_present = any(
+            form and re.search(delimited(re.escape(form)), text, re.IGNORECASE)
+            for form in pronoun_rule.forms
+        )
 
     verb_edit = next(
         (e for e in edits
@@ -779,6 +807,38 @@ def _insert_subject_pronoun(
     if index < 0:
         return text, None
 
+    if not pronoun:
+        # Going the other way. The pronoun this pass adds is required at the
+        # honorific levels and merely redundant below them, so a downgrade has
+        # to take it back out — "¿Cómo se llama usted?" is "¿Cómo te llamas?",
+        # not "¿Cómo te llamas tú?", where the leftover pronoun reads as
+        # contrastive emphasis nobody asked for.
+        #
+        # Only a pronoun standing against the rewritten verb goes. In "Esto es
+        # para usted" the usted is a prepositional object and belongs to no
+        # verb, so it is translated rather than dropped.
+        return _remove_subject_pronoun(
+            text, pronoun_rule, level, index, len(verb_edit.after),
+            table.subject_position,
+        )
+    if already_present:
+        return text, None
+
+    if table.subject_position == "after":
+        end = index + len(verb_edit.after)
+        return (
+            text[:end] + " " + pronoun + text[end:],
+            Edit(
+                rule="subject.insert",
+                gloss="subject pronoun required by the target level",
+                before="",
+                after=pronoun,
+                start=end,
+                from_levels=(),
+                to_level=level,
+            ),
+        )
+
     if not text[:index].strip():
         # Clause-initial: the pronoun takes the capital and the verb loses it.
         head = pronoun[:1].upper() + pronoun[1:]
@@ -794,6 +854,48 @@ def _insert_subject_pronoun(
         before="",
         after=pronoun,
         start=index,
+        from_levels=(),
+        to_level=level,
+    )
+
+
+def _remove_subject_pronoun(
+    text: str,
+    pronoun_rule: Optional[Rule],
+    level: int,
+    verb_start: int,
+    verb_length: int,
+    position: str,
+) -> Tuple[str, Optional[Edit]]:
+    """Drop a subject pronoun left redundant by a downgrade. See the caller."""
+    if pronoun_rule is None:
+        return text, None
+    form = pronoun_rule.forms[level]
+    if not form:
+        return text, None
+
+    verb_end = verb_start + verb_length
+    if position == "after":
+        match = re.compile(
+            rf"\s+{re.escape(form)}{RIGHT}", re.IGNORECASE
+        ).match(text, verb_end)
+        if match is None:
+            return text, None
+        start, end = match.start(), match.end()
+    else:
+        match = re.compile(
+            rf"{LEFT}{re.escape(form)}\s+$", re.IGNORECASE
+        ).search(text[:verb_start])
+        if match is None:
+            return text, None
+        start, end = match.start(), match.end()
+
+    return text[:start] + text[end:], Edit(
+        rule="subject.remove",
+        gloss="subject pronoun redundant at the target level",
+        before=form,
+        after="",
+        start=start,
         from_levels=(),
         to_level=level,
     )

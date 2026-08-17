@@ -69,9 +69,28 @@ class Rule:
     guard_after: str = ""
     require_before: str = ""
     require_after: str = ""
-    #: Per-form context overrides, as
-    #: ``(form, guard_before, guard_after, require_before, require_after)``.
-    #: An empty string leaves that constraint at the rule's own value.
+    #: Pattern that must appear immediately before *or* immediately after the
+    #: match — a disjunction the two ``require_*`` fields cannot express,
+    #: because setting both demands that both hold.
+    #:
+    #: This is the shape of the Spanish and Italian problem. Their polite
+    #: pronouns take third-person agreement, so "está" is equally "you are"
+    #: and "it is", and no property of the verb settles it. What settles it is
+    #: whether the pronoun is standing next to the verb — "¿Cómo está usted?"
+    #: against "La tienda está cerrada" — and Spanish puts it on either side
+    #: ("Usted es muy amable", "Es usted muy amable").
+    #:
+    #: Guarding instead against third-person *subjects* is the natural first
+    #: try and cannot be finished: él and ella are a closed class, but any
+    #: noun phrase at all can be a subject, so "El tren llega tarde" and "La
+    #: tienda está cerrada" keep arriving. Requiring the pronoun is the same
+    #: constraint stated positively, over a class of two words instead of
+    #: every noun in the language.
+    require_adjacent: str = ""
+    #: Per-form context overrides, as ``(form, guard_before, guard_after,
+    #: require_before, require_after)``, optionally with ``require_adjacent``
+    #: as a sixth. An empty string leaves that constraint at the rule's own
+    #: value.
     #:
     #: Needed where a rule's forms are not equally ambiguous. Portuguese "estás"
     #: is unmistakably second person, but "está" is equally "he/she/it is" — so
@@ -85,7 +104,7 @@ class Rule:
     #:
     #: A rule-level guard cannot express any of these: constraining the whole
     #: rule would also constrain the unambiguous form.
-    form_guards: Tuple[Tuple[str, str, str, str, str], ...] = ()
+    form_guards: Tuple[Tuple[str, ...], ...] = ()
     #: Use this rule when rewriting, but never as evidence when detecting.
     #:
     #: For words that are register-*neutral* in themselves but have a polite
@@ -148,10 +167,21 @@ class LanguageTable:
     #: the missing information is a whole word that was never in the source.
     #: Level 0 stays empty: the tu conjugation is distinct, so it needs no help.
     insert_subject: Tuple[str, str, str, str] = ("", "", "", "")
+    #: Which side of the verb the inserted subject goes on.
+    #:
+    #: Portuguese puts it before ("Você é simpático", "Onde você mora?").
+    #: Spanish puts it after ("Es usted muy amable", "¿Dónde vive usted?") —
+    #: the pronoun is emphatic there, and fronting it reads as a contrast
+    #: nobody asked for.
+    subject_position: str = "before"
 
     def __post_init__(self) -> None:
         if len(self.canon) != 4:
             raise ValueError(f"{self.code}: canon must have 4 entries")
+        if self.subject_position not in ("before", "after"):
+            raise ValueError(
+                f"{self.code}: subject_position must be 'before' or 'after'"
+            )
         if any(c not in (0, 1, 2, 3) for c in self.canon):
             raise ValueError(f"{self.code}: canon entries must be levels 0..3")
         if self.boundary not in ("delimited", "none"):
@@ -2003,25 +2033,55 @@ _ES_3P_SUBJECT = r"\b(?:él|ella|ellos|ellas|quien|quién|que|uno|alguien|nadie)
 #: Polite. Position is the only cue Spanish gives.
 _CLAUSE_INITIAL = r"(?:^|[.!?¡¿,;:]\s*)"
 
+#: The pronoun that licenses reading a third-person form as second person.
+_ES_USTED = r"usted(?:es)?\b"
+
+#: Spanish keeps a distinct pronoun for the object of a preposition: "para ti",
+#: never "para tú". Both cases share one form at the honorific levels — usted
+#: is usted either way — so coming down, only the preceding preposition says
+#: which of the two the sentence wants.
+_ES_PREPOSITION = (
+    r"\b(?:a|de|en|con|por|para|sin|sobre|hacia|hasta|desde|entre|según|"
+    r"contra|tras|ante|bajo)\s+"
+)
+
 
 def _es_verb_rules() -> Tuple[Rule, ...]:
-    imperative_tu = {tu for _, tu, _, _ in _ES_IMPERATIVES}
+    """
+    Build the indicative, clitic and imperative rules.
+
+    The constraints go on the *usted* form alone, via ``form_guards``. They
+    were on the rule, which also constrained the tú form, and that is why
+    "¿Hablas inglés?" detected nothing: `habla` collides with a tú imperative,
+    so the whole rule was kept out of clause-initial position — and `hablas`,
+    which is unambiguous and needs no help, was kept out with it.
+
+    That clause-initial guard is gone. It existed to stop "Espera un momento"
+    reading as an indicative, and requiring an adjacent usted already does
+    that, more precisely: it blocked the reading wherever the verb led its
+    clause, including "¿Habla usted inglés?", where Spanish inverts and the
+    indicative is exactly what is meant.
+    """
     out = []
     for stem, tu, usted, gloss in _ES_VERBS:
-        # Where the usted indicative collides with some verb's tú imperative,
-        # keep the indicative out of clause-initial position.
-        collides = usted in imperative_tu
         out.append(
             Rule(f"v.{stem}", (tu, tu, usted, usted), gloss,
-                 guard_before=(f"{_ES_3P_SUBJECT}|{_CLAUSE_INITIAL}"
-                               if collides else _ES_3P_SUBJECT))
+                 form_guards=((usted, _ES_3P_SUBJECT, "", "", "", _ES_USTED),))
         )
     out += [
-        Rule(f"v.{stem}.clitic", (tu, tu, usted, usted), gloss)
+        Rule(f"v.{stem}.clitic", (tu, tu, usted, usted), gloss,
+             form_guards=((usted, "", "", "", "", _ES_USTED),))
         for stem, tu, usted, gloss in _ES_CLITIC
     ]
+    # Imperatives need no adjacency requirement — the usted imperative comes
+    # from the subjunctive rather than the third person, so "Venga aquí" is
+    # unambiguous. They need the opposite guard instead: an imperative takes no
+    # subject, so an adjacent usted rules the reading out. Without it "¿Habla
+    # usted inglés?" parsed as the tú imperative "habla" and read Casual —
+    # the one form that is both an imperative and an indicative.
     out += [
-        Rule(f"v.{stem}.imp", (tu, tu, usted, usted), gloss)
+        Rule(f"v.{stem}.imp", (tu, tu, usted, usted), gloss,
+             guard_before=rf"{_ES_USTED}\s+", guard_after=rf"\s+{_ES_USTED}")
         for stem, tu, usted, gloss in _ES_IMPERATIVES
     ]
     return tuple(out)
@@ -2036,23 +2096,48 @@ SPANISH = LanguageTable(
     # would throw that away, so both slots stay live.
     canon=(1, 1, 2, 3),
     please=("", "", "por favor ", "por favor "),
+    # usted takes third-person agreement, so a rewritten verb alone leaves the
+    # sentence ambiguous — "¿Dónde vive?" is equally "where does he live?".
+    # Spanish puts the pronoun after the verb, where Portuguese puts it before.
+    insert_subject=("", "", "usted", "usted"),
+    subject_position="after",
     rules=_es_verb_rules() + (
         Rule("clause.como_estas", ("¿Cómo estás?", "¿Cómo estás?", "¿Cómo está usted?", "¿Cómo está usted?"), "how are you"),
-        Rule("pron.2sg.nom", ("tú", "tú", "usted", "usted"), "you"),
+        # Prepositional before nominative, and each guarded off the other's
+        # ground: Spanish uses a distinct oblique form, so "para usted" has to
+        # come down to "para ti" rather than "para tú".
+        Rule("pron.2sg.prep", ("ti", "ti", "usted", "usted"), "you (prep)",
+             require_before=_ES_PREPOSITION),
+        Rule("pron.2sg.nom", ("tú", "tú", "usted", "usted"), "you",
+             guard_before=_ES_PREPOSITION),
         Rule("pron.2sg.obj", ("te", "te", "le", "le"), "you (obj)"),
-        Rule("pron.2sg.prep", ("ti", "ti", "usted", "usted"), "you (prep)"),
         Rule("pron.2sg.com", ("contigo", "contigo", "con usted", "con usted"), "with you"),
         Rule("poss.sg", ("tu", "tu", "su", "su"), "your"),
         Rule("poss.pl", ("tus", "tus", "sus", "sus"), "your (pl)"),
         Rule("greet.hello", ("Ey", "Hola", "Buenos días", "Buenos días"), "hello"),
         Rule("greet.bye", ("Chao", "Adiós", "Hasta luego", "Que tenga un buen día"), "goodbye"),
-        # Drop-in at every slot — see the Italian note. "Le agradezco mucho" is
-        # a clause and produced "Le agradezco mucho a usted".
-        Rule("greet.thanks", ("Gracias", "Gracias", "Muchas gracias", "Muchísimas gracias"),
-             "thanks", rewrite_only=True),
+        # Gracias holds the middle two slots as well as Close, the shape Tamil
+        # and Punjabi ended up with. It is register-neutral — said at every
+        # level — so pinning it low let it outvote an usted, which is what
+        # rewrite_only was suppressing. Spanning the range instead means it
+        # never contradicts the pronoun, and it leaves Muchísimas as the one
+        # piece of Formal evidence a thanks-sentence carries. The cost is that
+        # "Muchas gracias" is no longer produced: there are four slots and the
+        # neutral word needs three of them.
+        Rule("greet.thanks", ("Gracias", "Gracias", "Gracias", "Muchísimas gracias"),
+             "thanks"),
+        # Same shape: "mucho" is what lifts an already-honorific clause to
+        # Formal, since le agradezco alone is equally Polite.
         Rule("clause.agradezco", ("te agradezco", "te agradezco",
-                                  "le agradezco", "le agradezco"), "I thank you"),
+                                  "le agradezco", "le agradezco mucho"), "I thank you"),
         Rule("greet.sorry", ("Perdón", "Perdón", "Disculpe", "Le pido disculpas"), "sorry"),
+        # Readable as well as insertable: "por favor" is what separates Formal
+        # from Polite in a request, since usted covers both.
+        Rule("polite.particle", ("", "", "", "por favor"), "please"),
+        # A sign-off is pure register — it carries no content at all, and the
+        # choice between them is the entire message.
+        Rule("close.signoff", ("Un abrazo", "Un saludo", "Saludos cordiales",
+                               "Atentamente"), "sign-off"),
     ),
 )
 
@@ -2124,7 +2209,9 @@ _IT_IMPERATIVES: Tuple[Tuple[str, str, str, str], ...] = (
     ("mangiare", "mangia", "mangi", "eat!"),
     ("prendere", "prendi", "prenda", "take!"),
     ("aspettare", "aspetta", "aspetti", "wait!"),
-    ("scusare", "scusa", "scusi", "excuse!"),
+    # "scusare" is deliberately absent: greet.sorry owns Scusa, whose polite
+    # form is the whole phrase "Mi scusi" rather than the bare "scusi" this
+    # list would produce.
     ("dire", "di'", "dica", "say!"),
     ("fare", "fa'", "faccia", "do!"),
     ("andare", "va'", "vada", "go!"),
@@ -2139,15 +2226,56 @@ _IT_IMPERATIVES: Tuple[Tuple[str, str, str, str], ...] = (
 #: must never appear here.
 _IT_3P_SUBJECT_FULL = r"\b(?:lui|lei|egli|ella|esso|essa|chi|che)\s+"
 
+# --------------------------------------------------------------------------
+# Italian cannot use the Spanish fix, and the difference is instructive.
+#
+# Spanish spells out usted whenever the polite reading is meant, so requiring
+# it next to the verb settles every case. Italian drops Lei almost always:
+# "Come sta?", "Ha tempo?" and "Parla inglese?" are all polite with no pronoun
+# anywhere. Requiring one would reject the whole language.
+#
+# What Italian does instead is spell out its *third-person* subjects. "Il
+# treno è in ritardo" names the train; the polite sentences name nobody. So
+# here the blocklist is the workable side, as long as it covers noun phrases
+# and not just the handful of bare pronouns it started with — a determiner
+# plus a word is enough to recognise one without parsing.
+#
+# Three shapes, all third person and none of them polite:
+# --------------------------------------------------------------------------
+
+_IT_DET = r"(?i:il|lo|la|i|gli|le|un|uno|una|questo|questa|quel|quello|quella)"
+
+#: A noun phrase before the verb — "Il treno è", "Oggi il tempo è".
+_IT_NP_BEFORE = rf"\b{_IT_DET}\s+\w+\s+"
+
+#: A bare demonstrative subject — "Questo è per te".
+_IT_DEM_BEFORE = r"\b(?i:questo|questa|quello|quella|ciò)\s+"
+
+#: A noun phrase *after* the verb, which is Italian's question inversion:
+#: "È il Suo libro?" is about the book, not about the listener.
+_IT_NP_AFTER = rf"\s+{_IT_DET}\s+"
+
+#: A gerund after the verb is the progressive: "Sta piovendo" is the weather.
+_IT_GERUND = r"\s+\w+(?:ando|endo)\b"
+
+_IT_3P_BEFORE = f"{_IT_3P_SUBJECT_FULL}|{_IT_NP_BEFORE}|{_IT_DEM_BEFORE}"
+_IT_3P_AFTER = f"{_IT_NP_AFTER}|{_IT_GERUND}"
+
+#: Prepositions that take the tonic pronoun rather than the nominative.
+_IT_PREPOSITION = r"\b(?i:per|con|da|a|di|su|tra|fra|come)\s+"
+
 
 def _it_verb_rules() -> Tuple[Rule, ...]:
+    # The guards sit on the Lei form alone. On the rule they also constrained
+    # the tu form, which is unambiguous and needs no constraining.
     out = [
-        Rule(f"v.{stem}", (tu, tu, lei, lei), gloss,
-             cased=True, guard_before=_IT_3P_SUBJECT_FULL)
+        Rule(f"v.{stem}", (tu, tu, lei, lei), gloss, cased=True,
+             form_guards=((lei, _IT_3P_BEFORE, _IT_3P_AFTER, "", ""),))
         for stem, tu, lei, gloss in _IT_VERBS
     ]
     out += [
-        Rule(f"v.{stem}.refl", (tu, tu, lei, lei), gloss, cased=True)
+        Rule(f"v.{stem}.refl", (tu, tu, lei, lei), gloss, cased=True,
+             form_guards=((lei, _IT_3P_BEFORE, _IT_3P_AFTER, "", ""),))
         for stem, tu, lei, gloss in _IT_REFLEXIVES
     ]
     out += [
@@ -2176,12 +2304,16 @@ ITALIAN = LanguageTable(
         # as polite. Mid-sentence casing carries the distinction correctly.
         Rule("clause.come_stai", ("Come stai?", "Come stai?", "Come sta?", "Come sta?"), "how are you"),
         Rule("clause.dimmi", ("dimmi", "dimmi", "mi dica", "mi dica"), "tell me!"),
-        Rule("pron.2sg.nom", ("tu", "tu", "Lei", "Lei"), "you", cased=True),
-        Rule("pron.2sg.obj", ("ti", "ti", "Le", "Le"), "you (obj)", cased=True),
-        # Tonic "te" after a preposition was missing, so "Questo è per te"
-        # had only the ambiguous "è" to go on and read as Polite.
+        # Tonic before nominative, and each kept off the other's ground.
+        # Italian, like Spanish, uses a distinct form after a preposition and
+        # collapses the distinction at the polite level — Lei is Lei either
+        # way — so coming down, only the preposition says which is meant, and
+        # "per Lei" was arriving as "per tu".
         Rule("pron.2sg.tonic", ("te", "te", "Lei", "Lei"), "you (tonic)", cased=True,
-             require_before=r"\b(?:per|con|da|a|di|su|tra|fra|come)\s+"),
+             require_before=_IT_PREPOSITION),
+        Rule("pron.2sg.nom", ("tu", "tu", "Lei", "Lei"), "you", cased=True,
+             guard_before=_IT_PREPOSITION),
+        Rule("pron.2sg.obj", ("ti", "ti", "Le", "Le"), "you (obj)", cased=True),
         Rule("poss.m", ("tuo", "tuo", "Suo", "Suo"), "your (m)", cased=True),
         Rule("poss.f", ("tua", "tua", "Sua", "Sua"), "your (f)", cased=True),
         Rule("poss.m.pl", ("tuoi", "tuoi", "Suoi", "Suoi"), "your (m pl)", cased=True),
@@ -2197,11 +2329,28 @@ ITALIAN = LanguageTable(
         # clause meaning "I thank you", so substituting it for the word Grazie
         # turned "Grazie a Lei" into "La ringrazio a Lei" — two objects and no
         # grammar. The escalation stays lexical instead.
-        Rule("greet.thanks", ("Grazie", "Grazie", "Grazie mille", "Grazie infinite"),
-             "thanks", rewrite_only=True),
+        #
+        # Grazie now spans the middle two slots as well, the shape Tamil and
+        # Spanish ended up with, and no longer needs rewrite_only: a word said
+        # at every level cannot contradict the pronoun if it covers the range,
+        # and Grazie infinite is left as the one piece of Formal evidence a
+        # thanks-sentence carries. The cost is that "Grazie mille" is no longer
+        # produced — four slots, and the neutral word needs three of them.
+        Rule("greet.thanks", ("Grazie", "Grazie", "Grazie", "Grazie infinite"),
+             "thanks"),
+        # "molto" is what lifts an already-honorific clause to Formal, since
+        # La ringrazio on its own is equally Polite.
         Rule("clause.ringrazio", ("ti ringrazio", "ti ringrazio",
-                                  "La ringrazio", "La ringrazio"), "I thank you"),
+                                  "La ringrazio", "La ringrazio molto"), "I thank you"),
+        # "La prego" is markedly more deferential than "Le chiedo" — it is the
+        # register of a notice rather than a request between colleagues.
+        Rule("clause.prego", ("ti chiedo di", "ti chiedo di",
+                              "Le chiedo di", "La prego di"), "I ask you to"),
         Rule("greet.sorry", ("Scusa", "Scusa", "Mi scusi", "Le chiedo scusa"), "sorry"),
+        # A sign-off is pure register: no content at all, and the choice
+        # between them is the entire message.
+        Rule("close.signoff", ("Un bacio", "Un saluto", "Cordiali saluti",
+                               "Distinti saluti"), "sign-off"),
     ),
 )
 

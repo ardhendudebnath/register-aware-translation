@@ -104,8 +104,13 @@ def test_language_code_normalisation():
         ("fr", "C'est pour vous.", CASUAL, "C'est pour toi."),
         ("fr", "Il vous attend.", CASUAL, "Il t'attend."),
         ("fr", "Tu es très gentil.", POLITE, "Vous êtes très gentil."),
-        # Spanish / Italian
-        ("es", "¿Puedes darme tu libro?", POLITE, "¿Puede darme su libro?"),
+        # Spanish / Italian. Spanish now supplies the subject pronoun, as
+        # Portuguese already did and for the same reason: usted takes
+        # third-person agreement, so the rewritten verb alone leaves the
+        # sentence ambiguous — "¿Puede darme su libro?" is equally "can he
+        # give me his book?", su included. The pronoun is what makes the
+        # output mean what the request asked for.
+        ("es", "¿Puedes darme tu libro?", POLITE, "¿Puede usted darme su libro?"),
         ("it", "Puoi darmi il tuo libro?", POLITE, "Può darmi il Suo libro?"),
         # Japanese — no word boundaries, so matching is substring-ordered
         ("ja", "これをする。", POLITE, "これをします。"),
