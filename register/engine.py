@@ -387,6 +387,8 @@ def detect(text: str, language: str) -> Detection:
     evidence: List[Tuple[str, str]] = []
 
     for hit in _find_hits(matcher.expand(text), matcher):
+        if hit.rule.rewrite_only:
+            continue  # neutral in itself; only its elaboration is marked
         levels = hit.rule.levels_for(hit.form)
         if not levels or len(levels) == 4:
             continue  # carries no register information
@@ -506,6 +508,13 @@ def rewrite(
     # been edited; hand back exactly what came in.
     if not edits:
         result = original
+    elif result == original:
+        # Every edit cancelled out — the usual cause is a replacement that
+        # differed only in case, which _restore_initial_capital then undid.
+        # Reporting edits for text that did not change is wrong on its own
+        # terms, and it also made the semantic metric mask spans that were
+        # never really touched, scoring an unchanged "Scusa." at 0.29.
+        edits = []
 
     if speaker_gender:
         result, gender_edits = apply_speaker_gender(result, table.code, speaker_gender)
