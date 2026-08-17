@@ -127,6 +127,7 @@ GERMAN = LanguageSet(
 # ==========================================================================
 
 FRENCH = LanguageSet(
+    formal_lexical_groups=("courtesy",),
     code="fr",
     name="French",
     columns=(1, 2, 2),
@@ -461,7 +462,12 @@ JAPANESE = LanguageSet(
         ("copula", [
             ("これをする。", "これをします。", "これをいたします。",
              "everyday", "colleague", "v.suru"),
-            ("明日行く。", "明日行きます。", "明日まいります。",
+            # The destination is not decoration. まいります is humble for both
+            # 行く and 来る, and this row and the 来る row below were both a
+            # bare adverb plus まいります — indistinguishable, so one of them
+            # had to come down wrong whatever the table did. With 会社に the
+            # row is recoverable, and it is how the sentence would be said.
+            ("明日会社に行く。", "明日会社に行きます。", "明日会社にまいります。",
              "planning", "colleague", "v.iku"),
             ("すぐ来る。", "すぐ来ます。", "すぐまいります。",
              "planning", "colleague", "v.kuru"),
@@ -486,7 +492,11 @@ JAPANESE = LanguageSet(
     formal=[
         ("お世話になっております。", "correspondence", "official"),
         ("よろしくお願いいたします。", "correspondence", "official"),
-        ("恐れ入りますが、少々お待ちください。", "request", "official"),
+        # ませ, not the bare ください: Japanese has a deferential request form
+        # and this row used the polite one, so a Formal opener sat on a Polite
+        # verb and the two cancelled. The same mix Malayalam and Gujarati
+        # both had. The mixed form stays under test as a `hard` row.
+        ("恐れ入りますが、少々お待ちくださいませ。", "request", "official"),
     ],
     # Japanese does not have "no register" the way the others do.
     #
@@ -498,15 +508,26 @@ JAPANESE = LanguageSet(
     # Indo-European rule to a language it does not fit, and then counted the
     # detector wrong for reading them correctly.
     #
-    # Genuinely unmarked Japanese is plain-form, so that is what these are now.
+    # The correction above did not go far enough. Plain form is not the absence
+    # of a register, it is the *casual* one — だ is as positive a marker as です
+    # — so a plain sentence cannot be a no-marker row either. The two that
+    # remain here have no sentence-final copula at all, only the contracted
+    # 〜てる, which the table does not cover; they are the closest Japanese
+    # comes to carrying nothing, and even that is a stretch worth a reviewer's
+    # eye.
     no_marker=[
-        ("今日はいい天気だな", "weather"),
         ("電車が遅れてる", "transit"),
         ("雨が降ってる", "weather"),
     ],
     hard=[
         ("する。", 1, "bare plain form", "no politeness spine at all"),
         ("します。", 2, "masu form", "the sentence-final spine is the whole signal"),
+        ("恐れ入りますが、少々お待ちください。", 2, "mixed register",
+         "恐れ入りますが is deferential, お待ちください is the polite request"),
+        ("今日はいい天気だな", 1, "plain copula",
+         "だ marks the casual register as positively as です marks the polite "
+         "one; this was filed as no-marker, which is the Indo-European notion "
+         "the note above disavows"),
         ("いたします。", 3, "humble form", "keigo"),
         ("今日はいい天気です。", 2, "polite about a non-person",
          "です is polite regardless of who or what the sentence is about — "

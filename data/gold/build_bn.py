@@ -535,7 +535,6 @@ FORMAL: List[Tuple[str, str, str]] = [
     ("আমি ক্ষমাপ্রার্থী।", "apology", "official"),
     ("দয়া করে বিষয়টি বিবেচনা করুন।", "admin", "official"),
     ("অনুগ্রহ করে আপনার পরিচয়পত্র দেখান।", "admin", "official"),
-    ("আপনার সহযোগিতার জন্য ধন্যবাদ।", "workplace", "official"),
     ("দয়া করে লাইনে দাঁড়ান।", "admin", "official"),
     ("অনুগ্রহ করে নথিপত্র জমা দিন।", "admin", "official"),
     ("আপনার আবেদন গৃহীত হয়েছে।", "admin", "official"),
@@ -578,6 +577,13 @@ NO_MARKER: List[Tuple[str, str]] = [
 # --------------------------------------------------------------------------
 
 HARD: List[Tuple[str, Optional[int], str, str]] = [
+    # Was in FORMAL, because it is a thing you say at work. That is a fact
+    # about the context, not the sentence: আপনার is honorific and ধন্যবাদ is
+    # neutral, and nothing in it reaches past Polite. Bengali gets to Formal
+    # lexically — অসংখ্য, দয়া করে, অনুগ্রহ করে — and this has none of them.
+    # The identical Tamil and Hindi rows sit in `hard` for the same reason.
+    ("আপনার সহযোগিতার জন্য ধন্যবাদ।", 2, "honorific, no lexical Formal",
+     "আপনার is honorific; plain ধন্যবাদ does not reach Formal"),
     ("বলো।", 1, "imperative", "bare imperative — তুমি level, no pronoun to lean on"),
     ("তুমি বলো।", 1, "statement", "same verb form as the imperative above; the "
                                   "pronoun is what makes it a statement"),
@@ -598,11 +604,24 @@ HARD: List[Tuple[str, Optional[int], str, str]] = [
 ]
 
 
+#: Groups whose Formal rendering is lexically distinct from Polite.
+#:
+#: Bengali reaches Formal on top of আপনি with a lexical step, and thanks is
+#: where that shows: ধন্যবাদ against অসংখ্য ধন্যবাদ. Repeating the Polite
+#: column into "3" made this file assert two contradictory things about one
+#: sentence — the triad said Formal keeps the plain thanks, while FORMAL below
+#: lists the upgraded thanks as a Formal row. Naming the group here drops the
+#: invented expectation and leaves the real one standing.
+FORMAL_LEXICAL_GROUPS = frozenset({"courtesy"})
+
+
 def triad_rows() -> Iterator[dict]:
     """Expand each triad into three rows, each carrying the full gold rendering."""
     for group, triads in TRIAD_GROUPS:
         for close, casual, polite, domain, context, construction in triads:
-            expected = {"0": close, "1": casual, "2": polite, "3": polite}
+            expected = {"0": close, "1": casual, "2": polite}
+            if group not in FORMAL_LEXICAL_GROUPS:
+                expected["3"] = polite
             for level, text in ((0, close), (1, casual), (2, polite)):
                 yield {
                     "text": text,

@@ -428,6 +428,7 @@ MARATHI = LanguageSet(
 # ==========================================================================
 
 GUJARATI = LanguageSet(
+    formal_lexical_groups=("courtesy",),
     code="gu",
     name="Gujarati",
     columns=(1, 2, 3),
@@ -465,8 +466,12 @@ GUJARATI = LanguageSet(
         ]),
     ],
     formal=[
-        ("કૃપા કરીને થોડી રાહ જુઓ.", "request", "official"),
-        ("કૃપા કરીને અહીં સહી કરો.", "admin", "official"),
+        # Gujarati has a third imperative — the -જો form that goes with આપ —
+        # and these rows used the તમે one, so a Formal particle sat on a
+        # Polite verb and the two cancelled. Same mix Malayalam had with
+        # ദയവായി. The unmixed forms belong here; the mixed ones are `hard`.
+        ("કૃપા કરીને થોડી રાહ જોજો.", "request", "official"),
+        ("કૃપા કરીને અહીં સહી કરજો.", "admin", "official"),
         ("આપનો ખૂબ ખૂબ આભાર.", "greeting", "official"),
         ("મને ક્ષમા કરશો.", "apology", "official"),
     ],
@@ -479,10 +484,17 @@ GUJARATI = LanguageSet(
         ("સમય નથી.", "smalltalk"),
     ],
     hard=[
-        ("આપ.", None, "homograph",
+        # The note always said this is the verb; the level said None, which is
+        # the other reading. Bare આપ is the તું imperative — a lone honorific
+        # pronoun is not an utterance — so it is Casual, and the label now
+        # agrees with the reasoning beside it.
+        ("આપ.", 1, "homograph",
          "આપ is both the formal pronoun 'you' and the imperative 'give!' — "
          "bare, it is the verb"),
         ("તે શું કરે છે?", None, "third person", "no second-person marker"),
+        # A Formal particle on a Polite verb: common, and genuinely split.
+        ("કૃપા કરીને થોડી રાહ જુઓ.", 2, "mixed register",
+         "કૃપા કરીને is Formal, the તમે imperative is Polite"),
     ],
 )
 
@@ -492,6 +504,7 @@ GUJARATI = LanguageSet(
 # ==========================================================================
 
 PUNJABI = LanguageSet(
+    formal_lexical_groups=("courtesy",),
     code="pa",
     name="Punjabi",
     columns=(1, 2, 2),
@@ -555,6 +568,7 @@ PUNJABI = LanguageSet(
 # ==========================================================================
 
 NEPALI = LanguageSet(
+    formal_lexical_groups=("courtesy",),
     code="ne",
     name="Nepali",
     columns=(0, 1, 2),
@@ -587,8 +601,12 @@ NEPALI = LanguageSet(
         ("courtesy", [
             ("मलाई माफ गर्।", "मलाई माफ गर।", "मलाई माफ गर्नुहोस्।",
              "apology", "stranger", "v.imp.garnu"),
-            ("तेरो धन्यवाद।", "तिम्रो धन्यवाद।", "तपाईंलाई धन्यवाद।",
-             "greeting", "acquaintance", "pron.gen"),
+            # Was genitive in the two informal columns and dative in the
+            # honorific one, so the row asked for a change of case as well as
+            # of register. The dative is the idiomatic frame for thanking, and
+            # it is what Hindi, Odia and Assamese use in the same row.
+            ("तँलाई धन्यवाद।", "तिमीलाई धन्यवाद।", "तपाईंलाई धन्यवाद।",
+             "greeting", "acquaintance", "pron.dat"),
         ]),
     ],
     formal=[
@@ -684,6 +702,7 @@ ODIA = LanguageSet(
 # ==========================================================================
 
 ASSAMESE = LanguageSet(
+    formal_lexical_groups=("courtesy",),
     code="as",
     name="Assamese",
     columns=(0, 1, 2),

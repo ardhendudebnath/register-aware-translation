@@ -581,6 +581,20 @@ def rewrite(
     result = matcher.contract("".join(pieces))
     result = _restore_initial_capital(original, result)
 
+    # The edits were recorded against the *normalised* text, so for a language
+    # that normalises they describe a string nobody ever sees: French matches
+    # on "te appelles-tu" where the sentence reads "t'appelles-tu". Anything
+    # consuming the edits — the UI highlight, and the semantic metric, which
+    # masks the changed span before comparing — then fails to find its own
+    # span in the text. Put them back into real orthography too.
+    if matcher.elide:
+        edits = [
+            replace(edit,
+                    before=matcher.contract(edit.before),
+                    after=matcher.contract(edit.after))
+            for edit in edits
+        ]
+
     # A language whose only change was normalise-then-contract has not actually
     # been edited; hand back exactly what came in.
     if not edits:
