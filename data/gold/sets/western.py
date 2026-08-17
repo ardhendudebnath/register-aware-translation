@@ -377,12 +377,24 @@ PORTUGUESE = LanguageSet(
         ("pronouns", [
             ("Como estás?", "Como está você?", "Como está o senhor?",
              "greeting", "friend", "v.estar + pron"),
-            ("Onde moras?", "Onde você mora?", "Onde mora o senhor?",
+            # Was "Onde você mora?" against "Onde mora o senhor?" — the same
+            # construction written subject-first in one column and inverted in
+            # the next, so the row measured word order as well as register.
+            # European Portuguese inverts after a question word, and this set
+            # is drafted toward European usage, so both columns invert.
+            ("Onde moras?", "Onde mora você?", "Onde mora o senhor?",
              "smalltalk", "stranger", "v.morar + pron"),
             ("Isto é para ti.", "Isto é para você.", "Isto é para o senhor.",
              "everyday", "family", "pron.prep"),
-            ("É o teu livro?", "É o seu livro, você?", "É o seu livro, senhor?",
-             "everyday", "colleague", "poss + vocative"),
+            # Was "É o seu livro, você?" / "É o seu livro, senhor?" — a
+            # vocative bolted on to force a distinction the sentence does not
+            # make. Portuguese uses "seu" for both você and o senhor, so a
+            # possessive-only sentence genuinely cannot separate them, and no
+            # native speaker appends the pronoun that way. The ambiguity is
+            # recorded in `hard` instead, and the row is replaced by one where
+            # the distinction is really there.
+            ("Queres café?", "Você quer café?", "O senhor quer café?",
+             "everyday", "guest", "v.querer + pron"),
         ]),
         ("verbs", [
             ("És muito simpático.", "Você é muito simpático.",
@@ -395,7 +407,11 @@ PORTUGUESE = LanguageSet(
              "smalltalk", "stranger", "v.falar + pron"),
         ]),
         ("courtesy", [
-            ("Desculpa.", "Desculpe.", "Desculpe.", "apology", "stranger", "v.imp"),
+            # The mid and high columns were both "Desculpe.", so the row asked
+            # the detector to tell two identical strings apart and one of them
+            # could only fail. "Peço desculpa" is the o senhor rung and was
+            # stranded in a slot this canon never requests.
+            ("Desculpa.", "Desculpe.", "Peço desculpa.", "apology", "stranger", "v.imp"),
             ("Obrigado a ti.", "Obrigado a você.", "Obrigado ao senhor.",
              "greeting", "acquaintance", "pron.prep"),
         ]),
@@ -418,6 +434,12 @@ PORTUGUESE = LanguageSet(
         ("Ele é muito simpático.", None, "third person",
          "é is both 'he is' and 'you are' (você); ele settles it"),
         ("Você é muito simpático.", 1, "explicit pronoun", "você present"),
+        ("É o seu livro?", 2, "poss ambiguity",
+         "seu is 'your' for both você and o senhor, and also 'his/her'; a "
+         "possessive-only sentence cannot separate the two levels. Filed at "
+         "Polite for the same reason the Spanish 'Su libro está aquí.' is: "
+         "European Portuguese leans on teu for tu, so seu tilts toward the "
+         "o senhor reading, and a tie belongs at the unmarked level"),
     ],
 )
 

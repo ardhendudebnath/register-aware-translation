@@ -437,9 +437,19 @@ def detect(text: str, language: str) -> Detection:
         levels = hit.rule.levels_for(hit.form)
         if not levels or len(levels) == 4:
             continue  # carries no register information
-        share = 1.0 / len(levels)
-        for level in levels:
-            votes[table.fold(level)] += share
+        # Fold before splitting, not after. A form spans however many levels
+        # the *language* realises, which is not always how many slots it fills:
+        # Portuguese "seu" sits in three slots, but canon (0, 1, 2, 2) makes
+        # the top two one level, so it spans two. Splitting first gave that
+        # level a double share and tipped every ambiguous Portuguese sentence
+        # to Polite — "É o seu livro?" scored 0.67 for a distinction the
+        # sentence does not make.
+        folded = {table.fold(level) for level in levels}
+        if len(folded) == len(LEVELS):
+            continue  # every level the language has — no information after all
+        share = 1.0 / len(folded)
+        for level in folded:
+            votes[level] += share
         evidence.append((hit.surface, hit.rule.name))
 
     total = sum(votes.values())
@@ -819,12 +829,13 @@ def _insert_subject_pronoun(
         # verb, so it is translated rather than dropped.
         return _remove_subject_pronoun(
             text, pronoun_rule, level, index, len(verb_edit.after),
-            table.subject_position,
+            "after" if _subject_goes_after(table.subject_position, text)
+            else "before",
         )
     if already_present:
         return text, None
 
-    if table.subject_position == "after":
+    if _subject_goes_after(table.subject_position, text):
         end = index + len(verb_edit.after)
         return (
             text[:end] + " " + pronoun + text[end:],
@@ -859,6 +870,25 @@ def _insert_subject_pronoun(
     )
 
 
+#: Words that front a wh-question in the languages using ``wh_inverted``.
+#: Portuguese only, for now — "o que" and "por que" are covered by their first
+#: word, so the list stays at the heads.
+_WH_INITIAL = re.compile(
+    r"^\s*(?:o\s+que|por\s*que|porque|que|qual|quais|quem|quando|onde|aonde|"
+    r"como|quanto|quanta|quantos|quantas)\b",
+    re.IGNORECASE,
+)
+
+
+def _subject_goes_after(position: str, text: str) -> bool:
+    """Resolve ``subject_position`` against the sentence in hand."""
+    if position == "after":
+        return True
+    if position == "wh_inverted":
+        return bool(_WH_INITIAL.match(text)) and "?" in text
+    return False
+
+
 def _remove_subject_pronoun(
     text: str,
     pronoun_rule: Optional[Rule],
@@ -890,7 +920,21 @@ def _remove_subject_pronoun(
             return text, None
         start, end = match.start(), match.end()
 
-    return text[:start] + text[end:], Edit(
+    rewritten = text[:start] + text[end:]
+    if not text[:start].strip():
+        # The pronoun was carrying the sentence's capital; whatever follows it
+        # inherits it. Otherwise "Você é muito simpático" comes down to
+        # "és muito simpático" — the mirror of the capital the insert path
+        # hands over in the other direction.
+        head = len(rewritten) - len(rewritten.lstrip())
+        if head < len(rewritten):
+            rewritten = (
+                rewritten[:head]
+                + rewritten[head].upper()
+                + rewritten[head + 1:]
+            )
+
+    return rewritten, Edit(
         rule="subject.remove",
         gloss="subject pronoun redundant at the target level",
         before=form,
