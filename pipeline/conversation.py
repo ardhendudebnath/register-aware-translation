@@ -21,7 +21,7 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from register import (
     AUTO,
@@ -34,7 +34,7 @@ from register import (
 
 from .core import ExchangeResult, Phrasebook, translate_text
 
-__all__ = ["Participant", "Turn", "Conversation"]
+__all__ = ["Participant", "Turn", "RegisterShift", "Conversation"]
 
 
 @dataclass
@@ -68,6 +68,7 @@ class Turn:
     translated: str
     register_level: int
     detected_level: Optional[int]
+    detected_confidence: float = 0.0
     at: float = field(default_factory=time.time)
 
     def as_dict(self) -> dict:
@@ -81,7 +82,67 @@ class Turn:
             "detected_name": (
                 level_name(self.detected_level) if self.detected_level is not None else None
             ),
+            "detected_confidence": round(self.detected_confidence, 3),
             "at": self.at,
+        }
+
+
+@dataclass(frozen=True)
+class RegisterShift:
+    """
+    A participant changed how they address the other one, and it stuck.
+
+    Register is not only a property of a sentence, it is a property of a
+    relationship over time — and when it moves, something social has happened.
+    Somebody who was saying তুমি and starts saying আপনি has put distance
+    between you. The reverse is an invitation. Nobody surfaces this, because
+    nobody tracks register per participant across a conversation.
+
+    Two things this deliberately does not do.
+
+    It does not fire on a single turn. Detection is not perfect, conversation
+    is noisy, and a spurious "they have cooled towards you" is not a cosmetic
+    bug — it is a false claim about somebody's feelings, told to the person
+    those feelings are about. The bar is a sustained change backed by
+    confident readings on both sides of it.
+
+    And it does not interpret. "They moved to the polite form" is an
+    observation; "they are annoyed with you" is a guess, and it is not the
+    machine's guess to make. A speaker changes register for all sorts of
+    reasons — a stranger walked in, the topic turned to work, they are being
+    playful. The message states what changed and leaves the meaning to the
+    person who is actually in the conversation.
+    """
+
+    speaker: str
+    from_level: int
+    to_level: int
+    #: Index into ``Conversation.turns`` where the new register was confirmed.
+    at_turn: int
+    #: "warmer" when the register moved down the scale, "cooler" when up.
+    direction: str
+    #: The weakest reading the shift rests on.
+    confidence: float
+
+    @property
+    def message(self) -> str:
+        moved = "more familiar" if self.direction == "warmer" else "more formal"
+        return (
+            f"{self.speaker} has moved to the {moved} form "
+            f"({level_name(self.from_level)} → {level_name(self.to_level)})."
+        )
+
+    def as_dict(self) -> dict:
+        return {
+            "speaker": self.speaker,
+            "from_level": self.from_level,
+            "from_name": level_name(self.from_level),
+            "to_level": self.to_level,
+            "to_name": level_name(self.to_level),
+            "at_turn": self.at_turn,
+            "direction": self.direction,
+            "confidence": round(self.confidence, 3),
+            "message": self.message,
         }
 
 
@@ -159,6 +220,7 @@ class Conversation:
                 translated=result.translated_text,
                 register_level=result.register_level,
                 detected_level=result.detected_level,
+                detected_confidence=result.detected_confidence,
             )
         )
         return result
@@ -181,6 +243,88 @@ class Conversation:
             ]
             out[participant.name] = levels[-1] if levels else None
         return out
+
+    def register_history(
+        self, speaker_name: str, *, min_confidence: float = 0.5
+    ) -> List[Tuple[int, int, float]]:
+        """
+        What one participant has been doing, turn by turn.
+
+        ``(turn index, level, confidence)`` for their turns that carried a
+        readable register. Turns with no second-person marker are skipped
+        rather than counted as a change — silence about register is not a
+        change of register, and treating it as one is how a shift detector
+        starts inventing things.
+        """
+        self.participant(speaker_name)  # raises on an unknown name
+        return [
+            (index, turn.detected_level, turn.detected_confidence)
+            for index, turn in enumerate(self.turns)
+            if turn.speaker == speaker_name
+            and turn.detected_level is not None
+            and turn.detected_confidence >= min_confidence
+        ]
+
+    def shifts(
+        self,
+        speaker_name: Optional[str] = None,
+        *,
+        support: int = 2,
+        min_confidence: float = 0.5,
+    ) -> List[RegisterShift]:
+        """
+        Every sustained change of register, oldest first.
+
+        ``support`` is how many consecutive confident turns at the new level
+        it takes to believe it. Two by default, which is what makes this
+        usable: one turn is noise, and somebody alternating between forms is
+        not shifting, they are just varying. Both cases stay silent.
+        """
+        names = (
+            [speaker_name] if speaker_name is not None else [self.a.name, self.b.name]
+        )
+        out: List[RegisterShift] = []
+        for name in names:
+            history = self.register_history(name, min_confidence=min_confidence)
+            if len(history) < support + 1:
+                continue
+
+            baseline = history[0][1]
+            run_level: Optional[int] = None
+            run: List[Tuple[int, int, float]] = []
+            for entry in history[1:]:
+                _, level, _ = entry
+                if level == baseline:
+                    run_level, run = None, []
+                    continue
+                if level != run_level:
+                    run_level, run = level, [entry]
+                else:
+                    run.append(entry)
+                if len(run) >= support:
+                    out.append(
+                        RegisterShift(
+                            speaker=name,
+                            from_level=baseline,
+                            to_level=level,
+                            at_turn=run[-1][0],
+                            direction="warmer" if level < baseline else "cooler",
+                            # The weakest link, including the reading the shift
+                            # moved away from — a shift is only as sure as the
+                            # baseline it is measured against.
+                            confidence=min(
+                                [history[0][2]] + [conf for _, _, conf in run]
+                            ),
+                        )
+                    )
+                    baseline, run_level, run = level, None, []
+        out.sort(key=lambda shift: shift.at_turn)
+        return out
+
+    def latest_shift(self, **kwargs) -> Optional[RegisterShift]:
+        """The most recent sustained change, if there has been one."""
+        found = self.shifts(**kwargs)
+        return found[-1] if found else None
 
     def is_asymmetric(self) -> bool:
         """True when the two sides are speaking at different levels."""
@@ -213,5 +357,6 @@ class Conversation:
                 for name, level in observed.items()
             },
             "asymmetric": self.is_asymmetric(),
+            "shifts": [shift.as_dict() for shift in self.shifts()],
             "turns": [turn.as_dict() for turn in self.turns],
         }

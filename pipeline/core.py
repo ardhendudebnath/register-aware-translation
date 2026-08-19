@@ -64,6 +64,10 @@ class ExchangeResult:
     target_language: str = ""
     register_level: int = CASUAL
     detected_level: Optional[int] = None
+    #: How sure the reading was. Kept because a claim about how someone is
+    #: speaking to you has to be able to say how firm the evidence is —
+    #: see :class:`~pipeline.conversation.RegisterShift`.
+    detected_confidence: float = 0.0
     formality_percent: int = 50
     engine: str = ""
     cached: bool = False
@@ -89,6 +93,7 @@ class ExchangeResult:
             "detected_register_name": (
                 level_name(self.detected_level) if self.detected_level is not None else None
             ),
+            "detected_confidence": round(self.detected_confidence, 3),
             "formality_percentage": self.formality_percent,
             "engine": self.engine,
             "cached": self.cached,
@@ -258,6 +263,7 @@ def translate_text(
         level=None, confidence=0.0, language=src
     )
     result.detected_level = source_reading.level
+    result.detected_confidence = source_reading.confidence
 
     slang = detect_slang(text, load_slang_dictionary(), src)
     result.detected_slang = [m.as_dict() for m in slang]
