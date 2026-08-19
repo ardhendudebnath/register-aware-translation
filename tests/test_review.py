@@ -60,3 +60,24 @@ def test_every_gold_set_renders(tmp_path):
     codes = {path.stem for path in written} - {"index"}
     from evaluation.gold_sets import GOLD_DIR
     assert codes == {path.stem for path in GOLD_DIR.glob("*.jsonl")}
+
+
+def test_the_published_site_has_a_front_door():
+    """
+    GitHub Pages serving from /docs makes that folder the site root, so
+    without docs/index.html the published URL is a 404 and every link anyone
+    sends lands nowhere. The review pages sit one level down.
+    """
+    from evaluation.review import DOCS_DIR, OUT_DIR
+
+    landing = DOCS_DIR / "index.html"
+    assert landing.exists(), (
+        "docs/index.html is missing — run python -m evaluation.review"
+    )
+    page = landing.read_text(encoding="utf-8")
+    assert 'href="review/' in page, "the landing page links nowhere"
+    for code in ("as", "ne", "or"):
+        assert f'href="review/{code}.html"' in page, (
+            f"{code} has the least-checked gold set and is not on the front page"
+        )
+        assert (OUT_DIR / f"{code}.html").exists()
