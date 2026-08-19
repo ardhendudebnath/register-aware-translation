@@ -526,12 +526,16 @@ So the sets carry an honest confidence label, and every row says
 
 ### Getting them reviewed
 
+**<https://ardhendudebnath.github.io/register-aware-translation/>** — the
+sentence sets, published as pages a speaker can check in a browser. No
+account, nothing to install.
+
 ```bash
 python -m evaluation.review
 ```
 
-Writes one self-contained HTML page per language to `docs/review/` — no
-server, no dependencies, open it in a browser. Sentences are grouped into
+Regenerates those pages into `docs/` — no server, no dependencies. Run it
+after changing a gold set. Sentences are grouped into
 *ladders* rather than listed as rows, because "is this the right step up from
 that?" is answerable and "is this right in the abstract?" is not. Bengali's 494
 rows become 198 questions; most languages land between 22 and 37. The index is

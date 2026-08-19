@@ -56,21 +56,31 @@ five minutes, do those.
 
 ## How to open it
 
-The pages are ordinary files — no install, no account, nothing to run.
+**<https://ardhendudebnath.github.io/register-aware-translation/>**
+
+That is the whole thing. No account, no install, nothing to run. Pick your
+language and start.
+
+Your marks are saved in your own browser as you go, so you can close the tab
+and come back to it. When you are done — or when you have had enough — press
+**"Show what I have marked"** at the bottom. That gives you a block of text to
+copy and send back.
+
+Nothing you mark is uploaded anywhere. It stays in your browser until you copy
+it out and send it yourself.
+
+<details>
+<summary>Running it locally instead</summary>
+
+If you have the repository and would rather not use the published pages:
 
 ```bash
 python -m evaluation.review
 ```
 
-That writes one page per language into `docs/review/`. Open
-`docs/review/index.html` in any browser and pick your language. Or open a
-single one directly, for example `docs/review/bn.html`.
-
-If someone sent you these files, just double-click the `.html` file.
-
-Your marks are saved in the browser as you go, so you can close the tab and
-come back. When you are done, press **"Show what I have marked"** at the
-bottom — that gives you a block of text to copy and send back.
+That writes the same pages into `docs/`. Open `docs/index.html` in any
+browser.
+</details>
 
 ## Which languages need it most
 

@@ -1,0 +1,110 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Setu — help check a language</title>
+<style>
+:root{--bg:#fbfaf8;--fg:#1a1a1a;--muted:#6b6b6b;--line:#e2ded8;--card:#fff;
+--accent:#8a5a2b;--warn:#a4442c;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+"Noto Sans","Noto Sans Bengali","Noto Sans Devanagari","Noto Sans Gujarati",
+"Noto Sans Gurmukhi","Noto Sans Oriya","Noto Sans Tamil","Noto Sans Telugu",
+"Noto Sans Kannada","Noto Sans Malayalam","Noto Nastaliq Urdu","Noto Sans JP",
+sans-serif;}
+.wrap{max-width:60rem;margin:0 auto;padding:2rem 1.25rem 5rem}
+h1{font-size:1.9rem;margin:0 0 .25rem;letter-spacing:-.01em}
+h2{font-size:1.15rem;margin:2.5rem 0 .5rem;padding-bottom:.4rem;
+border-bottom:1px solid var(--line);text-transform:lowercase;
+font-variant:small-caps;letter-spacing:.04em;color:var(--accent)}
+.sub{color:var(--muted);margin:0 0 1.5rem}
+.banner{background:var(--card);border:1px solid var(--line);
+border-left:4px solid var(--accent);padding:1rem 1.25rem;border-radius:6px;
+margin:1.5rem 0}
+.banner.low{border-left-color:var(--warn)}
+.banner p{margin:.35rem 0}
+.ask{font-size:1.05rem}
+.blurb{color:var(--muted);margin:.25rem 0 1.25rem;max-width:46rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;
+padding:.9rem 1.1rem;margin:0 0 .9rem}
+.meta{color:var(--muted);font-size:.8rem;margin-bottom:.5rem;
+display:flex;gap:.75rem;flex-wrap:wrap}
+.meta code{background:#f2efe9;padding:.05rem .35rem;border-radius:3px;
+font-size:.95em}
+table{width:100%;border-collapse:collapse}
+td{padding:.3rem .5rem;vertical-align:top;border:0}
+td.lvl{width:6.5rem;color:var(--muted);font-size:.8rem;white-space:nowrap;
+padding-top:.55rem;text-transform:uppercase;letter-spacing:.05em}
+td.txt{font-size:1.2rem;line-height:1.75}
+.rtl td.txt{direction:rtl;text-align:right}
+.verdict{display:flex;gap:.6rem;align-items:center;margin-top:.6rem;
+padding-top:.6rem;border-top:1px dashed var(--line);flex-wrap:wrap}
+.verdict label{font-size:.85rem;color:var(--muted);cursor:pointer;
+display:inline-flex;gap:.25rem;align-items:center}
+.verdict input[type=text]{flex:1;min-width:14rem;border:1px solid var(--line);
+border-radius:4px;padding:.35rem .5rem;font:inherit;font-size:.9rem;
+background:var(--bg)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);
+border-top:1px solid var(--line);padding:.6rem 1.25rem;display:flex;
+gap:1rem;align-items:center;justify-content:center;font-size:.85rem}
+button{font:inherit;font-size:.85rem;padding:.4rem .9rem;border-radius:4px;
+border:1px solid var(--accent);background:var(--accent);color:#fff;
+cursor:pointer}
+button.ghost{background:transparent;color:var(--accent)}
+#out{display:none;width:100%;max-width:60rem;margin:1rem auto;height:14rem;
+font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+border:1px solid var(--line);border-radius:6px;padding:.75rem}
+a{color:var(--accent)}
+@media print{.verdict input{border-bottom:1px solid #999}.bar,#out{display:none}}
+
+ul.langs{list-style:none;padding:0;margin:0}
+ul.langs li{display:flex;justify-content:space-between;align-items:baseline;
+gap:1rem;padding:.55rem .75rem;border-bottom:1px solid var(--line)}
+ul.langs li.urgent{background:var(--card);border-left:3px solid var(--warn)}
+ul.langs a{font-size:1.05rem;text-decoration:none}
+ul.langs a:hover{text-decoration:underline}
+.lead{font-size:1.15rem;max-width:44rem}
+</style>
+<body data-lang="index">
+<div class="wrap">
+  <h1>Setu</h1>
+  <p class="sub">A translator that tries to get <em>politeness</em> right,
+     across twenty languages.</p>
+
+  <div class="banner low">
+    <p class="ask"><strong>Can you check some sentences in your
+       language?</strong></p>
+    <p>Setu is tested against 1,606 sentences written at each level of
+       politeness. Most of them were compiled from reference grammars by
+       someone who does not speak the language, and have never been checked by
+       anyone who does.</p>
+    <p>The tests currently report 100% for nineteen of the twenty languages.
+       That number means only that the software agrees with sentences which
+       may themselves be wrong — a sentence wrong in the same way the software
+       is wrong scores perfectly. That is what this is asking you to fix.</p>
+    <p>No account, nothing to install, and fifteen minutes is genuinely
+       useful. Every page opens with the handful of questions we already know
+       are hard; if you only have five minutes, do those.</p>
+  </div>
+
+  <h2>Nobody has checked these at all</h2>
+  <p class="blurb">Drafted entirely from grammars. If you speak one of these,
+     you would be the first person to look.</p>
+  <ul class="langs"><li class="urgent"><a href="review/as.html">Assamese</a><span class="meta"><span>22 to check</span><span>low</span></span></li><li class="urgent"><a href="review/ne.html">Nepali</a><span class="meta"><span>23 to check</span><span>low</span></span></li><li class="urgent"><a href="review/or.html">Odia</a><span class="meta"><span>22 to check</span><span>low</span></span></li></ul>
+
+  <h2>Every language</h2>
+  <p class="blurb">Ordered worst-first. Bengali was written by a speaker, so it
+     needs spot-checking rather than a full pass.</p>
+  <ul class="langs"><li><a href="review/gu.html">Gujarati</a><span class="meta"><span>26 to check</span><span>medium</span></span></li><li><a href="review/ja.html">Japanese</a><span class="meta"><span>23 to check</span><span>medium</span></span></li><li><a href="review/kn.html">Kannada</a><span class="meta"><span>26 to check</span><span>medium</span></span></li><li><a href="review/ml.html">Malayalam</a><span class="meta"><span>27 to check</span><span>medium</span></span></li><li><a href="review/mr.html">Marathi</a><span class="meta"><span>34 to check</span><span>medium</span></span></li><li><a href="review/pt.html">Portuguese</a><span class="meta"><span>23 to check</span><span>medium</span></span></li><li><a href="review/pa.html">Punjabi</a><span class="meta"><span>24 to check</span><span>medium</span></span></li><li><a href="review/ta.html">Tamil</a><span class="meta"><span>33 to check</span><span>medium</span></span></li><li><a href="review/te.html">Telugu</a><span class="meta"><span>27 to check</span><span>medium</span></span></li><li><a href="review/ur.html">Urdu</a><span class="meta"><span>35 to check</span><span>medium</span></span></li><li><a href="review/bn.html">Bengali</a><span class="meta"><span>198 to check</span><span>unrated</span></span></li><li><a href="review/en.html">English</a><span class="meta"><span>24 to check</span><span>high</span></span></li><li><a href="review/fr.html">French</a><span class="meta"><span>37 to check</span><span>high</span></span></li><li><a href="review/de.html">German</a><span class="meta"><span>36 to check</span><span>high</span></span></li><li><a href="review/hi.html">Hindi</a><span class="meta"><span>109 to check</span><span>high</span></span></li><li><a href="review/it.html">Italian</a><span class="meta"><span>25 to check</span><span>high</span></span></li><li><a href="review/es.html">Spanish</a><span class="meta"><span>30 to check</span><span>high</span></span></li></ul>
+
+  <h2>What happens to your corrections</h2>
+  <p class="blurb">They go back into the sentence sets, the tests re-run
+     against them, and the numbers start meaning something. There is no
+     register benchmark for any of these languages — CoCoA-MT gave Hindi a
+     yes/no formality benchmark in 2022 and the rest of India got nothing.
+     Bengali has 228 million speakers, three grammatical registers, and no test
+     set at all. That is what these pages are trying to become, and they cannot
+     become it without speakers.</p>
+  <p class="blurb"><a href="https://github.com/ardhendudebnath/register-aware-translation">The project on GitHub</a> ·
+     <a href="https://github.com/ardhendudebnath/register-aware-translation/blob/main/REVIEWING.md">Longer explanation</a></p>
+</div>
