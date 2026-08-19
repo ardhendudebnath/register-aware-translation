@@ -241,4 +241,8 @@ def cli(language: LanguageSet, argv: Optional[Sequence[str]] = None) -> int:
 
     path = write(language, Path(args.out_dir))
     print(f"  wrote {path.name}  (all rows status=draft)")
+    # Say how to get it reviewed, in the place someone is standing when they
+    # have just built one. build_bn.py has printed this line for a long time;
+    # the other nineteen languages had no way to find the command at all.
+    print(f"  review it:  python -m evaluation.review {language.code}")
     return 0

@@ -1,0 +1,73 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Register gold sets — review</title>
+<style>
+:root{--bg:#fbfaf8;--fg:#1a1a1a;--muted:#6b6b6b;--line:#e2ded8;--card:#fff;
+--accent:#8a5a2b;--warn:#a4442c;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+"Noto Sans","Noto Sans Bengali","Noto Sans Devanagari","Noto Sans Gujarati",
+"Noto Sans Gurmukhi","Noto Sans Oriya","Noto Sans Tamil","Noto Sans Telugu",
+"Noto Sans Kannada","Noto Sans Malayalam","Noto Nastaliq Urdu","Noto Sans JP",
+sans-serif;}
+.wrap{max-width:60rem;margin:0 auto;padding:2rem 1.25rem 5rem}
+h1{font-size:1.9rem;margin:0 0 .25rem;letter-spacing:-.01em}
+h2{font-size:1.15rem;margin:2.5rem 0 .5rem;padding-bottom:.4rem;
+border-bottom:1px solid var(--line);text-transform:lowercase;
+font-variant:small-caps;letter-spacing:.04em;color:var(--accent)}
+.sub{color:var(--muted);margin:0 0 1.5rem}
+.banner{background:var(--card);border:1px solid var(--line);
+border-left:4px solid var(--accent);padding:1rem 1.25rem;border-radius:6px;
+margin:1.5rem 0}
+.banner.low{border-left-color:var(--warn)}
+.banner p{margin:.35rem 0}
+.ask{font-size:1.05rem}
+.blurb{color:var(--muted);margin:.25rem 0 1.25rem;max-width:46rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;
+padding:.9rem 1.1rem;margin:0 0 .9rem}
+.meta{color:var(--muted);font-size:.8rem;margin-bottom:.5rem;
+display:flex;gap:.75rem;flex-wrap:wrap}
+.meta code{background:#f2efe9;padding:.05rem .35rem;border-radius:3px;
+font-size:.95em}
+table{width:100%;border-collapse:collapse}
+td{padding:.3rem .5rem;vertical-align:top;border:0}
+td.lvl{width:6.5rem;color:var(--muted);font-size:.8rem;white-space:nowrap;
+padding-top:.55rem;text-transform:uppercase;letter-spacing:.05em}
+td.txt{font-size:1.2rem;line-height:1.75}
+.rtl td.txt{direction:rtl;text-align:right}
+.verdict{display:flex;gap:.6rem;align-items:center;margin-top:.6rem;
+padding-top:.6rem;border-top:1px dashed var(--line);flex-wrap:wrap}
+.verdict label{font-size:.85rem;color:var(--muted);cursor:pointer;
+display:inline-flex;gap:.25rem;align-items:center}
+.verdict input[type=text]{flex:1;min-width:14rem;border:1px solid var(--line);
+border-radius:4px;padding:.35rem .5rem;font:inherit;font-size:.9rem;
+background:var(--bg)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);
+border-top:1px solid var(--line);padding:.6rem 1.25rem;display:flex;
+gap:1rem;align-items:center;justify-content:center;font-size:.85rem}
+button{font:inherit;font-size:.85rem;padding:.4rem .9rem;border-radius:4px;
+border:1px solid var(--accent);background:var(--accent);color:#fff;
+cursor:pointer}
+button.ghost{background:transparent;color:var(--accent)}
+#out{display:none;width:100%;max-width:60rem;margin:1rem auto;height:14rem;
+font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+border:1px solid var(--line);border-radius:6px;padding:.75rem}
+a{color:var(--accent)}
+@media print{.verdict input{border-bottom:1px solid #999}.bar,#out{display:none}}
+ li{margin:.6rem 0} ul.langs{list-style:none;padding:0}</style>
+<body data-lang="index">
+<div class="wrap">
+  <h1>Register gold sets</h1>
+  <p class="sub">Ordered worst-first: the languages nearest the top are the
+     ones that most need a speaker.</p>
+  <div class="banner low">
+    <p>Every set here is a <strong>draft</strong>. The evaluation harness scores
+       the engine against these sentences, so where a sentence is wrong the
+       score is wrong with it, confidently and invisibly.</p>
+    <p>Checking one language is a real contribution. Checking the hard rows at
+       the top of one language is a real contribution.</p>
+  </div>
+  <ul class="langs"><li><a href="as.html">Assamese</a> <span class="meta"><span>22 to check</span><span>confidence: low</span></span></li><li><a href="ne.html">Nepali</a> <span class="meta"><span>23 to check</span><span>confidence: low</span></span></li><li><a href="or.html">Odia</a> <span class="meta"><span>22 to check</span><span>confidence: low</span></span></li><li><a href="gu.html">Gujarati</a> <span class="meta"><span>26 to check</span><span>confidence: medium</span></span></li><li><a href="ja.html">Japanese</a> <span class="meta"><span>23 to check</span><span>confidence: medium</span></span></li><li><a href="kn.html">Kannada</a> <span class="meta"><span>26 to check</span><span>confidence: medium</span></span></li><li><a href="ml.html">Malayalam</a> <span class="meta"><span>27 to check</span><span>confidence: medium</span></span></li><li><a href="mr.html">Marathi</a> <span class="meta"><span>34 to check</span><span>confidence: medium</span></span></li><li><a href="pt.html">Portuguese</a> <span class="meta"><span>23 to check</span><span>confidence: medium</span></span></li><li><a href="pa.html">Punjabi</a> <span class="meta"><span>24 to check</span><span>confidence: medium</span></span></li><li><a href="ta.html">Tamil</a> <span class="meta"><span>33 to check</span><span>confidence: medium</span></span></li><li><a href="te.html">Telugu</a> <span class="meta"><span>27 to check</span><span>confidence: medium</span></span></li><li><a href="ur.html">Urdu</a> <span class="meta"><span>35 to check</span><span>confidence: medium</span></span></li><li><a href="bn.html">Bengali</a> <span class="meta"><span>198 to check</span><span>confidence: unrated</span></span></li><li><a href="en.html">English</a> <span class="meta"><span>24 to check</span><span>confidence: high</span></span></li><li><a href="fr.html">French</a> <span class="meta"><span>37 to check</span><span>confidence: high</span></span></li><li><a href="de.html">German</a> <span class="meta"><span>36 to check</span><span>confidence: high</span></span></li><li><a href="hi.html">Hindi</a> <span class="meta"><span>109 to check</span><span>confidence: high</span></span></li><li><a href="it.html">Italian</a> <span class="meta"><span>25 to check</span><span>confidence: high</span></span></li><li><a href="es.html">Spanish</a> <span class="meta"><span>30 to check</span><span>confidence: high</span></span></li></ul>
+</div>
