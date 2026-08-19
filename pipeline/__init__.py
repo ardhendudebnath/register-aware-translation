@@ -10,7 +10,7 @@ from .core import (
     translate_audio,
     translate_text,
 )
-from .conversation import Conversation, Participant, Turn
+from .conversation import Conversation, Participant, RegisterShift, Turn
 from .learner import RELATIONSHIPS, Feedback, assess
 from .relationships import Relationship, RelationshipBook
 
@@ -22,6 +22,7 @@ __all__ = [
     "Conversation",
     "Participant",
     "Turn",
+    "RegisterShift",
     "Relationship",
     "RelationshipBook",
     "assess",
