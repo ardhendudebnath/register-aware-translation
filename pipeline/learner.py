@@ -32,56 +32,26 @@ from register import (
     level_name,
     rewrite as register_rewrite,
 )
+from register.social import RELATIONSHIPS as SOCIAL_RELATIONSHIPS, expected_in
 
 __all__ = ["RELATIONSHIPS", "Feedback", "assess"]
 
-#: Social situations, and the register a native speaker would expect. Values
-#: are the levels considered acceptable, best first.
+#: The situations, in the shape this module and the HTTP API have always used.
 #:
-#: More than one is acceptable in most situations, because register is
-#: genuinely contested — two native speakers will disagree about whether a
-#: sentence is Polite or Formal, and regional variation is real. A tutor that
-#: insists on one answer would be teaching something false.
+#: The list itself now lives in :mod:`register.social`, as points on the power
+#: and solidarity axes rather than as a flat set of labels. It was authored
+#: here first and the prose already described two dimensions — "high respect
+#: but high closeness" — with nowhere to put them as data. This is a view onto
+#: that, kept so nothing downstream has to change.
 RELATIONSHIPS: Dict[str, Dict[str, object]] = {
-    "stranger": {
-        "label": "Someone you have just met",
-        "expected": (POLITE, FORMAL),
-        "why": "Strangers get the polite form until invited otherwise.",
-    },
-    "elder_family": {
-        "label": "An older relative",
-        "expected": (CASUAL, POLITE),
-        "why": (
-            "Family elders are the interesting case: high respect but high "
-            "closeness, so the polite pronoun can sound cold. Many families use "
-            "the casual form with grandparents and mean no disrespect by it."
-        ),
-    },
-    "close_friend": {
-        "label": "A close friend",
-        "expected": (CASUAL, CLOSE),
-        "why": "The polite form with a close friend reads as distancing.",
-    },
-    "child": {
-        "label": "A child",
-        "expected": (CLOSE, CASUAL),
-        "why": "Children take the close form; the polite form sounds like a joke.",
-    },
-    "teacher": {
-        "label": "A teacher or senior colleague",
-        "expected": (POLITE, FORMAL),
-        "why": "Institutional seniority takes the polite form regardless of age.",
-    },
-    "official": {
-        "label": "An official or someone in authority",
-        "expected": (FORMAL, POLITE),
-        "why": "Formal register, and usually a title with it.",
-    },
-    "shopkeeper": {
-        "label": "A shopkeeper you know",
-        "expected": (CASUAL, POLITE),
-        "why": "Familiar but transactional — casual is normal, polite is safe.",
-    },
+    key: {
+        "label": relationship.label,
+        "expected": relationship.expected,
+        "why": relationship.why,
+        "power": relationship.power,
+        "solidarity": relationship.solidarity,
+    }
+    for key, relationship in SOCIAL_RELATIONSHIPS.items()
 }
 
 
@@ -149,7 +119,11 @@ def assess(text: str, language: str, relationship: str) -> Feedback:
 
     table = get_table(language)
     reading = detect_register(text, language)
-    expected = tuple(table.fold(lvl) for lvl in situation["expected"])
+    # Folded onto what this language actually realises, with the two-axis
+    # reading first. A two-pronoun language stops being told it has a Close
+    # level distinct from Casual, so the tutor no longer offers a correction
+    # between two identical forms.
+    expected = expected_in(language, relationship)
     evidence = [surface for surface, _ in reading.evidence]
 
     if reading.level is None:
