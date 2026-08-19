@@ -169,8 +169,8 @@ old number.
 | `models/` | Swappable backends: STT, language ID, formality classification, MT, TTS. |
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
-| `evaluation/` | The three metrics that make the claim defensible. |
-| `tests/` | 311 tests. |
+| `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
+| `tests/` | 367 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -212,40 +212,36 @@ Adding a language means adding a table, not writing code.
 
 ### Coverage
 
-**20 languages, 399 rules.** Thirteen of them are Indian, which is the point:
-CoCoA-MT gave Hindi a *binary* formality benchmark in 2022 and every other
-Indian language got nothing at all.
+<!-- coverage:begin -->
+**20 languages, 1,369 rules.** Thirteen of them are Indian, which is the point: CoCoA-MT gave Hindi a *binary* formality benchmark in 2022 and every other Indian language got nothing at all.
 
-| Code | Language | Levels | Rules | Vocatives | Second person |
-|---|---|:-:|:-:|:-:|---|
-| `bn` | Bengali | 4 | 39 | ✓ | তুই / তুমি / আপনি |
-| `hi` | Hindi | 4 | 22 | ✓ | तू / तुम / आप |
-| `mr` | Marathi | 4 | 19 | ✓ | तू / तुम्ही / आपण |
-| `gu` | Gujarati | 3 | 15 | ✓ | તું / તમે / આપ |
-| `pa` | Punjabi | 3 | 15 | ✓ | ਤੂੰ / ਤੁਸੀਂ |
-| `ur` | Urdu \* | 4 | 15 | ✓ | تو / تم / آپ |
-| `or` | Odia \* | 4 | 13 | ✓ | ତୁ / ତୁମେ / ଆପଣ |
-| `as` | Assamese \* | 4 | 13 | ✓ | তই / তুমি / আপুনি |
-| `ne` | Nepali \* | 4 | 13 | ✓ | तँ / तिमी / तपाईं / हजुर |
-| `ta` | Tamil | 3 | 16 | ✓ | நீ / நீங்கள் |
-| `te` | Telugu | 3 | 15 | ✓ | నువ్వు / మీరు |
-| `kn` | Kannada | 3 | 15 | ✓ | ನೀನು / ನೀವು |
-| `ml` | Malayalam | 3 | 13 | ✓ | നീ / നിങ്ങൾ / താങ്കൾ |
-| `de` | German | 3 | 67 | — | du / Sie |
-| `fr` | French | 3 | 33 | — | tu / vous |
-| `es` | Spanish | 3 | 19 | — | tú / usted |
-| `it` | Italian | 3 | 15 | — | tu / Lei |
-| `pt` | Portuguese | 3 | 13 | — | tu / você / o senhor |
-| `ja` | Japanese | 3 | 15 | — | plain / です・ます / 敬語 |
-| `en` | English | 3 | 14 | — | *(no grammatical T/V)* |
+| Code | Language | Levels | Rules | Vocatives | Gold | Second person |
+|---|---|:-:|:-:|:-:|:-:|---|
+| `bn` | Bengali | 4 | 118 | ✓ | speaker | তুই / তুমি / আপনি |
+| `hi` | Hindi | 4 | 123 | ✓ | drafted · high | तू / तुम / आप |
+| `mr` | Marathi | 4 | 74 | ✓ | drafted · medium | तू / तुम्ही / आपण |
+| `gu` | Gujarati | 3 | 54 | ✓ | drafted · medium | તું / તમે / આપ |
+| `pa` | Punjabi | 3 | 49 | ✓ | drafted · medium | ਤੂੰ / ਤੁਸੀਂ |
+| `ur` | Urdu | 4 | 88 | ✓ | drafted · medium | تو / تم / آپ |
+| `or` | Odia | 4 | 38 | ✓ | drafted · low | ତୁ / ତୁମେ / ଆପଣ |
+| `as` | Assamese | 4 | 31 | ✓ | drafted · low | তই / তুমি / আপুনি |
+| `ne` | Nepali | 4 | 36 | ✓ | drafted · low | तँ / तिमी / तपाईं / हजुर |
+| `ta` | Tamil | 3 | 78 | ✓ | drafted · medium | நீ / நீங்கள் |
+| `te` | Telugu | 3 | 109 | ✓ | drafted · medium | నువ్వు / మీరు |
+| `kn` | Kannada | 3 | 112 | ✓ | drafted · medium | ನೀನು / ನೀವು |
+| `ml` | Malayalam | 3 | 34 | ✓ | drafted · medium | നീ / നിങ്ങൾ / താങ്കൾ |
+| `de` | German | 3 | 124 | — | drafted · high | du / Sie |
+| `fr` | French | 3 | 39 | — | drafted · high | tu / vous |
+| `es` | Spanish | 3 | 66 | — | drafted · high | tú / usted |
+| `it` | Italian | 3 | 61 | — | drafted · high | tu / Lei |
+| `pt` | Portuguese | 3 | 61 | — | drafted · medium | tu / você / o senhor |
+| `ja` | Japanese | 3 | 43 | — | drafted · medium | plain / です・ます / 敬語 |
+| `en` | English | 3 | 31 | — | drafted · high | *(no grammatical T/V)* |
 
-**Levels** is how many of the four the language actually realises — the rest
-fold onto the nearest real one. **Vocatives** marks the languages that require
-an address term (দাদা, भैया, அண்ணா) which English leaves empty.
+**Levels** is how many of the four the language actually realises — the rest fold onto the nearest real one. **Vocatives** marks the languages that require an address term (দাদা, भैया, அண்ணா), which English leaves empty. **Gold** is how much the sentence set behind the numbers has been checked: `speaker` means written by one, and everything marked `drafted` was compiled from reference grammars and is waiting for one — see [REVIEWING.md](REVIEWING.md).
 
-\* Compiled from standard grammars and **not yet reviewed by a native speaker**.
-Their gold-set entries are tagged `unverified`. Corrections welcome; run
-`python -m evaluation.run --lang ur` after any change.
+This table is generated. Run `python -m docs.make_coverage_table --write` after changing a table.
+<!-- coverage:end -->
 
 ### Why post-editing rather than prompting an LLM to "be formal"
 
@@ -468,16 +464,19 @@ batch 64 in bf16 — 400k rows × 2 epochs in about 14 minutes.
 
 ## Measuring it
 
-Three metrics, tracked separately:
+Four metrics, tracked separately:
 
 | Metric | Question |
 |---|---|
 | Register accuracy | Of translations requested at level N, what fraction land at level N? |
 | Detection accuracy | When the speaker used আপনি, does Auto report Polite? |
 | Semantic preservation | Did the register rewrite break the meaning? |
+| Rewrite exactness | Is the output the *exact* sentence a speaker would use? |
 
-The third is the one that will bite you — a sentence can be perfectly Polite and
-also nonsense, and the first two metrics cannot see it.
+Semantic preservation is the one that will bite you — a sentence can be
+perfectly Polite and also nonsense, and register accuracy cannot see it.
+Exactness is the strictest: it accepts nothing but the expected string, which
+is how most of the real bugs in the tables were found.
 
 ```bash
 python -m evaluation.run
@@ -497,17 +496,57 @@ Gold sets live in `data/gold/<lang>.jsonl`, one JSON object per line:
 python -m evaluation.run --write-template bn
 ```
 
-All 16 tables are now measured and pass at 100% on the seed cases. That is a
-regression net, **not a benchmark** — the seed set is a few sentences per
-language, and the harness says so on every run rather than reporting a
-flattering number over nothing.
+All 20 languages are measured against 1,606 annotated sentences. Detection is
+at 100% everywhere; exactness is at 100% in nineteen, and Bengali stops at
+98.5% on a syncretism a substitution table cannot resolve — খাও is both the
+তুমি present and the তুমি imperative, and no amount of rules separates them.
 
-Making it a benchmark is the highest-leverage work left. CoCoA-MT gave Hindi a
-*binary* formality benchmark in 2022; Bengali — 228 million speakers, three
-grammatical registers — has nothing, and nor does Tamil, Telugu, Kannada,
-Malayalam, Gujarati, Marathi, Punjabi, Odia or Assamese. A few hundred
-annotated sentences per language is a few weeks and a few thousand rupees, and
-it is the one asset a well-funded competitor cannot shortcut.
+### Read those numbers carefully
+
+They measure agreement between the engine and sentence sets **largely written
+by someone who does not speak the languages**. The harness cannot tell the
+difference: a gold row that is wrong in the same direction as the table scores
+a confident 100%.
+
+What it *can* catch is inconsistency, and it has — rows asking the detector to
+tell two identical strings apart, a vocative no speaker would say, rows filed
+by the situation they belong to rather than by anything in the sentence. Each
+surfaced by colliding with the engine. A row that is merely wrong collides with
+nothing.
+
+So the sets carry an honest confidence label, and every row says
+`status: draft`:
+
+| Confidence | Languages |
+|---|---|
+| low | Assamese, Nepali, Odia |
+| medium | Gujarati, Japanese, Kannada, Malayalam, Marathi, Portuguese, Punjabi, Tamil, Telugu, Urdu |
+| high | English, French, German, Hindi, Italian, Spanish |
+| hand-written by a speaker | Bengali |
+
+### Getting them reviewed
+
+```bash
+python -m evaluation.review
+```
+
+Writes one self-contained HTML page per language to `docs/review/` — no
+server, no dependencies, open it in a browser. Sentences are grouped into
+*ladders* rather than listed as rows, because "is this the right step up from
+that?" is answerable and "is this right in the abstract?" is not. Bengali's 494
+rows become 198 questions; most languages land between 22 and 37. The index is
+ordered worst-first, and each page opens with that language's flagged
+ambiguities.
+
+**[REVIEWING.md](REVIEWING.md) is written for a speaker to be handed
+directly** — no programming knowledge assumed.
+
+This is the highest-leverage work left. CoCoA-MT gave Hindi a *binary*
+formality benchmark in 2022; Bengali — 228 million speakers, three grammatical
+registers — has nothing, and nor does Tamil, Telugu, Kannada, Malayalam,
+Gujarati, Marathi, Punjabi, Odia or Assamese. The sentences now exist. What
+they need is speakers, and it is the one asset a well-funded competitor cannot
+shortcut.
 
 ---
 
@@ -517,7 +556,7 @@ it is the one asset a well-funded competitor cannot shortcut.
 python -m pytest tests/ -q
 ```
 
-311 tests covering the rule tables, round-trip stability, third-person safety,
+367 tests covering the rule tables, round-trip stability, third-person safety,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
 conversations, learner feedback, the slang-detection regressions, and the
 pipeline with networking disabled.
