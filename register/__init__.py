@@ -53,6 +53,14 @@ from .tables import (
     has_table,
     supported_languages,
 )
+from .social import (
+    CORNERS,
+    RELATIONSHIPS,
+    describe as describe_relationship,
+    expected_in,
+    level_for,
+    level_in,
+)
 
 __all__ = [
     # levels
@@ -76,6 +84,12 @@ __all__ = [
     "pre_edit",
     "prosody",
     "address_term",
+    "RELATIONSHIPS",
+    "CORNERS",
+    "level_for",
+    "level_in",
+    "expected_in",
+    "describe_relationship",
     "politeness_warning",
     "RewriteResult",
     "Detection",

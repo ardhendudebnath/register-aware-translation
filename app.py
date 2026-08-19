@@ -31,15 +31,19 @@ from pipeline import (
 from pipeline.core import _phrasebook
 from register import (
     AUTO,
+    CORNERS,
     LEVELS,
     TABLES,
     coerce_level,
+    describe_relationship,
     detect as detect_register,
     has_table,
     level_name,
     level_slug,
     supported_languages,
 )
+from register.social import POWER_LABELS, RELATIONSHIPS as SOCIAL_RELATIONSHIPS
+from register.social import SOLIDARITY_LABELS
 from utils.helpers import PROJECT_ROOT
 
 log = logging.getLogger("setu")
@@ -260,6 +264,60 @@ def api_conversation_say(conversation_id):
 
 
 # --- learner mode (blueprint 13.2 #9) --------------------------------------
+
+
+@app.route("/api/register/pad")
+def api_register_pad():
+    """
+    The two-axis pad (blueprint 13.2 #1).
+
+    Everything a client needs to draw it: the axes and what their steps mean,
+    every named point, and the four corners to label. Pass ``?lang=`` to get
+    the register each point lands on in that language — which is the part a
+    single dial cannot give you, because a stranger and a family elder sit at
+    the same height on it and in different places here.
+    """
+    language = (request.args.get("lang") or "").strip().lower()
+    points = []
+    for key, relationship in SOCIAL_RELATIONSHIPS.items():
+        point: Dict[str, Any] = {
+            "key": key,
+            "label": relationship.label,
+            "power": relationship.power,
+            "solidarity": relationship.solidarity,
+            "why": relationship.why,
+            "address": relationship.address,
+            "corner": key in CORNERS,
+        }
+        if has_table(language):
+            point.update(describe_relationship(
+                language, relationship.power, relationship.solidarity
+            ))
+        points.append(point)
+
+    return jsonify({
+        "language": language or None,
+        "axes": {
+            "power": {"label": "Respect", "steps": POWER_LABELS},
+            "solidarity": {"label": "Closeness", "steps": SOLIDARITY_LABELS},
+        },
+        "corners": list(CORNERS),
+        "points": points,
+    })
+
+
+@app.route("/api/register/pad/at")
+def api_register_pad_at():
+    """One arbitrary point, for a pad the user is dragging."""
+    language = (request.args.get("lang") or "").strip().lower()
+    if not has_table(language):
+        return jsonify({"error": f"no register table for {language!r}"}), 400
+    try:
+        power = int(request.args.get("power", 1))
+        solidarity = int(request.args.get("solidarity", 1))
+    except (TypeError, ValueError):
+        return jsonify({"error": "power and solidarity must be integers"}), 400
+    return jsonify(describe_relationship(language, power, solidarity))
 
 
 @app.route("/api/learner/relationships")
