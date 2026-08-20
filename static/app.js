@@ -40,6 +40,22 @@
     ladderPanel: $("ladderPanel"),
     ladder: $("ladder"),
     phrasebookStats: $("phrasebookStats"),
+    convoSetup: $("convoSetup"),
+    convoLive: $("convoLive"),
+    convoHint: $("convoHint"),
+    convoAName: $("convoAName"),
+    convoBName: $("convoBName"),
+    convoALang: $("convoALang"),
+    convoBLang: $("convoBLang"),
+    convoAReg: $("convoAReg"),
+    convoBReg: $("convoBReg"),
+    convoStart: $("convoStart"),
+    convoMeta: $("convoMeta"),
+    transcript: $("transcript"),
+    convoSpeaker: $("convoSpeaker"),
+    convoText: $("convoText"),
+    convoSay: $("convoSay"),
+    convoEnd: $("convoEnd"),
   };
 
   const state = {
@@ -50,6 +66,13 @@
     lastResult: null,
     listening: false,
     busy: false,
+    convo: {
+      id: null,
+      a: { register: "auto" },
+      b: { register: "auto" },
+      speaker: "",
+      shown: 0,   // shifts already announced, so they are not repeated
+    },
   };
 
   const ADDRESSEES = [
@@ -74,6 +97,7 @@
   async function boot() {
     buildRegisterChips();
     buildAddresseeChips();
+    buildConversation();
     wireEvents();
 
     try {
@@ -102,6 +126,15 @@
     ui.targetLang.innerHTML = opts;
     ui.sourceLang.value = "en";
     ui.targetLang.value = "bn";
+
+    // Conversation mode needs both sides named explicitly — there is no
+    // "detect automatically" for a participant, because their language is a
+    // property of the person rather than of the sentence.
+    ui.convoALang.innerHTML = opts;
+    ui.convoBLang.innerHTML = opts;
+    ui.convoALang.value = "bn";
+    ui.convoBLang.value = "en";
+
     updateLevelHint();
   }
 
@@ -392,6 +425,185 @@
     return String(s ?? "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
     );
+  }
+
+  // ---------------------------------------------------------- conversation
+
+  /*
+   * Two registers, one per direction — the thing no other translator does.
+   *
+   * Each side carries the register *it speaks in*, so a turn translates into
+   * the listener's language at the speaker's level and the two never have to
+   * agree. Auto on both sides is the interesting default: the elder speaks
+   * down, you speak up, and nobody touches a control.
+   */
+
+  const CONVO_LEVELS = [
+    ["auto", "Auto"], ["close", "Close"], ["casual", "Casual"],
+    ["polite", "Polite"], ["formal", "Formal"],
+  ];
+
+  function buildConversation() {
+    [["a", ui.convoAReg], ["b", ui.convoBReg]].forEach(([side, box]) => {
+      box.innerHTML = CONVO_LEVELS.map(
+        ([slug, label]) =>
+          `<button class="chip" role="radio" data-level="${slug}"
+             aria-checked="${slug === "auto"}">${label}</button>`
+      ).join("");
+      box.addEventListener("click", (e) => {
+        const chip = e.target.closest(".chip");
+        if (!chip) return;
+        state.convo[side].register = chip.dataset.level;
+        syncChecked(box, "level", chip.dataset.level);
+      });
+    });
+
+    ui.convoStart.addEventListener("click", startConversation);
+    ui.convoSay.addEventListener("click", sendTurn);
+    ui.convoEnd.addEventListener("click", endConversation);
+    ui.convoText.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) sendTurn();
+    });
+    ui.convoSpeaker.addEventListener("click", (e) => {
+      const chip = e.target.closest(".chip");
+      if (!chip) return;
+      state.convo.speaker = chip.dataset.speaker;
+      syncChecked(ui.convoSpeaker, "speaker", state.convo.speaker);
+      ui.convoText.focus();
+    });
+  }
+
+  async function startConversation() {
+    const a = { name: ui.convoAName.value.trim() || "Them",
+                language: ui.convoALang.value,
+                register: state.convo.a.register };
+    const b = { name: ui.convoBName.value.trim() || "You",
+                language: ui.convoBLang.value,
+                register: state.convo.b.register };
+    if (a.name === b.name) b.name = `${b.name} (2)`;
+
+    ui.convoStart.disabled = true;
+    try {
+      const res = await fetch("/api/conversation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ a, b }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "could not start");
+
+      state.convo.id = data.id;
+      state.convo.names = [a.name, b.name];
+      state.convo.speaker = a.name;
+      state.convo.shown = 0;
+      ui.transcript.innerHTML = "";
+
+      ui.convoSpeaker.innerHTML = [a, b]
+        .map(
+          (p, i) =>
+            `<button class="chip" role="radio" data-speaker="${esc(p.name)}"
+               aria-checked="${i === 0}">${esc(p.name)} speaking</button>`
+        )
+        .join("");
+
+      ui.convoSetup.hidden = true;
+      ui.convoLive.hidden = false;
+      renderConversation(data);
+      ui.convoText.focus();
+    } catch (err) {
+      showWarning(err.message);
+    } finally {
+      ui.convoStart.disabled = false;
+    }
+  }
+
+  async function sendTurn() {
+    const text = ui.convoText.value.trim();
+    if (!text || !state.convo.id) return;
+    ui.convoSay.disabled = true;
+    try {
+      const res = await fetch(`/api/conversation/${state.convo.id}/say`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ speaker: state.convo.speaker, text }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "turn failed");
+
+      ui.convoText.value = "";
+      renderConversation(data.conversation);
+      // Hand the turn over, which is what happens in a real conversation and
+      // saves a tap in the common case.
+      const names = state.convo.names || [];
+      const other = names.find((n) => n !== state.convo.speaker);
+      if (other) {
+        state.convo.speaker = other;
+        syncChecked(ui.convoSpeaker, "speaker", other);
+      }
+    } catch (err) {
+      showWarning(err.message);
+    } finally {
+      ui.convoSay.disabled = false;
+      ui.convoText.focus();
+    }
+  }
+
+  function endConversation() {
+    state.convo.id = null;
+    ui.convoLive.hidden = true;
+    ui.convoSetup.hidden = false;
+    ui.convoHint.textContent = "Two people, two registers";
+  }
+
+  function renderConversation(convo) {
+    const observed = convo.observed_registers || {};
+    const names = Object.keys(convo.participants || {});
+    const side = new Map(names.map((n, i) => [n, i === 0 ? "a" : "b"]));
+
+    ui.convoMeta.innerHTML =
+      names
+        .map((n) => {
+          const level = observed[n];
+          return `<span><span class="who">${esc(n)}</span> ` +
+                 `${level ? esc(level) : "—"}</span>`;
+        })
+        .join('<span aria-hidden="true">·</span>') +
+      (convo.asymmetric
+        ? '<span class="asym">asymmetric — each side has its own register</span>'
+        : "");
+
+    // Turns and shifts share one stream, because a shift belongs where it
+    // happened rather than in a summary nobody reads.
+    const shiftAt = new Map();
+    (convo.shifts || []).forEach((s) => {
+      if (!shiftAt.has(s.at_turn)) shiftAt.set(s.at_turn, []);
+      shiftAt.get(s.at_turn).push(s);
+    });
+
+    ui.transcript.innerHTML = (convo.turns || [])
+      .map((turn, i) => {
+        const rows = [
+          `<li data-side="${side.get(turn.speaker) || "a"}">` +
+            `<p class="said">${esc(turn.speaker)}: ${esc(turn.text)}</p>` +
+            `<p class="heard" dir="auto">${esc(turn.translated)}</p>` +
+            `<div class="tmeta"><span>sent as ${esc(turn.register_name)}</span>` +
+            (turn.detected_name
+              ? `<span>read as ${esc(turn.detected_name)}</span>`
+              : "<span>no register marker</span>") +
+            `</div></li>`,
+        ];
+        (shiftAt.get(i) || []).forEach((s) => {
+          rows.push(`<li class="shift">${esc(s.message)}</li>`);
+        });
+        return rows.join("");
+      })
+      .join("");
+    ui.transcript.scrollTop = ui.transcript.scrollHeight;
+
+    const shifts = convo.shifts || [];
+    ui.convoHint.textContent = shifts.length
+      ? shifts[shifts.length - 1].message
+      : `${(convo.turns || []).length} turns`;
   }
 
   // ------------------------------------------------------------------- TTS
