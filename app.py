@@ -57,6 +57,12 @@ ALLOW_NETWORK = os.environ.get("SETU_ALLOW_NETWORK", "1").lower() not in ("0", "
 
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
+# Jinja compiles a template once and holds it, so editing index.html changes
+# nothing until the process restarts — and the static files *do* reload, so
+# the JS updates while the markup it needs does not, which reads as the new
+# code being broken rather than as the page being stale. Costly to diagnose,
+# free to prevent.
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 #: On-device only. Who you are deferential to is about as sensitive as a
@@ -295,6 +301,25 @@ def api_register_pad():
             ))
         points.append(point)
 
+    # The whole plane, not only the named points. Seven labels do not show the
+    # *shape* of the thing, and the shape is the argument: two cells at the
+    # same height on the respect axis landing on different registers because
+    # they differ in closeness. A grid makes that visible in one glance; a list
+    # of relationships makes the reader take it on trust.
+    grid = []
+    if has_table(language):
+        for power in sorted(POWER_LABELS):
+            for solidarity in sorted(SOLIDARITY_LABELS):
+                cell = describe_relationship(language, power, solidarity)
+                named = next(
+                    (r.key for r in SOCIAL_RELATIONSHIPS.values()
+                     if (r.power, r.solidarity) == (power, solidarity)),
+                    None,
+                )
+                cell["named"] = named
+                cell["corner"] = named in CORNERS
+                grid.append(cell)
+
     return jsonify({
         "language": language or None,
         "axes": {
@@ -303,6 +328,7 @@ def api_register_pad():
         },
         "corners": list(CORNERS),
         "points": points,
+        "grid": grid,
     })
 
 
