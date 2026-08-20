@@ -14,10 +14,11 @@
  * processing and re-levelling a cached phrase never touches the network.
  */
 
-// Bump on any change to the shell files below, or a returning visitor keeps
-// the cached copy: the app shell is served cache-first, so new markup and a
-// new script are invisible until the cache name changes.
-const VERSION = "setu-v2";
+// Bumping this is no longer how a change reaches people — the shell refreshes
+// itself, see staleWhileRevalidate below. Change it only to discard everything
+// cached under the old name, which is worth doing when the shape of what is
+// cached changes rather than its contents.
+const VERSION = "setu-v3";
 const SHELL = [
   "/",
   "/static/style.css",
@@ -56,24 +57,46 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(networkFirst(request));
     return;
   }
-  event.respondWith(cacheFirst(request));
+  event.respondWith(staleWhileRevalidate(request, event));
 });
 
-async function cacheFirst(request) {
-  const cached = await caches.match(request);
+/*
+ * Serve the cached shell immediately, then refresh it in the background.
+ *
+ * This was cache-first with no revalidation, which meant the shell froze the
+ * moment it was cached and stayed frozen until VERSION changed by hand. That
+ * is a worse trap than it sounds: bumping the version does not fix it either,
+ * because the new cache fills on the next load and then freezes in turn. A
+ * whole afternoon of edits can be invisible while every file on disk is
+ * correct — which is exactly how this comment came to be written.
+ *
+ * Stale-while-revalidate keeps the instant open and the offline behaviour, and
+ * a change lands on the following load without anyone remembering to bump
+ * anything.
+ */
+async function staleWhileRevalidate(request, event) {
+  const cache = await caches.open(VERSION);
+  const cached = await cache.match(request);
+
+  const network = fetch(request)
+    .then((response) => {
+      if (response.ok) cache.put(request, response.clone());
+      return response;
+    })
+    .catch(() => null);
+
+  // Keep the worker alive for the background refresh; returning the cached
+  // copy resolves respondWith, and the browser is then free to kill us.
+  if (event) event.waitUntil(network);
+
   if (cached) return cached;
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      const cache = await caches.open(VERSION);
-      cache.put(request, response.clone());
-    }
-    return response;
-  } catch (err) {
-    const shell = await caches.match("/");
-    if (shell) return shell;
-    throw err;
-  }
+
+  const response = await network;
+  if (response) return response;
+
+  const shell = await cache.match("/");
+  if (shell) return shell;
+  throw new Error("offline, and this was never cached");
 }
 
 async function networkFirst(request) {

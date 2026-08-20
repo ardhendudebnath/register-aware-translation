@@ -582,10 +582,16 @@
 
     ui.transcript.innerHTML = (convo.turns || [])
       .map((turn, i) => {
+        // Both sides can be set to the same language, and then the two lines
+        // are identical — printing the sentence twice looks like a bug rather
+        // than a translation.
+        const echoed = turn.translated && turn.translated !== turn.text;
         const rows = [
           `<li data-side="${side.get(turn.speaker) || "a"}">` +
             `<p class="said">${esc(turn.speaker)}: ${esc(turn.text)}</p>` +
-            `<p class="heard" dir="auto">${esc(turn.translated)}</p>` +
+            (echoed
+              ? `<p class="heard" dir="auto">${esc(turn.translated)}</p>`
+              : "") +
             `<div class="tmeta"><span>sent as ${esc(turn.register_name)}</span>` +
             (turn.detected_name
               ? `<span>read as ${esc(turn.detected_name)}</span>`
