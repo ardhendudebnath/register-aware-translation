@@ -1,4 +1,4 @@
-/* Setu — dark-first, single stylesheet, no framework. */
+﻿/* Setu — dark-first, single stylesheet, no framework. */
 
 :root {
   --bg: #0e1016;
@@ -389,6 +389,10 @@ button { font: inherit; cursor: pointer; border-radius: 10px; }
   padding: 9px 12px; border-radius: 12px;
   background: var(--panel-2); border: 1px solid var(--line);
   max-width: 86%;
+  /* Hug the content. Without this the column stretches side-a bubbles to the
+     full width while side-b, which sets align-self, shrinks to fit — so the
+     two halves of the conversation were shaped differently for no reason. */
+  align-self: flex-start;
 }
 .transcript li[data-side="b"] { align-self: flex-end;
   background: var(--accent-soft);
