@@ -417,3 +417,51 @@ button { font: inherit; cursor: pointer; border-radius: 10px; }
   border: 1px solid var(--line); border-radius: 11px;
   font: inherit; font-size: 15px; resize: vertical;
 }
+
+/* ------------------------------------------------------ the two-axis pad
+   Twelve cells rather than seven labels, because the shape is the argument:
+   a row where the respect is constant and the register changes anyway is
+   something you see, not something the copy has to assert. */
+
+.pad-wrap {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "y pad" ". x";
+  gap: 6px; align-items: center;
+}
+.pad-y { grid-area: y; writing-mode: vertical-rl; transform: rotate(180deg);
+  font-size: 10.5px; letter-spacing: .06em; color: var(--muted);
+  text-transform: uppercase; }
+.pad-x { grid-area: x; font-size: 10.5px; letter-spacing: .06em;
+  color: var(--muted); text-transform: uppercase; text-align: center; }
+
+.pad {
+  grid-area: pad;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;
+}
+.pad button {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 9px 8px; min-height: 58px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel-2); color: var(--muted);
+  font: inherit; font-size: 11px; text-align: left; cursor: pointer;
+}
+.pad button:hover { border-color: var(--accent); color: var(--text); }
+.pad button .lv { font-size: 12.5px; font-weight: 600; }
+.pad button .nm { font-size: 10.5px; line-height: 1.25; }
+
+/* The register a cell lands on, so a row of constant respect visibly changes
+   colour as closeness rises. */
+.pad button[data-level="Close"]  { --c: #e07a5f; }
+.pad button[data-level="Casual"] { --c: var(--ok); }
+.pad button[data-level="Polite"] { --c: var(--accent); }
+.pad button[data-level="Formal"] { --c: var(--warn); }
+.pad button .lv { color: var(--c, var(--muted)); }
+.pad button[data-named="true"] {
+  background: color-mix(in srgb, var(--c) 9%, var(--panel-2));
+  border-color: color-mix(in srgb, var(--c) 30%, var(--line));
+}
+.pad button[aria-pressed="true"] {
+  border-color: var(--c); color: var(--text);
+  box-shadow: 0 0 0 1px var(--c) inset;
+}

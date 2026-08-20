@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Setu client.
  *
  * Speech in and speech out use the browser's own APIs by default — they cost
@@ -40,6 +40,9 @@
     ladderPanel: $("ladderPanel"),
     ladder: $("ladder"),
     phrasebookStats: $("phrasebookStats"),
+    pad: $("pad"),
+    padWrap: $("padWrap"),
+    padNote: $("padNote"),
     convoSetup: $("convoSetup"),
     convoLive: $("convoLive"),
     convoHint: $("convoHint"),
@@ -98,6 +101,7 @@
     buildRegisterChips();
     buildAddresseeChips();
     buildConversation();
+    ui.pad.addEventListener("click", padClick);
     wireEvents();
 
     try {
@@ -136,6 +140,7 @@
     ui.convoBLang.value = "en";
 
     updateLevelHint();
+    loadPad();
   }
 
   function buildRegisterChips() {
@@ -214,6 +219,9 @@
     ui.translateBtn.addEventListener("click", translate);
     ui.targetLang.addEventListener("change", () => {
       updateLevelHint();
+      // Different languages divide the plane differently — that is the point
+      // of drawing it per language rather than once — so it has to be redrawn.
+      loadPad();
       if (state.lastResult) relevel();
     });
     ui.swapLangs.addEventListener("click", swapLanguages);
@@ -425,6 +433,91 @@
     return String(s ?? "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
     );
+  }
+
+  // ------------------------------------------------------------- the pad
+
+  /*
+   * Register on two axes rather than one (blueprint 13.2 #1).
+   *
+   * Brown & Gilman, 1960: politeness is power and solidarity, and they are
+   * independent. Your boss is high power and low solidarity; your grandmother
+   * is high power and high solidarity. A single scale puts those two in the
+   * same place and reaches for the distant pronoun with your grandmother.
+   *
+   * The whole plane is drawn, not only the named relationships, because the
+   * argument *is* the shape: a row where respect is constant and the register
+   * changes anyway. Twelve cells show that. Seven labels ask you to take it
+   * on trust.
+   */
+
+  async function loadPad() {
+    const lang = ui.targetLang.value;
+    if (!lang) return;
+    try {
+      const res = await fetch(`/api/register/pad?lang=${encodeURIComponent(lang)}`);
+      const data = await res.json();
+      renderPad(data);
+    } catch (err) {
+      ui.pad.innerHTML = "";
+    }
+  }
+
+  function renderPad(data) {
+    const grid = data.grid || [];
+    if (!grid.length) {
+      ui.padWrap.hidden = true;
+      return;
+    }
+    ui.padWrap.hidden = false;
+
+    // Respect descending, so "more respect" is up — which is the only way the
+    // vertical axis label means anything.
+    const powers = [...new Set(grid.map((c) => c.power))].sort((a, b) => b - a);
+    const closeness = [...new Set(grid.map((c) => c.solidarity))].sort();
+
+    ui.pad.innerHTML = powers
+      .map((p) =>
+        closeness
+          .map((s) => {
+            const cell = grid.find((c) => c.power === p && c.solidarity === s);
+            if (!cell) return "";
+            return (
+              `<button role="gridcell" data-level="${esc(cell.level_name)}"` +
+              ` data-named="${Boolean(cell.named)}" data-power="${p}"` +
+              ` data-solidarity="${s}" aria-pressed="false"` +
+              ` title="${esc(cell.power_label)} · ${esc(cell.solidarity_label)}">` +
+              `<span class="lv">${esc(cell.level_name)}</span>` +
+              `<span class="nm">${cell.named ? esc(cell.label) : ""}</span>` +
+              `</button>`
+            );
+          })
+          .join("")
+      )
+      .join("");
+
+    ui.padNote.textContent = "";
+  }
+
+  function padClick(e) {
+    const cell = e.target.closest("button");
+    if (!cell) return;
+    ui.pad.querySelectorAll("button").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b === cell))
+    );
+
+    // The pad is a way of choosing a register, so it drives the same control
+    // the chips do rather than a parallel one.
+    state.register = cell.dataset.level.toLowerCase();
+    syncChecked(ui.registerChips, "level", state.register);
+    updateLevelHint();
+
+    const name = cell.querySelector(".nm").textContent;
+    ui.padNote.textContent = name
+      ? `${name} — ${cell.dataset.level.toLowerCase()} here.`
+      : `${cell.title} — ${cell.dataset.level.toLowerCase()} here.`;
+
+    if (state.lastResult) relevel();
   }
 
   // ---------------------------------------------------------- conversation
