@@ -501,6 +501,41 @@ at 100% everywhere; exactness is at 100% in nineteen, and Bengali stops at
 98.5% on a syncretism a substitution table cannot resolve — খাও is both the
 তুমি present and the তুমি imperative, and no amount of rules separates them.
 
+### One number that is not self-referential
+
+Everything above compares the engine to sentence sets written alongside it.
+FAME-MT does not: a formality-annotated corpus built by other people for other
+reasons, and large enough that no amount of overfitting to a hand-written gold
+set can flatter it.
+
+```bash
+python -m evaluation.external
+```
+
+```
+de   agreement  99.5%   coverage  88.4%
+fr   agreement  99.1%   coverage  83.9%
+es   agreement  96.9%   coverage  77.6%
+it   agreement  91.6%   coverage  65.5%
+pt   agreement  90.0%   coverage  80.4%
+en   agreement  66.1%   coverage   9.6%
+
+overall 95.0% over 30,438 sentences
+```
+
+**Coverage** is how often a sentence carries a readable register marker at
+all; the corpus labels every row regardless, so abstaining is counted apart
+from being wrong rather than folded in as failure.
+
+Two things this says plainly. **English is weak** — it reads a tenth of what it
+is given and agrees about two thirds of the time, which is near enough to
+chance to be worth stating rather than averaging away. That is what "no
+grammatical T/V distinction" costs. And **FAME-MT covers six languages, none of
+them Indian.** Not Bengali, Hindi, Marathi, Gujarati, Punjabi, Urdu, Odia,
+Assamese, Nepali, Tamil, Telugu, Kannada or Malayalam. There is no external
+corpus to check those against, which is the thesis of this project restated as
+a missing file — and why the review pages below still matter.
+
 ### Read those numbers carefully
 
 They measure agreement between the engine and sentence sets **largely written
