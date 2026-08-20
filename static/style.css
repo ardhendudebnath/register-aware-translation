@@ -350,3 +350,66 @@ button { font: inherit; cursor: pointer; border-radius: 10px; }
   .output { font-size: 19px; }
   .controls .primary { min-width: 100%; order: -1; }
 }
+
+/* ------------------------------------------------------------ conversation
+   Two registers, one per direction. The layout leans on that: two side-by-side
+   setup cards, and a transcript that alternates so the asymmetry is something
+   you can see rather than something the copy has to claim. */
+
+.sides { display: flex; gap: 10px; flex-wrap: wrap; }
+.side {
+  flex: 1; min-width: 220px; padding: 12px;
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.side label { display: block; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+.side input[type="text"], .side select {
+  width: 100%; margin-bottom: 8px; padding: 8px 10px;
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); border-radius: 9px;
+  font: inherit; font-size: 13px;
+}
+
+.convo-meta {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  font-size: 12.5px; color: var(--muted); margin-bottom: 12px;
+}
+.convo-meta .who { color: var(--text); }
+.convo-meta .asym {
+  padding: 3px 9px; border-radius: 999px; font-size: 11.5px;
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.transcript { list-style: none; margin: 0 0 12px; padding: 0;
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 340px; overflow-y: auto; }
+.transcript li {
+  padding: 9px 12px; border-radius: 12px;
+  background: var(--panel-2); border: 1px solid var(--line);
+  max-width: 86%;
+}
+.transcript li[data-side="b"] { align-self: flex-end;
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
+.transcript .said { margin: 0; font-size: 13px; color: var(--muted); }
+.transcript .heard { margin: 4px 0 0; font-size: 15px; line-height: 1.5; }
+.transcript .tmeta { margin-top: 5px; font-size: 11px; color: var(--muted);
+  display: flex; gap: 7px; flex-wrap: wrap; }
+
+/* A shift is a social event, so it sits in the flow of the conversation
+   rather than in a corner of the chrome. */
+.transcript li.shift {
+  align-self: center; max-width: 100%; text-align: center;
+  background: var(--warn-soft); border-color:
+    color-mix(in srgb, var(--warn) 35%, transparent);
+  color: var(--warn); font-size: 12.5px; padding: 7px 14px;
+}
+
+#convoText {
+  width: 100%; margin-top: 9px; padding: 10px 12px;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 11px;
+  font: inherit; font-size: 15px; resize: vertical;
+}

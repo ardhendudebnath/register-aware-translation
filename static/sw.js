@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Service worker: cache the app shell so Setu opens with zero network.
  *
  * This must be a real file served from the origin root — browsers refuse to
@@ -14,7 +14,10 @@
  * processing and re-levelling a cached phrase never touches the network.
  */
 
-const VERSION = "setu-v1";
+// Bump on any change to the shell files below, or a returning visitor keeps
+// the cached copy: the app shell is served cache-first, so new markup and a
+// new script are invisible until the cache name changes.
+const VERSION = "setu-v2";
 const SHELL = [
   "/",
   "/static/style.css",

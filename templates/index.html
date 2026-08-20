@@ -109,6 +109,54 @@
     <ul class="ladder" id="ladder"></ul>
   </section>
 
+  <!-- conversation: a register per direction, which is the unusual part -->
+  <section class="panel" id="convoPanel">
+    <div class="panel-head">
+      <h2>Conversation</h2>
+      <span class="hint" id="convoHint">Two people, two registers</span>
+    </div>
+
+    <div id="convoSetup">
+      <p class="note">
+        Your uncle says তুই to you. You say আপনি back. Both are correct, and
+        neither is the other's mirror. Every other translator applies one
+        register to the whole session, which gets this exactly wrong.
+      </p>
+      <div class="sides">
+        <div class="side">
+          <label for="convoALang">Them</label>
+          <input id="convoAName" type="text" value="Them" aria-label="Their name">
+          <select id="convoALang" aria-label="Their language"></select>
+          <div class="chips small" id="convoAReg" role="radiogroup"
+               aria-label="The register they speak in"></div>
+        </div>
+        <div class="side">
+          <label for="convoBLang">You</label>
+          <input id="convoBName" type="text" value="You" aria-label="Your name">
+          <select id="convoBLang" aria-label="Your language"></select>
+          <div class="chips small" id="convoBReg" role="radiogroup"
+               aria-label="The register you speak in"></div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="convoStart" class="primary">Start conversation</button>
+      </div>
+    </div>
+
+    <div id="convoLive" hidden>
+      <div class="convo-meta" id="convoMeta"></div>
+      <ul class="transcript" id="transcript"></ul>
+      <div class="chips small" id="convoSpeaker" role="radiogroup"
+           aria-label="Who is speaking"></div>
+      <textarea id="convoText" rows="2" placeholder="What did they say?"
+                aria-label="What was said"></textarea>
+      <div class="controls">
+        <button id="convoSay" class="primary">Send</button>
+        <button id="convoEnd" class="ghost">End conversation</button>
+      </div>
+    </div>
+  </section>
+
   <footer class="foot">
     <span id="phrasebookStats"></span>
     <span class="sep">·</span>
