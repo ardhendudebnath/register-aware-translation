@@ -515,13 +515,31 @@ python -m evaluation.external
 ```
 de   agreement  99.5%   coverage  88.4%
 fr   agreement  99.1%   coverage  83.9%
-es   agreement  96.9%   coverage  77.6%
+es   agreement  97.4%   coverage  77.1%
 it   agreement  91.6%   coverage  65.5%
-pt   agreement  90.0%   coverage  80.4%
+pt   agreement  91.4%   coverage  78.8%
 en   agreement  66.1%   coverage   9.6%
 
-overall 95.0% over 30,438 sentences
+overall 95.3% over 30,281 sentences
 ```
+
+It finds bugs, not just a score. `--by-rule` ranks rules by how often their
+firing coincides with being wrong, which points straight at the culprit:
+
+```bash
+python -m evaluation.external --lang pt --by-rule 5
+```
+
+That named `v.ser` — 1,011 firings, 36% wrong — and every example was `é`
+opening a clause after a comma: *"Sim, é o Bill"*, *"Bem, é fascinante"*. The
+impersonal guard covered the start of a *string* and not the start of a
+*clause*. It also named the Spanish imperative of *ir*, which is the homograph
+of the third person of *ver*, so *"¿Cómo ve el futuro?"* read as somebody being
+told to go somewhere.
+
+Italian sits lowest of the T/V languages and mostly deserves to. `È molto
+gentile` is *he is very kind* and *you are very kind* with equal right, Italian
+drops the subject, and there is nothing in the sentence to separate them.
 
 **Coverage** is how often a sentence carries a readable register marker at
 all; the corpus labels every row regardless, so abstaining is counted apart

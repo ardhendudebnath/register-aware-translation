@@ -103,6 +103,23 @@ class Agreement:
     agreed: int = 0
     confusion: Counter = field(default_factory=Counter)
     disagreements: List[Tuple[str, str, str, float]] = field(default_factory=list)
+    #: rule name -> [times it fired and we agreed, times it fired and we did not]
+    #:
+    #: The point of the whole module. A corpus this size does not just give a
+    #: score, it says *which rule* is wrong: a rule that fires as often on
+    #: sentences we get wrong as on ones we get right is not reading register,
+    #: it is matching something else that happens to look like it.
+    by_rule: Dict[str, List[int]] = field(default_factory=dict)
+
+    def suspects(self, min_fires: int = 40) -> List[Tuple[str, int, float]]:
+        """Rules ranked by how often their firing coincides with being wrong."""
+        out = []
+        for rule, (right, wrong) in self.by_rule.items():
+            fires = right + wrong
+            if fires >= min_fires:
+                out.append((rule, fires, wrong / fires))
+        out.sort(key=lambda r: (-r[2], -r[1]))
+        return out
 
     @property
     def coverage(self) -> float:
@@ -168,7 +185,11 @@ def score_language(
         tally.read += 1
         ours = _binary(reading.level, code)
         tally.confusion[(gold, ours)] += 1
-        if ours == gold:
+        correct = ours == gold
+        for _surface, rule in reading.evidence:
+            slot = tally.by_rule.setdefault(rule, [0, 0])
+            slot[0 if correct else 1] += 1
+        if correct:
             tally.agreed += 1
         elif len(tally.disagreements) < keep_disagreements:
             tally.disagreements.append(
@@ -192,6 +213,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         help="stop after this many scored rows per language")
     parser.add_argument("--show-disagreements", type=int, default=0,
                         help="print this many sentences we got wrong")
+    parser.add_argument("--by-rule", type=int, default=0, metavar="N",
+                        help="name the N rules that most often fire when we are wrong")
     args = parser.parse_args(argv)
 
     split = SPLIT_DIR / args.split
@@ -229,6 +252,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("  Gujarati, Hindi, Japanese, Kannada, Malayalam, Marathi, Nepali,")
     print("  Odia, Punjabi, Tamil, Telugu, Urdu. Those still need speakers —")
     print("  see REVIEWING.md.")
+
+    if args.by_rule:
+        for code in sorted(scores):
+            suspects = scores[code].suspects()[: args.by_rule]
+            if not suspects:
+                continue
+            print()
+            print(f"  {code} — rules that fire when we are wrong")
+            for rule, fires, rate in suspects:
+                print(f"    {rate:5.0%} wrong  {fires:>5,} fires   {rule}")
 
     if args.show_disagreements:
         for code in sorted(scores):
