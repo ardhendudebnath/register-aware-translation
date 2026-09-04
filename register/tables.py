@@ -2390,6 +2390,22 @@ _ES_3P_SUBJECT = r"\b(?:él|ella|ellos|ellas|quien|quién|que|uno|alguien|nadie)
 #: Polite. Position is the only cue Spanish gives.
 _CLAUSE_INITIAL = r"(?:^|[.!?¡¿,;:]\s*)"
 
+#: Words that put a finite verb after them, not a command.
+#:
+#: Several tú imperatives are homographs of some other verb's third person,
+#: and "ve" is the worst: the imperative of *ir* and the 3sg of *ver*, which
+#: for usted is the polite form. FAME-MT fired that rule 42 times and was
+#: wrong half of them — "se ve", "lo que ve", "porque ve", "¿Cómo ve el
+#: futuro?" all read as somebody being told to go somewhere.
+#:
+#: A proclitic or a subordinator is the cheap signal: Spanish does not put one
+#: in front of an affirmative imperative, and the negative imperative takes
+#: the subjunctive ("no vayas") rather than this form.
+_ES_NOT_IMPERATIVE_BEFORE = (
+    r"\b(?:se|me|te|nos|os|lo|la|los|las|le|les|"
+    r"que|porque|cuando|donde|dónde|quien|quién|como|cómo|si|no|cual|cuál)\s+"
+)
+
 #: The pronoun that licenses reading a third-person form as second person.
 _ES_USTED = r"usted(?:es)?\b"
 
@@ -2438,7 +2454,8 @@ def _es_verb_rules() -> Tuple[Rule, ...]:
     # the one form that is both an imperative and an indicative.
     out += [
         Rule(f"v.{stem}.imp", (tu, tu, usted, usted), gloss,
-             guard_before=rf"{_ES_USTED}\s+", guard_after=rf"\s+{_ES_USTED}")
+             guard_before=(rf"{_ES_USTED}\s+|{_ES_NOT_IMPERATIVE_BEFORE}"),
+             guard_after=rf"\s+{_ES_USTED}")
         for stem, tu, usted, gloss in _ES_IMPERATIVES
     ]
     return tuple(out)
@@ -2805,7 +2822,17 @@ _PT_IMPERSONAL = (
     r"|\b(?:o|a|os|as|um|uma|uns|umas|este|esta|esse|essa|aquele|aquela)\s+"
     r"(?!senhor(?:a|es|as)?\b)\w+\s+"
     r"|\b(?:hoje|ontem|amanhã|aqui|ali|lá|agora|ainda|já|também)\s*"
-    r"|^\s*"
+    # A clause boundary, not just the start of the string. This was `^\s*`,
+    # which covers "É uma péssima ideia" and misses "É, é uma péssima ideia" —
+    # and after a comma is where a Portuguese copula most often turns up with a
+    # subject that is not the listener: "é claro", "Sim, é o Bill", "Bem, é
+    # fascinante". FAME-MT scored 1,011 firings of this rule at 36% wrong and
+    # every example was that shape.
+    #
+    # Anchored at the end of the prefix, so it only blocks a copula sitting
+    # *immediately* after the boundary. "Sim, você é simpático" is unaffected,
+    # because the prefix there ends with "você ".
+    r"|(?:^|[.!?…;:,])\s*"
 )
 
 _PT_SYNCRETIC = {"ser": "é", "estar": "está"}

@@ -1,4 +1,4 @@
-"""
+﻿"""
 The one check on this engine that comes from outside it.
 
 Skipped when the corpus is absent, which it is on a fresh clone — the splits
@@ -21,6 +21,12 @@ from evaluation.external import (
 from register import CASUAL, CLOSE, FORMAL, POLITE, TABLES
 
 SPLIT = SPLIT_DIR / "test.tsv"
+
+#: Rows read per test. The corpus interleaves nine languages, so this is about
+#: 1,400 sentences each — enough that a real regression shows and small enough
+#: that the suite does not grow a three-minute tail. The full run is a command,
+#: not a test: python -m evaluation.external
+CORPUS_ROWS = 12_000
 needs_corpus = pytest.mark.skipif(
     not SPLIT.exists(), reason="FAME-MT splits not built"
 )
@@ -57,9 +63,9 @@ def test_agreement_with_somebody_elses_labels(code, floor):
     regression trips them without the numbers needing an edit every time a
     table improves.
     """
-    scores = score_language(codes=[code], split=SPLIT, limit=40_000)
+    scores = score_language(codes=[code], split=SPLIT, limit=CORPUS_ROWS)
     tally = scores[code]
-    assert tally.read > 1_000, f"only {tally.read} readable sentences for {code}"
+    assert tally.read > 400, f"only {tally.read} readable sentences for {code}"
     assert tally.accuracy >= floor, (
         f"{code}: {tally.accuracy:.1%} agreement with FAME-MT, expected >= {floor:.0%}"
     )
@@ -73,7 +79,7 @@ def test_english_is_the_weak_one_and_we_say_so():
     thirds of the time — near enough to chance that the number belongs in the
     README rather than being quietly averaged away.
     """
-    tally = score_language(codes=["en"], split=SPLIT, limit=40_000)["en"]
+    tally = score_language(codes=["en"], split=SPLIT, limit=CORPUS_ROWS)["en"]
     assert tally.coverage < 0.25, "English coverage jumped — recheck the claim"
     assert tally.accuracy < 0.85, "English got good; update the README"
 
@@ -85,6 +91,6 @@ def test_abstaining_is_counted_apart_from_being_wrong():
     corpus labels it anyway. Folding those into the accuracy would punish the
     engine for the one thing it should do.
     """
-    tally = score_language(codes=["de"], split=SPLIT, limit=20_000)["de"]
+    tally = score_language(codes=["de"], split=SPLIT, limit=CORPUS_ROWS)["de"]
     assert tally.read < tally.seen
     assert tally.agreed <= tally.read
