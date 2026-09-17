@@ -173,6 +173,58 @@
     </div>
   </section>
 
+  <!-- learner mode: the pipeline run backwards -->
+  <section class="panel" id="learnPanel">
+    <div class="panel-head">
+      <h2>Practise</h2>
+      <span class="hint">Check how you would come across</span>
+    </div>
+    <p class="note">
+      Language apps teach vocabulary and grammar. None of them teach the thing
+      that decides whether you sound rude. Say something the way you would say
+      it to someone, and this tells you how it lands.
+    </p>
+    <div class="learn-row">
+      <select id="learnLang" aria-label="Language you are practising"></select>
+    </div>
+    <div class="chips small" id="learnRel" role="radiogroup"
+         aria-label="Who you are speaking to"></div>
+    <textarea id="learnText" rows="2" placeholder="তুই কেমন আছিস?"
+              aria-label="What you would say" dir="auto"></textarea>
+    <div class="controls">
+      <button id="learnCheck" class="primary">Check</button>
+    </div>
+    <div class="feedback" id="learnFeedback" hidden aria-live="polite">
+      <p class="verdict" id="learnVerdict"></p>
+      <p class="message" id="learnMessage"></p>
+      <div class="suggestion" id="learnSuggestionWrap" hidden>
+        <span class="lbl">Try instead</span>
+        <p id="learnSuggestion" dir="auto"></p>
+      </div>
+      <p class="evidence" id="learnEvidence"></p>
+    </div>
+  </section>
+
+  <!-- relationship memory: register attached to a person -->
+  <section class="panel" id="peoplePanel">
+    <div class="panel-head">
+      <h2>People</h2>
+      <span class="hint" id="peopleHint">Stored on this device only</span>
+    </div>
+    <p class="note">
+      Remember how you speak to someone, and the next conversation with them
+      needs no setup. Who you are deferential to is about as sensitive as a
+      contact list gets, so this never leaves the device — no sync, no export.
+    </p>
+    <ul class="people" id="peopleList"></ul>
+    <div class="remember">
+      <input id="personName" type="text" placeholder="e.g. Rahul's father"
+             aria-label="Name to remember">
+      <button id="personSave" class="ghost">Remember current settings</button>
+    </div>
+    <p class="note small" id="personNote"></p>
+  </section>
+
   <footer class="foot">
     <span id="phrasebookStats"></span>
     <span class="sep">·</span>
