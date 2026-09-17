@@ -541,6 +541,35 @@ Italian sits lowest of the T/V languages and mostly deserves to. `È molto
 gentile` is *he is very kind* and *you are very kind* with equal right, Italian
 drops the subject, and there is nothing in the sentence to separate them.
 
+#### Universal Dependencies was checked for the Indian languages, and cannot help
+
+It is the obvious next source — linguist-annotated treebanks, several of them
+for Indian languages, some with a `Polite` feature. Checked treebank by
+treebank before downloading anything, because a thin label set can mislead as
+badly as a drafted one:
+
+| Treebank | `Polite` | `Form` | `Infm` | What `Form` is actually marking |
+|---|---|--:|--:|---|
+| Hindi HDTB | yes | 6,159 | 13 | honorific third person — उन्होंने, उनके |
+| Urdu UDTB | yes | 1,101 | 20 | honorific third person — انہوں, انہیں |
+| Tamil TTB | yes | 798 | 0 | public figures in news — ஒபாமா, முதல்வர் |
+| Marathi UFAL | no | | | |
+| Telugu MTG | no | | | |
+| Japanese GSD | no | | | |
+| Japanese BCCWJ | no | | | text needs a separate NINJAL licence |
+
+Two reasons it would mislead rather than merely fall short. Where the feature
+exists it marks **honorific reference to a third party** — talking *about* a
+respected person — which is a different phenomenon from how you *address* the
+listener, the thing this engine reads. And the informal class is thirteen
+tokens, twenty, and none: there is no contrast to measure against. A detector
+could score perfectly on that data while being wrong about every sentence
+anyone would actually say to someone.
+
+So the gap is confirmed rather than assumed. No external register-annotated
+corpus exists for these languages — which is the point of this project, and
+why [REVIEWING.md](REVIEWING.md) still matters for exactly them.
+
 **Coverage** is how often a sentence carries a readable register marker at
 all; the corpus labels every row regardless, so abstaining is counted apart
 from being wrong rather than folded in as failure.
