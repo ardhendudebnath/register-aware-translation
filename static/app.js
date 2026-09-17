@@ -43,6 +43,21 @@
     pad: $("pad"),
     padWrap: $("padWrap"),
     padNote: $("padNote"),
+    learnLang: $("learnLang"),
+    learnRel: $("learnRel"),
+    learnText: $("learnText"),
+    learnCheck: $("learnCheck"),
+    learnFeedback: $("learnFeedback"),
+    learnVerdict: $("learnVerdict"),
+    learnMessage: $("learnMessage"),
+    learnSuggestionWrap: $("learnSuggestionWrap"),
+    learnSuggestion: $("learnSuggestion"),
+    learnEvidence: $("learnEvidence"),
+    peopleList: $("peopleList"),
+    peopleHint: $("peopleHint"),
+    personName: $("personName"),
+    personSave: $("personSave"),
+    personNote: $("personNote"),
     convoSetup: $("convoSetup"),
     convoLive: $("convoLive"),
     convoHint: $("convoHint"),
@@ -76,6 +91,8 @@
       speaker: "",
       shown: 0,   // shifts already announced, so they are not repeated
     },
+    learner: { relationship: "stranger" },
+    people: [],
   };
 
   const ADDRESSEES = [
@@ -102,6 +119,7 @@
     buildAddresseeChips();
     buildConversation();
     ui.pad.addEventListener("click", padClick);
+    buildLearner();
     wireEvents();
 
     try {
@@ -139,8 +157,15 @@
     ui.convoALang.value = "bn";
     ui.convoBLang.value = "en";
 
+    // Learner mode practises a language rather than translating into one, so
+    // it gets its own select, defaulting to the one you are learning to speak.
+    ui.learnLang.innerHTML = opts;
+    ui.learnLang.value = "bn";
+
     updateLevelHint();
     loadPad();
+    // After the languages, so each saved contact can show its language by name.
+    buildPeople();
   }
 
   function buildRegisterChips() {
@@ -518,6 +543,221 @@
       : `${cell.title} — ${cell.dataset.level.toLowerCase()} here.`;
 
     if (state.lastResult) relevel();
+  }
+
+  // ---------------------------------------------------------- learner mode
+
+  /*
+   * The pipeline run backwards. You say something the way you would say it to
+   * a particular person, and instead of translating, this tells you how it
+   * lands. No language app teaches register, which is the thing that actually
+   * decides whether you sound rude.
+   */
+
+  const VERDICT_TITLES = {
+    good: "That fits.",
+    too_familiar: "Too familiar for them.",
+    too_formal: "A little distant.",
+    unknown: "Nothing to judge yet.",
+  };
+
+  async function buildLearner() {
+    ui.learnCheck.addEventListener("click", checkLearner);
+    ui.learnText.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) checkLearner();
+    });
+    ui.learnRel.addEventListener("click", (e) => {
+      const chip = e.target.closest(".chip");
+      if (!chip) return;
+      state.learner.relationship = chip.dataset.rel;
+      syncChecked(ui.learnRel, "rel", chip.dataset.rel);
+    });
+
+    try {
+      const res = await fetch("/api/learner/relationships");
+      const data = await res.json();
+      const rels = data.relationships || [];
+      state.learner.relationship = rels.length ? rels[0].key : "stranger";
+      ui.learnRel.innerHTML = rels
+        .map(
+          (r, i) =>
+            `<button class="chip" role="radio" data-rel="${esc(r.key)}"
+               aria-checked="${i === 0}" title="${esc(r.why)}">${esc(r.label)}</button>`
+        )
+        .join("");
+    } catch (err) {
+      ui.learnRel.innerHTML = "";
+    }
+  }
+
+  async function checkLearner() {
+    const text = ui.learnText.value.trim();
+    if (!text) return;
+    ui.learnCheck.disabled = true;
+    try {
+      const res = await fetch("/api/learner/assess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          language: ui.learnLang.value,
+          relationship: state.learner.relationship,
+        }),
+      });
+      const fb = await res.json();
+      if (!res.ok) throw new Error(fb.error || "could not check that");
+      renderFeedback(fb);
+    } catch (err) {
+      showWarning(err.message);
+    } finally {
+      ui.learnCheck.disabled = false;
+    }
+  }
+
+  function renderFeedback(fb) {
+    ui.learnFeedback.hidden = false;
+    ui.learnFeedback.dataset.verdict = fb.verdict;
+    ui.learnVerdict.textContent = VERDICT_TITLES[fb.verdict] || fb.verdict;
+    ui.learnMessage.textContent = fb.message || "";
+
+    // Only offer a correction when there is one to make.
+    ui.learnSuggestionWrap.hidden = !fb.suggestion;
+    ui.learnSuggestion.textContent = fb.suggestion || "";
+
+    // Show *which* words carried the register. A verdict with no reason is a
+    // ruling; a verdict that points at তুই is a lesson.
+    const ev = fb.evidence || [];
+    ui.learnEvidence.textContent = ev.length
+      ? `Read from: ${ev.join(", ")}`
+      : "";
+  }
+
+  // ---------------------------------------------------- relationship memory
+
+  /*
+   * Register attached to a person. Everything here is local — a SQLite file on
+   * this device, no sync, no export — because who you are deferential to is as
+   * sensitive as a contact list gets. The UI says so where the data is entered
+   * rather than in a policy nobody reads.
+   */
+
+  function buildPeople() {
+    ui.personSave.addEventListener("click", rememberPerson);
+    ui.personName.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") rememberPerson();
+    });
+    ui.peopleList.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      const name = btn.closest("li").dataset.name;
+      if (btn.dataset.act === "use") usePerson(name);
+      if (btn.dataset.act === "forget") forgetPerson(name);
+    });
+    refreshPeople();
+  }
+
+  async function refreshPeople() {
+    try {
+      const res = await fetch("/api/relationships");
+      const data = await res.json();
+      state.people = data.relationships || [];
+      renderPeople();
+    } catch (err) {
+      ui.peopleList.innerHTML = "";
+    }
+  }
+
+  function renderPeople() {
+    ui.peopleList.innerHTML = state.people
+      .map((p) => {
+        const lang = state.byCode.get(p.language);
+        const parts = [
+          p.register_name || "no register saved",
+          lang ? lang.name : p.language,
+          p.addressee ? p.addressee.replace(/_/g, " ") : "",
+        ].filter(Boolean);
+        return (
+          `<li data-name="${esc(p.name)}">` +
+          `<span class="who">${esc(p.name)}</span>` +
+          `<span class="how">${esc(parts.join(" · "))}</span>` +
+          `<span class="acts">` +
+          `<button class="ghost" data-act="use">Use</button>` +
+          `<button class="ghost" data-act="forget" aria-label="Forget ${esc(p.name)}">Forget</button>` +
+          `</span></li>`
+        );
+      })
+      .join("");
+    const n = state.people.length;
+    ui.peopleHint.textContent = n
+      ? `${n} ${n === 1 ? "person" : "people"} · this device only`
+      : "Stored on this device only";
+  }
+
+  async function rememberPerson() {
+    const name = ui.personName.value.trim();
+    if (!name) {
+      ui.personName.focus();
+      return;
+    }
+    const body = {
+      name,
+      language: ui.targetLang.value,
+      register: state.register,
+      addressee: state.addressee || null,
+    };
+    ui.personSave.disabled = true;
+    try {
+      const res = await fetch("/api/relationships", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const saved = await res.json();
+      if (!res.ok) throw new Error(saved.error || "could not remember that");
+      ui.personName.value = "";
+      // Auto is a way of not deciding, so there is nothing to remember. Say so
+      // rather than silently saving a contact with no register.
+      ui.personNote.textContent = state.register === "auto"
+        ? `Saved ${saved.name}, but with no register — Auto mirrors whoever is speaking, so pick a level first if you want one remembered.`
+        : `Saved ${saved.name} at ${saved.register_name}.`;
+      await refreshPeople();
+    } catch (err) {
+      showWarning(err.message);
+    } finally {
+      ui.personSave.disabled = false;
+    }
+  }
+
+  function usePerson(name) {
+    const p = state.people.find((x) => x.name === name);
+    if (!p) return;
+    // Apply everything we know in one tap — which is the whole feature: the
+    // second conversation with someone needs no configuration.
+    if (p.language && state.byCode.has(p.language)) {
+      ui.targetLang.value = p.language;
+      updateLevelHint();
+      loadPad();
+    }
+    if (p.register_slug) {
+      state.register = p.register_slug;
+      syncChecked(ui.registerChips, "level", state.register);
+    }
+    if (p.addressee) {
+      state.addressee = p.addressee;
+      syncChecked(ui.addresseeChips, "addressee", state.addressee);
+    }
+    ui.personNote.textContent = `Now speaking to ${p.name}.`;
+    if (state.lastResult) relevel();
+  }
+
+  async function forgetPerson(name) {
+    try {
+      await fetch(`/api/relationships/${encodeURIComponent(name)}`, { method: "DELETE" });
+      ui.personNote.textContent = `Forgot ${name}.`;
+      await refreshPeople();
+    } catch (err) {
+      showWarning("could not remove that");
+    }
   }
 
   // ---------------------------------------------------------- conversation
