@@ -33,7 +33,9 @@ def backend_report() -> Dict[str, object]:
         "stt": stt.available_backend(),
         "mt": list(translator.available_backends()),
         "tts": tts.available_backend(),
-        "formality_model": classifier.load_trained_classifier() is not None,
+        # Present on disk, not loaded. Loading it here cost 65 seconds at every
+        # start-up to print one line; the model loads on the request that needs it.
+        "formality_model": classifier.trained_classifier_available(),
     }
 
 

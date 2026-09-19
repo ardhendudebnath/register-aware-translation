@@ -210,6 +210,33 @@ def _lexical_formality(
     )
 
 
+def trained_classifier_available() -> bool:
+    """
+    Whether a fine-tuned classifier is on disk — without loading it.
+
+    For status reporting only. It answers "is there a model?" by looking, where
+    the old report answered it by loading 519 MB of weights and checking the
+    result was not None. That ran at every server start, before the page could
+    load, to print one line; the model itself is a fallback that most requests
+    in a supported language never reach, because the register engine answers
+    first.
+
+    Presence is not the same as loadable — a corrupt checkpoint still counts
+    here and fails later, in load_trained_classifier(), where it already
+    degrades to the lexical fallback. That is the right place for the failure:
+    on the request that needs the model, not on the boot that did not.
+    """
+    if not (MODEL_DIR / "config.json").exists():
+        return False
+    weights = ("model.safetensors", "pytorch_model.bin")
+    if any((MODEL_DIR / name).exists() for name in weights):
+        return True
+    # Sharded checkpoints keep an index instead of a single weights file.
+    return any(MODEL_DIR.glob("*.safetensors.index.json")) or any(
+        MODEL_DIR.glob("pytorch_model.bin.index.json")
+    )
+
+
 @lru_cache(maxsize=1)
 def load_trained_classifier():
     """
