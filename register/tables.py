@@ -2896,6 +2896,15 @@ _PT_3P_SUBJECT = (
 #: — and only in their polite form, which is why this is a per-form guard.
 _PT_IMPERSONAL = (
     r"\b(?:ele|ela|eles|elas|quem|que|isto|isso|aquilo|tudo|nada)\s+"
+    # A possessive and a noun is a subject like any other — "minha irmã é
+    # cabeleireira" is about her sister. Without these, v.ser was the single
+    # largest source of disagreement in the corpus: 2,892 firings, 30% wrong,
+    # and the examples were overwhelmingly this shape.
+    r"|\b(?:meu|minha|meus|minhas|teu|tua|teus|tuas|seu|sua|seus|suas"
+    r"|nosso|nossa|nossos|nossas|dele|dela|deles|delas)\s+\w+\s+"
+    # A conjunction resets the clause, and the subject of the new one is
+    # rarely the listener: "…, e é por isso que…".
+    r"|\b(?:e|mas|ou|porque|pois|portanto|então|também)\s+"
     # "o senhor" looks exactly like a determiner and a noun, and it is the
     # polite *second* person — the one subject in this shape that must not be
     # blocked. Without the exception "O senhor é muito simpático" kept its
@@ -2931,6 +2940,29 @@ _PT_NOT_IMPERATIVE_BEFORE = (
     r"|\b(?:o|a|os|as|um|uma|uns|umas|este|esta|esse|essa|aquele|aquela)\s+\w+\s+"
 )
 
+#: Ten Portuguese verbs spell the tu imperative exactly like the você present:
+#: faz, diz, vai, tem, vem, dá, fala, come, espera, abre. So "Faz isso agora"
+#: is both "do it now" and "you do it now", and the indicative reading won —
+#: asking for Close conjugated the command into a statement, "Fazes isso
+#: agora", which changes the mood rather than the register.
+#:
+#: An imperative heads its clause and an indicative with a dropped subject
+#: does not, so position settles most of it.
+_PT_CLAUSE_INITIAL = r"(?:^|[.!?…;:,])\s*"
+
+#: …except in a question, where a clause-initial verb with a dropped subject
+#: is asking rather than ordering: "Faz isso?" is "do you do that?". Matched
+#: against the rest of the sentence, so it stops at the next full stop.
+#:
+#: …and except before an infinitive, which is Portuguese's periphrastic
+#: future rather than a command: in "Quando ouvir os aplausos, vai tocar a
+#: música" the music will play, nobody is being told to play it. The corpus
+#: caught that one — it read Close at full confidence against a formal label.
+_PT_QUESTION_AFTER = r"[^.!?]*\?|\s+\w+(?:ar|er|ir)\b"
+
+#: The tu imperative of every verb that also has an indicative rule.
+_PT_IMPERATIVE_TU = {stem: tu for stem, tu, _polite, _gloss in _PT_IMPERATIVES}
+
 _PT_SYNCRETIC = {"ser": "é", "estar": "está"}
 
 #: Prepositions taking the tonic pronoun rather than the nominative. "a" is
@@ -2941,16 +2973,37 @@ _PT_PREPOSITION = (
 
 
 def _pt_verb_rules() -> Tuple[Rule, ...]:
-    out = [
-        Rule(f"v.{stem}", (tu, polite, polite, polite), gloss,
-             guard_before=_PT_3P_SUBJECT,
-             form_guards=(((_PT_SYNCRETIC[stem], _PT_IMPERSONAL, "", "", ""),)
-                          if stem in _PT_SYNCRETIC else ()))
-        for stem, tu, polite, gloss in _PT_VERBS
-    ]
+    out = []
+    for stem, tu, polite, gloss in _PT_VERBS:
+        guards = []
+        if stem in _PT_SYNCRETIC:
+            guards.append((_PT_SYNCRETIC[stem], _PT_IMPERSONAL, "", "", ""))
+        if _PT_IMPERATIVE_TU.get(stem) == polite:
+            # Leading its clause, this form is a command, not a statement.
+            # The imperative rule below picks it up instead — a guarded-out
+            # pattern leaves the span free rather than consuming it.
+            #
+            # The third-person guard has to be repeated here: a form guard
+            # *replaces* the rule's own for that slot rather than adding to
+            # it, and dropping it let "Ele fala português" through as
+            # "Ele falas português".
+            guards.append(
+                (polite, rf"{_PT_3P_SUBJECT}|{_PT_CLAUSE_INITIAL}", "", "", "")
+            )
+        out.append(
+            Rule(f"v.{stem}", (tu, polite, polite, polite), gloss,
+                 guard_before=_PT_3P_SUBJECT,
+                 form_guards=tuple(guards))
+        )
     out += [
         Rule(f"v.{stem}.imp", (tu, polite, polite, polite), gloss,
-             guard_before=_PT_NOT_IMPERATIVE_BEFORE)
+             guard_before=_PT_NOT_IMPERATIVE_BEFORE,
+             # …and in a question it is the statement that is meant, so the
+             # ambiguous form hands the span back. Only that form: "faça" is
+             # a command wherever it appears.
+             form_guards=(((tu, "", _PT_QUESTION_AFTER, "", ""),)
+                          if _PT_IMPERATIVE_TU.get(stem) == tu
+                          and tu in {v[2] for v in _PT_VERBS} else ()))
         for stem, tu, polite, gloss in _PT_IMPERATIVES
     ]
     return tuple(out)

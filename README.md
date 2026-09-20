@@ -206,7 +206,7 @@ old number.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 556 tests. |
+| `tests/` | 574 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -609,11 +609,46 @@ de   agreement  99.3%   coverage  88.1%
 fr   agreement  99.1%   coverage  83.4%
 es   agreement  97.3%   coverage  77.4%
 it   agreement  92.1%   coverage  64.8%
-pt   agreement  92.2%   coverage  77.5%
+pt   agreement  92.7%   coverage  76.6%
 en   agreement  68.7%   coverage   9.6%
 
-overall 95.6% over 100,313 sentences (150,203 seen, 33% carried no marker)
+overall 95.7% over 100,070 sentences (150,203 seen, 33% carried no marker)
 ```
+
+### The sweep that needs no labels
+
+```bash
+python -m evaluation.misfires
+```
+
+A score tells you how often the engine is right. It does not tell you when the
+engine is doing something *indefensible* — and the four gold metrics are blind
+to that class, because gold rows are single-clause sentences addressed to
+somebody. A rule that misbehaves in a compound verb, on a third-person subject
+or in a construction nobody wrote down collides with nothing and scores 100%.
+
+Two properties catch it, and neither needs an annotation, which is what makes
+them runnable over 150,000 sentences labelled for something else entirely:
+
+| | |
+|---|---|
+| **Nobody in it, nothing to change** | If `detect()` finds no second-person marker, no rule that *votes* may change the sentence |
+| **Rewriting twice changes nothing** | `rewrite(rewrite(s, L), L)` must equal `rewrite(s, L)` |
+
+The first holds everywhere: **0 of 49,828 unaddressed sentences** are touched,
+in all six languages. It did not hold before the rules were fixed — every
+misfire found in this project violated exactly it.
+
+The exception is written into the engine already: a `rewrite_only` rule never
+votes, which is how lexical register works in a language with no second-person
+grammar. English "However" → "But" is a real register change on a sentence
+about nothing in particular. The first run flagged 463 English sentences before
+that distinction was drawn, and every one was a lexical rule doing its job.
+
+The second still fails 265 times, almost all Portuguese, and each failure is a
+sentence where one pass changes a pronoun and leaves a verb behind. That is the
+long-range agreement problem the blueprint lists as a known weakness (§3.4),
+measured rather than asserted.
 
 It finds bugs, not just a score. `--by-rule` ranks rules by how often their
 firing coincides with being wrong, which points straight at the culprit:
@@ -757,7 +792,7 @@ commercially — with credit.
 python -m pytest tests/ -q
 ```
 
-556 tests covering the rule tables, round-trip stability, third-person safety,
+574 tests covering the rule tables, round-trip stability, third-person safety,
 rules firing outside the construction they belong to,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
 conversations, learner feedback, code-switching, speculative translation, the

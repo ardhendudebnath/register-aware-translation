@@ -29,6 +29,7 @@ import pytest
 
 from register import (
     CASUAL,
+    CLOSE,
     FORMAL,
     LEVELS,
     POLITE,
@@ -200,6 +201,58 @@ def test_a_third_person_sentence_is_not_addressed_to_anybody(language, sentence)
 ])
 def test_romance_imperatives_still_rise(language, source, level, expected):
     assert rewrite(source, language, level).text == expected
+
+
+@pytest.mark.parametrize("sentence", [
+    # Ten Portuguese verbs spell the tu imperative exactly like the você
+    # present, and the statement reading won: asking for Close turned the
+    # command "do it now" into "you do it now", a change of mood.
+    "Faz isso agora.",
+    "Diz a verdade.",
+    "Espera um pouco.",
+    "Vai para casa.",
+    "Fala comigo.",
+])
+def test_a_portuguese_command_is_not_conjugated_into_a_statement(sentence):
+    assert rewrite(sentence, "pt", CLOSE).text == sentence
+    reading = detect(sentence, "pt")
+    assert reading.level == CLOSE, "a tu imperative is the tu form, whatever else it is"
+
+
+@pytest.mark.parametrize("source, expected", [
+    ("Faça isso agora.", "Faz isso agora."),
+    ("Diga a verdade.", "Diz a verdade."),
+    ("Espere um pouco.", "Espera um pouco."),
+])
+def test_a_portuguese_command_still_comes_down(source, expected):
+    assert rewrite(source, "pt", CLOSE).text == expected
+
+
+@pytest.mark.parametrize("sentence", [
+    # The copula with a possessive subject was the single largest source of
+    # disagreement with the corpus: 2,892 firings of v.ser, 30% of them wrong,
+    # and the examples were overwhelmingly this shape.
+    "Minha irmã é cabeleireira.",
+    "O meu pai é médico.",
+    "É isso, e é por isso que funciona.",
+    # "vai" before an infinitive is the future, not an order: the music will
+    # play, nobody is being told to play it.
+    "Quando ouvir os aplausos, vai tocar a música.",
+])
+def test_portuguese_sentences_about_somebody_else_are_left_alone(sentence):
+    for level in LEVELS:
+        assert rewrite(sentence, "pt", level).text == sentence
+    assert detect(sentence, "pt").level is None
+
+
+@pytest.mark.parametrize("sentence, level", [
+    ("Você é muito simpático.", CASUAL),
+    ("O senhor é muito simpático.", POLITE),
+    ("Tu és simpático.", CLOSE),
+])
+def test_portuguese_second_person_is_still_read(sentence, level):
+    """The blocklist must not swallow the sentences it exists to leave alone."""
+    assert detect(sentence, "pt").level == level
 
 
 def test_capitalised_lei_is_still_the_polite_pronoun():
