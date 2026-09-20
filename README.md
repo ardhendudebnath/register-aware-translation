@@ -170,10 +170,11 @@ old number.
 | `register/` | **The register engine.** Rule tables for 20 languages, plus rewrite / detect / ladder, noun gender, speaker agreement, code-switching. Zero dependencies, works offline, ~1 ms. |
 | `pipeline/` | Three-stage pipeline, phrasebook cache, asymmetric conversations, relationship memory, learner mode. |
 | `models/` | Swappable backends: STT, language ID, formality classification, MT, TTS. |
+| `data/gold/` | The register sets: 1,606 annotated sentences across 20 languages, with a [schema](data/gold/SCHEMA.md) and a [datasheet](data/gold/DATASHEET.md). |
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 463 tests. |
+| `tests/` | 475 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -571,14 +572,14 @@ python -m evaluation.external
 ```
 
 ```
-de   agreement  99.5%   coverage  88.4%
-fr   agreement  99.1%   coverage  83.9%
-es   agreement  97.4%   coverage  77.1%
-it   agreement  91.6%   coverage  65.5%
-pt   agreement  91.4%   coverage  78.8%
-en   agreement  66.1%   coverage   9.6%
+de   agreement  99.3%   coverage  88.1%
+fr   agreement  99.1%   coverage  83.4%
+es   agreement  97.3%   coverage  77.4%
+it   agreement  92.0%   coverage  65.2%
+pt   agreement  91.3%   coverage  78.6%
+en   agreement  68.7%   coverage   9.6%
 
-overall 95.3% over 30,281 sentences
+overall 95.4% over 100,677 sentences (150,203 seen, 33% carried no marker)
 ```
 
 It finds bugs, not just a score. `--by-rule` ranks rules by how often their
@@ -692,6 +693,30 @@ Gujarati, Marathi, Punjabi, Odia or Assamese. The sentences now exist. What
 they need is speakers, and it is the one asset a well-funded competitor cannot
 shortcut.
 
+### Releasing them
+
+```bash
+python -m evaluation.release            # → releases/setu-register-0.1.0-draft/
+```
+
+Builds a versioned directory somebody else can pick up: the JSONL files, a
+[schema](data/gold/SCHEMA.md), a [datasheet](data/gold/DATASHEET.md) following
+Gebru et al., a SHA-256 per file, and baseline numbers with their method
+stated. 1,606 rows, 464 ladders, 20 languages.
+
+**It will not call itself a benchmark, and the code is what enforces that.**
+Every row is still `status: draft` — written by its drafter, checked by nobody
+— so the directory is named `-draft`, the manifest says `"status": "draft"`,
+and the baselines are labelled as a consistency check rather than an accuracy
+claim. Those three things are read from the rows, not written by hand, so the
+day reviews come back the release stops calling itself a draft on its own. A
+test fails if the datasheet's counts ever drift from the data.
+
+Two honest gaps it prints on every build: **no row is verified yet**, and
+**this repository has no licence**, which means nobody may legally use the
+data. CC BY 4.0 or CC0 are the usual choices for a dataset; that decision
+belongs to the maintainer and has not been made.
+
 ---
 
 ## Tests
@@ -700,10 +725,11 @@ shortcut.
 python -m pytest tests/ -q
 ```
 
-463 tests covering the rule tables, round-trip stability, third-person safety,
+475 tests covering the rule tables, round-trip stability, third-person safety,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
-conversations, learner feedback, code-switching, the slang-detection
-regressions, and the pipeline with networking disabled.
+conversations, learner feedback, code-switching, the dataset release's own
+honesty, the slang-detection regressions, and the pipeline with networking
+disabled.
 
 ---
 

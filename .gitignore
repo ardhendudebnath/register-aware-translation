@@ -47,3 +47,7 @@ desktop.ini
 .idea/
 .vscode/
 *.swp
+
+# Built dataset releases. Derived from data/gold/ — rebuild with:
+#     python -m evaluation.release
+releases/
