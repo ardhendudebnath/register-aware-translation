@@ -46,6 +46,7 @@ from register import (
     prosody,
     rewrite as register_rewrite,
 )
+from register import codeswitch
 from utils.helpers import PROJECT_ROOT, load_slang_dictionary, normalise_text
 from utils.slang_detection import detect_slang
 
@@ -74,6 +75,12 @@ class ExchangeResult:
     ok: bool = True
     message: str = ""
     edits: List[dict] = field(default_factory=list)
+    #: What the MT engine returned, before any post-edit. Re-levelling starts
+    #: from here, so a Casual rendering's English words never leak into Formal.
+    mt_text: str = ""
+    #: How much English the speaker mixed in (see :mod:`register.codeswitch`).
+    #: None when there was nothing to measure. Carries no register.
+    code_switch: Optional[dict] = None
     detected_slang: List[dict] = field(default_factory=list)
     ladder: Dict[str, str] = field(default_factory=dict)
     warning: Optional[str] = None
@@ -100,6 +107,8 @@ class ExchangeResult:
             "ok": self.ok,
             "message": self.message,
             "edits": self.edits,
+            "mt_text": self.mt_text,
+            "code_switch": self.code_switch,
             "detected_slang": self.detected_slang,
             "ladder": self.ladder,
             "warning": self.warning,
@@ -230,6 +239,7 @@ def translate_text(
     addressee: Optional[str] = None,
     speaker_gender: Optional[str] = None,
     soften: bool = False,
+    keep_english: bool = True,
     with_ladder: bool = True,
     with_audio: bool = False,
     allow_network: bool = True,
@@ -240,6 +250,10 @@ def translate_text(
 
     ``register_level`` accepts a level, a name ("polite"), or ``AUTO`` to detect
     the speaker's own register and mirror it into the target.
+
+    ``keep_english`` puts everyday English words back where MT chose a bookish
+    native one, at Close and Casual, and keeps whatever the speaker said in
+    English at every level (blueprint 13.2 #8, :mod:`register.codeswitch`).
     """
     book = phrasebook if phrasebook is not None else _phrasebook
     timings: Dict[str, float] = {}
@@ -267,6 +281,12 @@ def translate_text(
 
     slang = detect_slang(text, load_slang_dictionary(), src)
     result.detected_slang = [m.as_dict() for m in slang]
+
+    # How much English the speaker mixed in. Reported, never used to pick a
+    # register: which way English points depends on who is speaking and where.
+    mixing = codeswitch.measure(text, src)
+    result.code_switch = mixing.as_dict() if mixing else None
+    spoken_in_english = mixing.english_words if mixing else ()
 
     if register_level == AUTO:
         if source_reading.level is not None:
@@ -302,6 +322,7 @@ def translate_text(
     result.cached = was_cached
     result.ok = mt_ok
     result.message = mt_msg
+    result.mt_text = mt_text
 
     # --- stage 3: post-edit into the requested register -------------------
     t0 = time.perf_counter()
@@ -311,12 +332,17 @@ def translate_text(
     )
     timings["register_post_edit"] = _ms(t0)
 
-    result.translated_text = rewritten.text
+    # --- stage 3b: keep the English people actually say --------------------
+    t0 = time.perf_counter()
+    mixed = _mix(rewritten.text, tgt, rewritten.level, keep_english, spoken_in_english)
+    timings["code_switch"] = _ms(t0)
+
+    result.translated_text = mixed.text
     result.register_level = rewritten.level
     result.formality_percent = formality_percent(rewritten.level)
     result.edits = [
         {"rule": e.rule, "gloss": e.gloss, "before": e.before, "after": e.after}
-        for e in rewritten.edits
+        for e in (*rewritten.edits, *mixed.edits)
     ]
 
     # --- the ladder: same sentence at every level -------------------------
@@ -324,7 +350,11 @@ def translate_text(
         t0 = time.perf_counter()
         rungs = register_ladder(mt_text, tgt, soften=soften, addressee=addressee,
                                 speaker_gender=speaker_gender)
-        result.ladder = {level_name(lvl): res.text for lvl, res in rungs.items()}
+        result.ladder = {
+            level_name(lvl): _mix(res.text, tgt, res.level, keep_english,
+                                  spoken_in_english).text
+            for lvl, res in rungs.items()
+        }
         timings["ladder"] = _ms(t0)
 
     # --- rudeness warning -------------------------------------------------
@@ -335,7 +365,7 @@ def translate_text(
     if with_audio:
         t0 = time.perf_counter()
         speech = tts.generate_speech(
-            rewritten.text, tgt, rewritten.level, allow_network=allow_network
+            mixed.text, tgt, rewritten.level, allow_network=allow_network
         )
         result.audio = speech.as_dict()
         timings["tts"] = _ms(t0)
@@ -376,6 +406,13 @@ def translate_audio(
     result.timings_ms["asr"] = asr_ms
     result.timings_ms["total"] = round(result.timings_ms.get("total", 0) + asr_ms, 2)
     return result
+
+
+def _mix(text: str, language: str, level: int, enabled: bool, spoken) -> codeswitch.Mixed:
+    """Stage 3b, or a no-op when the caller turned it off."""
+    if not enabled:
+        return codeswitch.Mixed(text)
+    return codeswitch.keep_english(text, language, level, keep=spoken)
 
 
 def _ms(start: float) -> float:

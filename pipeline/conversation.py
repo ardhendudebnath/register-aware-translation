@@ -69,6 +69,9 @@ class Turn:
     register_level: int
     detected_level: Optional[int]
     detected_confidence: float = 0.0
+    #: Share of this turn's words that were English, or None when the turn
+    #: was not in a script where that can be measured.
+    english_rate: Optional[float] = None
     at: float = field(default_factory=time.time)
 
     def as_dict(self) -> dict:
@@ -83,6 +86,9 @@ class Turn:
                 level_name(self.detected_level) if self.detected_level is not None else None
             ),
             "detected_confidence": round(self.detected_confidence, 3),
+            "english_rate": (
+                round(self.english_rate, 3) if self.english_rate is not None else None
+            ),
             "at": self.at,
         }
 
@@ -221,9 +227,32 @@ class Conversation:
                 register_level=result.register_level,
                 detected_level=result.detected_level,
                 detected_confidence=result.detected_confidence,
+                english_rate=(
+                    result.code_switch["rate"] if result.code_switch else None
+                ),
             )
         )
         return result
+
+    def english_mix(self) -> Dict[str, Optional[float]]:
+        """
+        How much English each participant mixes in, averaged over their turns.
+
+        Reported as a number and nothing more. Two people converging on the
+        same mix is a thing conversations do, and so is one of them switching
+        to pure Hindi when an elder joins — but reading either as warmth or
+        distance is the listener's call, not the machine's, for the same
+        reason :class:`RegisterShift` states a change and does not explain it.
+        """
+        out: Dict[str, Optional[float]] = {}
+        for participant in (self.a, self.b):
+            rates = [
+                turn.english_rate
+                for turn in self.turns
+                if turn.speaker == participant.name and turn.english_rate is not None
+            ]
+            out[participant.name] = round(sum(rates) / len(rates), 3) if rates else None
+        return out
 
     def observed_registers(self) -> Dict[str, Optional[int]]:
         """
@@ -358,5 +387,6 @@ class Conversation:
             },
             "asymmetric": self.is_asymmetric(),
             "shifts": [shift.as_dict() for shift in self.shifts()],
+            "english_mix": self.english_mix(),
             "turns": [turn.as_dict() for turn in self.turns],
         }

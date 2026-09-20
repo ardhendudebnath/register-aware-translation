@@ -122,6 +122,8 @@ flowchart TD
         TAB["tables.py<br/>20 rule tables"]
         ENG["engine.py<br/>rewrite · detect · ladder"]
         BOUND["boundaries.py<br/>Indic-safe word edges"]
+        CS["codeswitch.py<br/>English kept, and counted"]
+        SOC["social.py<br/>power × solidarity"]
         GEN["gender.py<br/>FR noun gender"]
         SPK["speaker.py<br/>first-person agreement"]
         SEL["selectors.py<br/>context-sensitive forms"]
@@ -145,6 +147,7 @@ flowchart TD
     PIPE --> MOD
     EVAL --> REG
     ENG --> TAB & BOUND & GEN & SPK & SEL
+    CS --> BOUND
 
     style REG fill:#eef2ff,stroke:#3d5bd9,stroke-width:3px
     style ENG fill:#7c9cff,color:#fff
@@ -164,13 +167,13 @@ old number.
 
 | Path | What it is |
 |---|---|
-| `register/` | **The register engine.** Rule tables for 20 languages, plus rewrite / detect / ladder, noun gender, speaker agreement. Zero dependencies, works offline, ~1 ms. |
+| `register/` | **The register engine.** Rule tables for 20 languages, plus rewrite / detect / ladder, noun gender, speaker agreement, code-switching. Zero dependencies, works offline, ~1 ms. |
 | `pipeline/` | Three-stage pipeline, phrasebook cache, asymmetric conversations, relationship memory, learner mode. |
 | `models/` | Swappable backends: STT, language ID, formality classification, MT, TTS. |
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 367 tests. |
+| `tests/` | 463 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -337,6 +340,61 @@ assess("তুই কেমন আছিস?", "bn", "stranger").message
 It accepts more than one answer where the language genuinely does. Family
 elders are the contested case — high respect *and* high closeness — so both
 তুমি and আপনি pass, because insisting on one would teach something false.
+
+### Code-switching kept, not normalised away
+
+Nobody in urban India speaks pure Hindi or pure Bengali. "मैं ऑफिस जा रहा हूँ"
+is what people say; "मैं कार्यालय जा रहा हूँ" is what MT writes, and it reads
+like a government circular. Every ASR and MT system treats the English in an
+Indian sentence as noise to be normalised away. Setu does two separate things
+with it instead (blueprint 13.2 #8).
+
+**It measures it.** `register.codeswitch.measure()` counts the English in a
+sentence written in an Indian script — Latin-script words, and known English
+loans written in the native script — and reports a rate:
+
+```python
+from register.codeswitch import measure
+
+measure("আমি অফিসে যাচ্ছি, meeting-এর পরে", "bn").as_dict()
+# {'words': 5, 'english': 2, 'rate': 0.4,
+#  'english_words': ['office', 'meeting'], ...}
+```
+
+That reading deliberately carries **no register**, and never votes in
+`detect()`. English in an Indian sentence marks education and formality in
+some settings and casual urban speech in others; which one depends on the
+speaker, the setting and the word. Nothing here can check a mapping from one
+to the other, so there is not one. The rate is a feature in its own right.
+
+**It keeps it.** At Close and Casual the everyday English word goes back where
+MT chose a bookish native one; at Polite and Formal only the words *the speaker
+themselves* said in English are kept, because preserving a code-switch is the
+point and resolving it is what everybody else does. Nothing is ever swapped the
+other way — this never purifies a sentence:
+
+```python
+translate_text("मैं कार्यालय जा रहा हूँ, तुम कब आओगे?", "hi", "hi", CASUAL).ladder
+# Close   'मैं ऑफिस जा रहा हूँ, तू कब आएगा?'
+# Casual  'मैं ऑफिस जा रहा हूँ, तुम कब आओगे?'
+# Polite  'मैं कार्यालय जा रहा हूँ, आप कब आएँगे?'
+# Formal  'मैं कार्यालय जा रहा हूँ, आप कब आएँगे?'
+```
+
+The swap carries the grammar with it — Bengali case endings are reshaped for
+the loan's own final sound (`বৈঠকের` → `মিটিংয়ের`, not *`মিটিংের`), and every
+Hindi pair shares a gender, because a swap that changes it breaks agreement
+elsewhere (`मेरा तनाव` → *`मेरा टेंशन`). Pairs that do not share one are
+listed in `codeswitch.REJECTED` with the reason.
+
+Hindi (13 words) and Bengali (8) only, and the lists are **one person's
+judgement, checked by nobody**: there is no native-script code-mixing corpus
+for either language to measure them against. They are on the
+[review pages](https://ardhendudebnath.github.io/register-aware-translation/)
+with their own question — *which word would you actually say?* — because that
+is the only way to settle it. Romanised Hinglish written entirely in Latin
+script ("kal office jaana hai") reads as English to language ID and never
+reaches any of this.
 
 ### Gender that MT throws away
 
@@ -642,10 +700,10 @@ shortcut.
 python -m pytest tests/ -q
 ```
 
-367 tests covering the rule tables, round-trip stability, third-person safety,
+463 tests covering the rule tables, round-trip stability, third-person safety,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
-conversations, learner feedback, the slang-detection regressions, and the
-pipeline with networking disabled.
+conversations, learner feedback, code-switching, the slang-detection
+regressions, and the pipeline with networking disabled.
 
 ---
 
@@ -687,6 +745,10 @@ curl -s localhost:5000/api/translate -H 'Content-Type: application/json' -d '{"t
   Bhashini before charging anyone.
 - **iOS Safari speech recognition is weaker than Chrome's.** You will likely need
   to route ASR through a cloud API there. Budget for it now.
+- **The code-switching word lists are unvalidated.** Which English words a
+  speaker keeps varies by city, age and setting, and no corpus of native-script
+  code-mixing exists to settle it. The lists are short on purpose and the
+  feature has an off switch in the UI.
 - **Register is culturally contested.** Two native speakers will disagree about
   whether a sentence is Polite or Formal, and regional variation is real
   (Kolkata vs Dhaka Bengali). The dial exists precisely because there is no

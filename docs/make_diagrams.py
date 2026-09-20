@@ -433,7 +433,7 @@ def build_modules(theme: Theme) -> str:
     layers = [
         # (z, width, colours, title, contents)
         (0.0, 340.0, theme.register, "register/  —  zero dependencies",
-         "tables · engine · boundaries · gender · speaker · selectors"),
+         "tables · engine · codeswitch · social · gender · speaker"),
         (58.0, 250.0, theme.tier, "models/  —  swappable backends",
          "stt · language_id · classifier · translator · tts"),
         (116.0, 250.0, theme.client, "pipeline/  —  orchestration",

@@ -49,6 +49,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from register import get_table, has_table
+from register.codeswitch import LOANS
 from utils.helpers import PROJECT_ROOT
 
 from .gold_sets import GOLD_DIR
@@ -361,6 +362,42 @@ def _row_html(ladder: Ladder, index: int, rtl: bool) -> str:
 </div>"""
 
 
+#: The code-switching lists need a speaker more than anything else here: they
+#: are one person's judgement about what people say, with no corpus behind them.
+CODE_SWITCH_BLURB = (
+    "These are words the app leaves in English when it is speaking casually, "
+    "because the native word sounds like something out of a textbook. The "
+    "question for each one is which word you would actually say to a friend. "
+    "If the native word is perfectly ordinary to you, say so — that means it "
+    "should come off this list."
+)
+
+
+def _word_html(loan, index: int, rtl: bool) -> str:
+    """One word pair to judge: the bookish native word against the English one."""
+    rows = "".join(
+        f'<tr><td class="lvl">{label}</td><td class="txt">{html.escape(word)}</td></tr>'
+        for label, word in (
+            ("written", " / ".join(loan.native)),
+            ("said", loan.loan),
+        )
+    )
+    rid = html.escape(f"english-{loan.english}")
+    name = f"v{index}"
+    return f"""
+<div class="card{' rtl' if rtl else ''}" data-row="{rid}">
+  <div class="meta"><code>{html.escape(loan.english)}</code></div>
+  <table>{rows}</table>
+  <div class="verdict">
+    <label><input type="radio" name="{name}" value="english"> I would say the English one</label>
+    <label><input type="radio" name="{name}" value="native"> I would say the native one</label>
+    <label><input type="radio" name="{name}" value="both"> both are normal</label>
+    <label><input type="radio" name="{name}" value="unsure"> not sure</label>
+    <input type="text" placeholder="what would you say instead?">
+  </div>
+</div>"""
+
+
 def render_language(code: str, rows: Sequence[dict]) -> str:
     name = get_table(code).name if has_table(code) else code
     confidence = next(
@@ -378,6 +415,13 @@ def render_language(code: str, rows: Sequence[dict]) -> str:
         for ladder in section.ladders:
             counter += 1
             body.append(_row_html(ladder, counter, rtl))
+
+    if LOANS.get(code):
+        body.append("<h2>words kept in English</h2>")
+        body.append(f'<p class="blurb">{html.escape(CODE_SWITCH_BLURB)}</p>')
+        for loan in LOANS[code]:
+            counter += 1
+            body.append(_word_html(loan, counter, rtl))
 
     banner_class = "banner low" if confidence == "low" else "banner"
     note = next((r.get("note") for r in rows if r.get("group") == "note"), "")

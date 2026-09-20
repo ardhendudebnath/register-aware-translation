@@ -42,6 +42,7 @@ from register import (
     level_slug,
     supported_languages,
 )
+from register import codeswitch
 from register.social import POWER_LABELS, RELATIONSHIPS as SOCIAL_RELATIONSHIPS
 from register.social import SOLIDARITY_LABELS
 from utils.helpers import PROJECT_ROOT
@@ -166,6 +167,7 @@ def api_translate():
             register_level=level,
             addressee=payload.get("addressee") or None,
             soften=bool(payload.get("soften")),
+            keep_english=_flag(payload, "keep_english", True),
             with_ladder=payload.get("ladder", True),
             with_audio=bool(payload.get("audio")),
             allow_network=ALLOW_NETWORK,
@@ -195,14 +197,32 @@ def api_relevel():
     if not has_table(language):
         return jsonify({"error": f"no register table for {language!r}"}), 400
 
+    # The same stage 3b translate_text runs, so a re-levelled sentence says the
+    # same English words a fresh translation would. ``keep`` carries the words
+    # the speaker said in English (``code_switch.english_words``).
+    mixing = _flag(payload, "keep_english", True)
+    spoken = _words(payload.get("keep"))
+
+    def relevelled(res) -> dict:
+        out = res.as_dict()
+        if mixing:
+            mixed = codeswitch.keep_english(res.text, language, res.level, keep=spoken)
+            out["text"] = mixed.text
+            out["edits"] += [
+                {"rule": e.rule, "gloss": e.gloss, "before": e.before,
+                 "after": e.after, "start": e.start}
+                for e in mixed.edits
+            ]
+        return out
+
     if payload.get("all_levels"):
         rungs = register_ladder(text, language)
         return jsonify({
-            "ladder": {level_slug(lvl): res.as_dict() for lvl, res in rungs.items()}
+            "ladder": {level_slug(lvl): relevelled(res) for lvl, res in rungs.items()}
         })
 
     level = _parse_level(payload.get("register", AUTO))
-    return jsonify(register_rewrite(text, language, level).as_dict())
+    return jsonify(relevelled(register_rewrite(text, language, level)))
 
 
 @app.route("/api/phrasebook")
@@ -442,6 +462,7 @@ def handle_translate(data):
             register_level=_parse_level(data.get("register", AUTO)),
             addressee=data.get("addressee") or None,
             soften=bool(data.get("soften")),
+            keep_english=_flag(data, "keep_english", True),
             with_audio=bool(data.get("audio")),
             allow_network=ALLOW_NETWORK,
         )
@@ -498,6 +519,21 @@ def _participant(payload: Dict[str, Any], fallback_name: str) -> Participant:
         addressee=payload.get("addressee") or None,
         gender=payload.get("gender") or None,
     )
+
+
+def _flag(payload: Dict[str, Any], key: str, default: bool) -> bool:
+    """A boolean option that is on unless the client explicitly turns it off."""
+    value = payload.get(key, default)
+    if isinstance(value, str):
+        return value.strip().lower() not in {"", "0", "false", "no", "off"}
+    return bool(value)
+
+
+def _words(value, limit: int = 64) -> tuple:
+    """A short list of words from the client, ignoring anything that is not one."""
+    if not isinstance(value, (list, tuple)):
+        return ()
+    return tuple(w.strip().lower() for w in value[:limit] if isinstance(w, str) and w.strip())
 
 
 def _parse_level(value):

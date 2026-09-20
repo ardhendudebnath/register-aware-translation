@@ -20,6 +20,7 @@
     registerChips: $("registerChips"),
     addresseeChips: $("addresseeChips"),
     soften: $("soften"),
+    keepEnglish: $("keepEnglish"),
     levelHint: $("levelHint"),
     asrHint: $("asrHint"),
     sourceText: $("sourceText"),
@@ -250,6 +251,11 @@
       if (state.lastResult) relevel();
     });
     ui.swapLangs.addEventListener("click", swapLanguages);
+    // Re-run rather than re-level, so the ladder changes too. The phrasebook
+    // already has the MT output, so this costs no network round trip.
+    ui.keepEnglish.addEventListener("change", () => {
+      if (state.lastResult) translate();
+    });
     ui.speakBtn.addEventListener("click", () => {
       if (state.lastResult) speak(state.lastResult.translated_text, state.lastResult);
     });
@@ -297,6 +303,7 @@
           register: state.register,
           addressee: state.addressee || null,
           soften: ui.soften.checked,
+          keep_english: ui.keepEnglish.checked,
           ladder: true,
         }),
       });
@@ -330,6 +337,8 @@
           text: prev.mt_base || prev.translated_text,
           language: prev.target_language,
           register: state.register === "auto" ? "auto" : state.register,
+          keep_english: ui.keepEnglish.checked,
+          keep: (prev.code_switch && prev.code_switch.english_words) || [],
         }),
       });
       const data = await res.json();
@@ -353,11 +362,12 @@
 
   function render(data, opts = {}) {
     // Keep the untouched MT output so re-levelling always starts from the
-    // same base rather than compounding edits.
+    // same base rather than compounding edits. Not the Casual rung: that has
+    // Casual's English words in it, and they would leak into Formal.
     if (!opts.keepLadder) {
-      data.mt_base = data.ladder && data.ladder.Casual
-        ? data.ladder.Casual
-        : data.translated_text;
+      data.mt_base = data.mt_text
+        || (data.ladder && data.ladder.Casual)
+        || data.translated_text;
     } else if (state.lastResult) {
       data.mt_base = state.lastResult.mt_base;
       data.ladder = state.lastResult.ladder;
@@ -378,14 +388,22 @@
       .map(([k, v]) => `${k}: ${v} ms`)
       .join("\n");
 
+    const heard = [];
     if (data.detected_register_name) {
+      heard.push(`You spoke in ${data.detected_register_name}`);
       const slang = (data.detected_slang || []).map((s) => s.term);
-      ui.detectedRegister.textContent =
-        `You spoke in ${data.detected_register_name}` +
-        (slang.length ? ` · slang: ${slang.join(", ")}` : "");
-    } else {
-      ui.detectedRegister.textContent = "";
+      if (slang.length) heard.push(`slang: ${slang.join(", ")}`);
     }
+    // Reported as a count, never as a register: English can mark formality
+    // or casualness depending on who is speaking and where.
+    const mix = data.code_switch;
+    if (mix && mix.english) {
+      heard.push(
+        `English: ${mix.english_words.join(", ")} ` +
+        `(${mix.english} of ${mix.words} words)`
+      );
+    }
+    ui.detectedRegister.textContent = heard.join(" · ");
 
     renderTrace(data.edits || []);
     if (!opts.keepLadder) renderLadder(data.ladder || {});
