@@ -13,18 +13,22 @@
 </head>
 <body>
 
+<a class="skip" href="#main">Skip to the translator</a>
+
 <header class="topbar">
   <div class="brand">
-    <span class="mark">সে</span>
+    <span class="mark" aria-hidden="true">সে</span>
     <div>
       <h1>Setu</h1>
       <p>A bridge carries you across — but it also decides how you arrive.</p>
     </div>
   </div>
-  <div class="status" id="status" data-state="connecting">Connecting…</div>
+  <!-- Announced rather than only coloured: connection state is the one thing
+       that explains why nothing is happening. -->
+  <div class="status" id="status" data-state="connecting" role="status">Connecting…</div>
 </header>
 
-<main>
+<main id="main">
   <!-- language pair -->
   <section class="panel langs">
     <div class="field">
@@ -103,7 +107,7 @@
   </section>
 
   <!-- warning -->
-  <div class="warning" id="warning" hidden></div>
+  <div class="warning" id="warning" role="alert" hidden></div>
 
   <!-- result -->
   <section class="panel result" id="resultPanel" hidden>
@@ -115,7 +119,10 @@
         <span class="badge muted" id="badgeTiming"></span>
       </div>
     </div>
-    <p class="output" id="outputText" lang="" dir="auto"></p>
+    <!-- Read out when it settles. While a guess is on screen it is marked
+         aria-busy, so a preview being revised mid-sentence is not narrated
+         word by word. -->
+    <p class="output" id="outputText" lang="" dir="auto" aria-live="polite"></p>
     <p class="detected" id="detectedRegister"></p>
 
     <details class="extras" id="traceWrap" hidden>
@@ -169,7 +176,8 @@
 
     <div id="convoLive" hidden>
       <div class="convo-meta" id="convoMeta"></div>
-      <ul class="transcript" id="transcript"></ul>
+      <ul class="transcript" id="transcript" aria-live="polite"
+          aria-label="Conversation so far"></ul>
       <div class="chips small" id="convoSpeaker" role="radiogroup"
            aria-label="Who is speaking"></div>
       <textarea id="convoText" rows="2" placeholder="What did they say?"
@@ -233,12 +241,13 @@
     <p class="note small" id="personNote"></p>
   </section>
 
-  <footer class="foot">
-    <span id="phrasebookStats"></span>
-    <span class="sep">·</span>
-    <span>The register layer runs on-device and works offline.</span>
-  </footer>
 </main>
+
+<footer class="foot">
+  <span id="phrasebookStats"></span>
+  <span class="sep" aria-hidden="true">·</span>
+  <span>The register layer runs on-device and works offline.</span>
+</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script src="/static/app.js"></script>

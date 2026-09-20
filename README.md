@@ -206,7 +206,7 @@ old number.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 491 tests. |
+| `tests/` | 503 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -460,7 +460,8 @@ The register layer is pure client-side string processing, which gives it a
 property no engine-integrated approach has: **a phrase cached at Polite can be
 re-rendered at Formal with no network at all.**
 
-- A service worker caches the app shell, so the app opens with no connection.
+- A service worker caches the app shell — and only the shell, since the live
+  socket carrying speech must never be served from a cache.
 - Every translation is written to a phrasebook keyed by source → target → text,
   *not* by register — so one cached MT output serves all four levels.
 - Repeats are free, which also makes the online experience faster.
@@ -756,9 +757,10 @@ commercially — with credit.
 python -m pytest tests/ -q
 ```
 
-491 tests covering the rule tables, round-trip stability, third-person safety,
+503 tests covering the rule tables, round-trip stability, third-person safety,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
 conversations, learner feedback, code-switching, speculative translation, the
+markup contract that keeps the page usable without a mouse or a screen, the
 dataset release's own honesty, the slang-detection regressions, and the
 pipeline with networking disabled.
 

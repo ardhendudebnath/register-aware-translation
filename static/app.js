@@ -383,6 +383,7 @@
 
     ui.resultPanel.hidden = false;
     delete ui.outputText.dataset.partial;   // this one is settled
+    ui.outputText.setAttribute("aria-busy", "false");
     ui.outputText.textContent = data.translated_text || "";
     ui.outputText.lang = data.target_language || "";
     ui.speakBtn.disabled = !data.translated_text;
@@ -414,7 +415,7 @@
     ui.detectedRegister.textContent = heard.join(" · ");
 
     renderTrace(data.edits || []);
-    if (!opts.keepLadder) renderLadder(data.ladder || {});
+    if (!opts.keepLadder) renderLadder(data.ladder || {}, data.target_language);
     markCurrentRung(data.register_name);
 
     if (data.warning) showWarning(data.warning);
@@ -440,7 +441,7 @@
       .join("");
   }
 
-  function renderLadder(ladder) {
+  function renderLadder(ladder, language) {
     const order = ["Close", "Casual", "Polite", "Formal"];
     const rungs = order.filter((k) => ladder[k] !== undefined);
     if (!rungs.length) {
@@ -458,7 +459,10 @@
         return (
           `<li data-level="${name}">` +
           `<span class="lvl">${name}</span>` +
-          `<span class="txt" dir="auto">${esc(text)}</span>` +
+          // Tagged with the language it is in, so a screen reader reads
+          // Bengali as Bengali instead of sounding out the page's English.
+          `<span class="txt" dir="auto" lang="${esc(language || "")}">` +
+          `${esc(text)}</span>` +
           (dupOf ? `<span class="same">same as ${dupOf}</span>` : "") +
           `</li>`
         );
@@ -527,24 +531,32 @@
     const powers = [...new Set(grid.map((c) => c.power))].sort((a, b) => b - a);
     const closeness = [...new Set(grid.map((c) => c.solidarity))].sort();
 
+    // A grid is rows of cells, and screen readers rely on that nesting to
+    // report "row 2, column 3" — which is the whole argument the pad makes:
+    // respect held constant along a row while the register changes anyway.
     ui.pad.innerHTML = powers
-      .map((p) =>
-        closeness
+      .map((p) => {
+        const cells = closeness
           .map((s) => {
             const cell = grid.find((c) => c.power === p && c.solidarity === s);
             if (!cell) return "";
+            const where = `${cell.power_label} · ${cell.solidarity_label}`;
+            const label = cell.named
+              ? `${cell.level_name} — ${cell.label}, ${where}`
+              : `${cell.level_name} — ${where}`;
             return (
               `<button role="gridcell" data-level="${esc(cell.level_name)}"` +
               ` data-named="${Boolean(cell.named)}" data-power="${p}"` +
-              ` data-solidarity="${s}" aria-pressed="false"` +
-              ` title="${esc(cell.power_label)} · ${esc(cell.solidarity_label)}">` +
+              ` data-solidarity="${s}" aria-selected="false"` +
+              ` aria-label="${esc(label)}" title="${esc(where)}">` +
               `<span class="lv">${esc(cell.level_name)}</span>` +
               `<span class="nm">${cell.named ? esc(cell.label) : ""}</span>` +
               `</button>`
             );
           })
-          .join("")
-      )
+          .join("");
+        return cells ? `<div role="row">${cells}</div>` : "";
+      })
       .join("");
 
     ui.padNote.textContent = "";
@@ -554,7 +566,7 @@
     const cell = e.target.closest("button");
     if (!cell) return;
     ui.pad.querySelectorAll("button").forEach((b) =>
-      b.setAttribute("aria-pressed", String(b === cell))
+      b.setAttribute("aria-selected", String(b === cell))
     );
 
     // The pad is a way of choosing a register, so it drives the same control
@@ -649,6 +661,7 @@
     // Only offer a correction when there is one to make.
     ui.learnSuggestionWrap.hidden = !fb.suggestion;
     ui.learnSuggestion.textContent = fb.suggestion || "";
+    ui.learnSuggestion.lang = ui.learnLang.value || "";
 
     // Show *which* words carried the register. A verdict with no reason is a
     // ruling; a verdict that points at তুই is a lesson.
@@ -916,7 +929,8 @@
 
   function renderConversation(convo) {
     const observed = convo.observed_registers || {};
-    const names = Object.keys(convo.participants || {});
+    const participants = convo.participants || {};
+    const names = Object.keys(participants);
     const side = new Map(names.map((n, i) => [n, i === 0 ? "a" : "b"]));
 
     ui.convoMeta.innerHTML =
@@ -945,11 +959,20 @@
         // are identical — printing the sentence twice looks like a bug rather
         // than a translation.
         const echoed = turn.translated && turn.translated !== turn.text;
+        // Each line is tagged with the language it is actually in — the
+        // speaker's for what they said, the listener's for what they heard —
+        // so a screen reader switches voice with the conversation.
+        const spoke = participants[turn.speaker] || {};
+        const listener = Object.values(participants).find(
+          (p) => p.name !== turn.speaker
+        ) || {};
         const rows = [
           `<li data-side="${side.get(turn.speaker) || "a"}">` +
-            `<p class="said">${esc(turn.speaker)}: ${esc(turn.text)}</p>` +
+            `<p class="said" lang="${esc(spoke.language || "")}" dir="auto">` +
+            `${esc(turn.speaker)}: ${esc(turn.text)}</p>` +
             (echoed
-              ? `<p class="heard" dir="auto">${esc(turn.translated)}</p>`
+              ? `<p class="heard" dir="auto" lang="${esc(listener.language || "")}">` +
+                `${esc(turn.translated)}</p>`
               : "") +
             `<div class="tmeta"><span>sent as ${esc(turn.register_name)}</span>` +
             (turn.detected_name
@@ -1151,6 +1174,10 @@
     ui.outputText.textContent = data.translated_text;
     ui.outputText.lang = data.target_language || "";
     ui.outputText.dataset.partial = "true";
+    // A guess is revised every few hundred milliseconds. Narrating each
+    // revision would make the page unusable with a screen reader, so the
+    // region is marked busy until the sentence settles.
+    ui.outputText.setAttribute("aria-busy", "true");
     ui.speakBtn.disabled = true;
     ui.badgeRegister.textContent =
       `${data.register_name} · still speaking…`;
@@ -1164,6 +1191,7 @@
     // Any in-flight guess is now stale: its sequence number no longer matches.
     state.partial.seq += 1;
     delete ui.outputText.dataset.partial;
+    ui.outputText.setAttribute("aria-busy", "false");
   }
 
   async function refreshPhrasebook() {

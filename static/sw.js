@@ -18,13 +18,31 @@
 // itself, see staleWhileRevalidate below. Change it only to discard everything
 // cached under the old name, which is worth doing when the shape of what is
 // cached changes rather than its contents.
-const VERSION = "setu-v3";
+const VERSION = "setu-v4";
 const SHELL = [
   "/",
   "/static/style.css",
   "/static/app.js",
   "/manifest.json",
 ];
+
+/*
+ * Only these are worth storing.
+ *
+ * This used to cache every same-origin GET, which quietly filled the cache
+ * with socket.io's long-polling requests — one entry per poll, each a URL with
+ * a session id in it that will never be asked for again. Besides growing
+ * without limit, handing a cached transport frame back to a live connection is
+ * a good way to break the stream it belongs to. A live socket is the one thing
+ * that must never be served from a cache.
+ */
+function isShell(url) {
+  return (
+    url.pathname === "/" ||
+    url.pathname === "/manifest.json" ||
+    url.pathname.startsWith("/static/")
+  );
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -53,11 +71,18 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  // The live socket carries speech as it is being spoken. Never touch it.
+  if (url.pathname.startsWith("/socket.io/")) return;
+
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(networkFirst(request));
     return;
   }
-  event.respondWith(staleWhileRevalidate(request, event));
+  if (isShell(url)) {
+    event.respondWith(staleWhileRevalidate(request, event));
+  }
+  // Anything else goes to the network unmediated, rather than being cached
+  // forever because it happened to be a GET.
 });
 
 /*

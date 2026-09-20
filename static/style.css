@@ -134,7 +134,26 @@ select, textarea {
   border-radius: 10px;
   padding: 10px 12px;
 }
-select:focus-visible, textarea:focus-visible, button:focus-visible {
+/*
+ * Visible only once it has focus. Six panels deep, a keyboard user who cannot
+ * jump past the language pair has to tab through everything to reach the box
+ * they came for.
+ */
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 10;
+  padding: 10px 16px;
+  border-radius: 0 0 8px 0;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+}
+.skip:focus { left: 0; }
+
+select:focus-visible, textarea:focus-visible, button:focus-visible,
+a:focus-visible, summary:focus-visible, input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -195,6 +214,11 @@ textarea { resize: vertical; line-height: 1.5; }
   font-size: 12.5px;
   color: var(--muted);
   list-style: none;
+  /* A 19px-tall row is a poor target on a phone; this is the one control
+     you have to hit before any of the others are even visible. */
+  min-height: 32px;
+  display: flex;
+  align-items: center;
 }
 .extras summary::-webkit-details-marker { display: none; }
 .extras summary::before { content: "▸ "; }
@@ -204,8 +228,10 @@ textarea { resize: vertical; line-height: 1.5; }
 
 .note { font-size: 12.5px; color: var(--muted); margin: 10px 0; }
 
-.check { display: flex; align-items: center; gap: 8px;
+.check { display: flex; align-items: center; gap: 8px; min-height: 32px;
          font-size: 13px; color: var(--muted); cursor: pointer; }
+/* The label is the target, but a 13px box is still a small thing to aim at. */
+.check input[type="checkbox"] { width: 17px; height: 17px; flex: none; }
 
 .count { color: var(--accent); font-variant-numeric: tabular-nums; }
 
