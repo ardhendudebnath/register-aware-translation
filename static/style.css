@@ -281,6 +281,25 @@ button { font: inherit; cursor: pointer; border-radius: 10px; }
 }
 .output:empty::before { content: "—"; color: var(--muted); }
 
+/*
+ * A guess at a sentence still being spoken. Greyed rather than hidden: it is
+ * genuinely useful early, and it is about to be replaced, so it must not look
+ * like an answer. The caret says the speaker has not finished.
+ */
+.output[data-partial] {
+  color: var(--muted);
+  transition: color .15s ease-out;
+}
+.output[data-partial]::after {
+  content: "▍";
+  margin-left: 2px;
+  animation: partial-caret 1s steps(2, start) infinite;
+}
+@keyframes partial-caret { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .output[data-partial]::after { animation: none; }
+}
+
 .detected { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); }
 
 .trace { list-style: none; margin: 0; padding: 0;

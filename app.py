@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from typing import Any, Dict, Optional
 
 from flask import Flask, jsonify, render_template, request, send_from_directory
@@ -26,6 +27,7 @@ from pipeline import (
     RelationshipBook,
     assess,
     translate_audio,
+    translate_partial,
     translate_text,
 )
 from pipeline.core import _phrasebook
@@ -472,6 +474,100 @@ def handle_translate(data):
         return
 
     emit("translation_result", result.as_dict())
+
+
+#: Per-connection state for speculative translation: the last sequence number
+#: acted on, and when. Keyed by socket id, dropped on disconnect.
+_partial_state: Dict[str, Dict[str, float]] = {}
+
+#: Below this, a partial is a word or two and translating it wastes a call on
+#: something MT cannot get right anyway.
+PARTIAL_MIN_CHARS = 8
+
+#: Interim transcripts arrive several times a second. This is the floor
+#: between two of them that are actually sent to an engine.
+PARTIAL_MIN_INTERVAL_S = 0.25
+
+
+@socketio.on("translate_partial")
+def handle_translate_partial(data):
+    """
+    A guess at a sentence the speaker has not finished (blueprint 5.2).
+
+    Three things keep this from becoming a denial-of-service on the MT
+    endpoint, and all three drop work rather than queue it — a partial is only
+    useful before the speaker stops talking, so a late one has no value to
+    protect:
+
+    * anything shorter than a few characters is ignored;
+    * at most one call every quarter second per connection;
+    * a partial that arrives while an older one is still in flight supersedes
+      it, and results older than the newest request are never emitted.
+    """
+    data = data or {}
+    text = (data.get("text") or "").strip()
+    seq = int(data.get("seq") or 0)
+    sid = getattr(request, "sid", "")
+
+    if len(text) < PARTIAL_MIN_CHARS:
+        return
+
+    now = time.monotonic()
+    _forget_stale_connections(now)
+    state = _partial_state.setdefault(sid, {"seq": -1, "at": 0.0})
+    if seq <= state["seq"] or now - state["at"] < PARTIAL_MIN_INTERVAL_S:
+        return
+    state["seq"], state["at"] = seq, now
+
+    try:
+        result = translate_partial(
+            text,
+            target_lang=data.get("target_lang") or "en",
+            source_lang=data.get("source_lang") or None,
+            register_level=_parse_level(data.get("register", AUTO)),
+            addressee=data.get("addressee") or None,
+            soften=bool(data.get("soften")),
+            keep_english=_flag(data, "keep_english", True),
+            allow_network=ALLOW_NETWORK,
+        )
+    except Exception:  # noqa: BLE001
+        # A guess that fails is not an error the user needs to see: the real
+        # translation is a moment away and will report anything that matters.
+        log.debug("speculative translate failed", exc_info=True)
+        return
+
+    if seq < state["seq"]:
+        return  # a newer partial overtook this one while MT was running
+    emit("translation_partial", {**result.as_dict(), "seq": seq})
+
+
+#: Nothing speaks for this long mid-sentence, so an entry older than this
+#: belongs to a connection that has gone away.
+PARTIAL_STATE_TTL_S = 300
+
+
+def _forget_stale_connections(now: float) -> None:
+    """
+    Drop per-connection state left behind by connections that vanished.
+
+    The disconnect handler below is the normal route, and it was silently not
+    running at all for a while — its signature did not match what Flask-SocketIO
+    passes, so every connection leaked an entry. A dict that only ever grows is
+    a slow leak in a long-running server, so it is swept here too rather than
+    trusting one handler to be correct forever.
+    """
+    if len(_partial_state) < 64:
+        return
+    for sid, state in list(_partial_state.items()):
+        if now - state["at"] > PARTIAL_STATE_TTL_S:
+            _partial_state.pop(sid, None)
+
+
+@socketio.on("disconnect")
+def on_disconnect(reason=None):
+    # Flask-SocketIO 5.6 passes a disconnect reason; older versions pass
+    # nothing. Accepting either keeps the cleanup running across both.
+    _partial_state.pop(getattr(request, "sid", ""), None)
 
 
 @socketio.on("audio_chunk")

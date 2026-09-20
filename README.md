@@ -91,6 +91,38 @@ than inventing a difference.
 One symmetric dataset drives all three jobs — **upgrade, downgrade, detect** —
 because every rule is the same thing said four ways.
 
+### Answering before you stop speaking
+
+The naive loop — record, upload, wait, translate, wait, speak — feels like
+eight seconds even when it takes three. Browsers hand back interim transcripts
+a few hundred milliseconds in, so the sentence is translated **while it is
+still being said**, shown greyed out with a caret, and replaced when the real
+transcript lands (blueprint 5.2).
+
+Two things fall out of the architecture rather than out of effort:
+
+**The preview is already at the right register.** The post-edit is a string
+pass costing under a millisecond, so a guess can be rendered at the requested
+politeness level instead of being a raw MT dump whose tone changes when it
+settles. Anything that treats register as part of translation has to choose
+between a fast preview and a correct one.
+
+**The last guess is usually the final sentence.** When it is, the real
+translation is served from the speculative cache and the wait disappears
+altogether — the result says `engine: speculative`, and the sentence is
+promoted into the phrasebook now that it has actually been said in full.
+
+Guesses are kept out of the durable phrasebook (it records what people said,
+not half of it), capped to one call per quarter second per connection, dropped
+rather than queued when a newer one arrives, and never spoken aloud — a
+sentence about to be corrected is worse than silence. They travel over the
+socket, because a persistent connection is the blueprint's single biggest
+real-world latency win: a cold TLS handshake costs more than the translation.
+
+Not done: voice-activity detection to cut the utterance on a pause, and
+streaming TTS that starts on the first clause. Both are in the blueprint's
+latency plan and neither is built.
+
 ### Module structure
 
 <p align="center">
@@ -174,7 +206,7 @@ old number.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 477 tests. |
+| `tests/` | 491 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -724,11 +756,11 @@ commercially — with credit.
 python -m pytest tests/ -q
 ```
 
-477 tests covering the rule tables, round-trip stability, third-person safety,
+491 tests covering the rule tables, round-trip stability, third-person safety,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
-conversations, learner feedback, code-switching, the dataset release's own
-honesty, the slang-detection regressions, and the pipeline with networking
-disabled.
+conversations, learner feedback, code-switching, speculative translation, the
+dataset release's own honesty, the slang-detection regressions, and the
+pipeline with networking disabled.
 
 ---
 
@@ -756,6 +788,14 @@ disabled.
 | `POST /api/conversation/<id>/say` | One turn, translated at the *speaker's* register. |
 | `POST /api/learner/assess` | Judge a learner's sentence against who they are addressing. |
 | `GET/POST /api/relationships` | Per-contact register memory (on-device). |
+
+Over the socket, for speech as it happens:
+
+| Event | Direction | Purpose |
+|---|---|---|
+| `translate_partial` | client → server | A guess at a sentence still being spoken. Carries a `seq`. |
+| `translation_partial` | server → client | The guess, with its `seq` and `partial: true`. |
+| `translate` / `translation_result` | both | A finished sentence, for clients that prefer the socket to REST. |
 
 ```bash
 curl -s localhost:5000/api/translate -H 'Content-Type: application/json' -d '{"text":"Can you give me your book?","source_lang":"en","target_lang":"bn","register":"polite"}'

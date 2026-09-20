@@ -85,6 +85,10 @@
     lastResult: null,
     listening: false,
     busy: false,
+    // Speculative translation of what is being said right now. `seq` rises
+    // with every partial sent; a result whose seq is not the current one has
+    // been overtaken and is dropped.
+    partial: { seq: 0, text: "", sentAt: 0, showing: false },
     convo: {
       id: null,
       a: { register: "auto" },
@@ -290,6 +294,9 @@
 
     state.busy = true;
     ui.translateBtn.disabled = true;
+    // The real thing is on its way, so stop taking guesses and ignore any
+    // still in flight.
+    clearPartial();
     setStatus("Translating…", "busy");
 
     try {
@@ -375,6 +382,7 @@
     state.lastResult = data;
 
     ui.resultPanel.hidden = false;
+    delete ui.outputText.dataset.partial;   // this one is settled
     ui.outputText.textContent = data.translated_text || "";
     ui.outputText.lang = data.target_language || "";
     ui.speakBtn.disabled = !data.translated_text;
@@ -1035,6 +1043,7 @@
       }
       ui.sourceText.value = (finalText || interim).trim();
       if (finalText) translate();
+      else sendPartial(ui.sourceText.value);
     });
 
     recognition.addEventListener("end", () => setListening(false));
@@ -1071,20 +1080,90 @@
 
   // ---------------------------------------------------------------- socket
 
+  let socket = null;
+
   function setupSocket() {
     if (typeof io === "undefined") return;
     try {
-      const socket = io();
+      socket = io();
       socket.on("connect", () => setStatus("Ready", "ready"));
       socket.on("disconnect", () => setStatus("Offline", "error"));
       socket.on("translation_result", (data) => {
         render(data);
         setStatus("Ready", "ready");
       });
+      socket.on("translation_partial", (data) => {
+        // Anything but the newest guess has been overtaken by more speech.
+        if (data.seq !== state.partial.seq) return;
+        renderPartial(data);
+      });
       socket.on("translation_error", (data) => showWarning(data.message));
     } catch (_) {
       /* REST still works without a socket */
     }
+  }
+
+  /*
+   * Translate what is being said while it is still being said (blueprint 5.2).
+   *
+   * The browser hands back interim transcripts a few hundred milliseconds in,
+   * and this used to drop them on the floor until the speaker stopped. Now
+   * each one is translated speculatively and shown greyed out, so the answer
+   * is on screen before the sentence ends — and because the register layer is
+   * a string pass, the preview is already at the right politeness level rather
+   * than a raw MT dump that changes tone when it settles.
+   *
+   * Sent over the socket rather than as a request, because the persistent
+   * connection is the single biggest real-world latency win in the blueprint:
+   * a cold TLS handshake costs more than the translation does.
+   */
+  function sendPartial(text) {
+    if (!socket || !text || state.busy) return;
+    const now = Date.now();
+    if (text === state.partial.text) return;          // ASR repeated itself
+    if (now - state.partial.sentAt < 300) return;     // it revises constantly
+    if (text.length < 8) return;                      // too little to translate
+
+    state.partial.text = text;
+    state.partial.sentAt = now;
+    state.partial.seq += 1;
+    socket.emit("translate_partial", {
+      text,
+      seq: state.partial.seq,
+      source_lang: ui.sourceLang.value || null,
+      target_lang: ui.targetLang.value,
+      register: state.register,
+      addressee: state.addressee || null,
+      soften: ui.soften.checked,
+      keep_english: ui.keepEnglish.checked,
+    });
+  }
+
+  /*
+   * Show a guess. Deliberately less than render(): no ladder, no rule trace,
+   * no timings, and the Play button stays disabled — speaking a sentence that
+   * is about to be corrected is worse than staying quiet.
+   */
+  function renderPartial(data) {
+    if (!data.translated_text || state.busy) return;
+    state.partial.showing = true;
+    ui.resultPanel.hidden = false;
+    ui.outputText.textContent = data.translated_text;
+    ui.outputText.lang = data.target_language || "";
+    ui.outputText.dataset.partial = "true";
+    ui.speakBtn.disabled = true;
+    ui.badgeRegister.textContent =
+      `${data.register_name} · still speaking…`;
+    ui.badgeEngine.textContent = "";
+    ui.badgeTiming.textContent = "";
+  }
+
+  function clearPartial() {
+    state.partial.showing = false;
+    state.partial.text = "";
+    // Any in-flight guess is now stale: its sequence number no longer matches.
+    state.partial.seq += 1;
+    delete ui.outputText.dataset.partial;
   }
 
   async function refreshPhrasebook() {

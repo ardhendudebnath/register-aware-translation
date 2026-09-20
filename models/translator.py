@@ -82,6 +82,7 @@ def translate(
     *,
     allow_network: bool = True,
     prefer_local: bool = True,
+    timeout: Optional[float] = None,
 ) -> Translation:
     """
     Translate ``text`` from ``source_lang`` to ``target_lang``.
@@ -90,6 +91,11 @@ def translate(
     politeness into the translation itself. Register is applied *after* this
     step by :mod:`register`, which is what lets the same output be re-levelled
     offline without another round trip.
+
+    ``timeout`` overrides the default for this call. Speculative translations
+    of a half-finished sentence pass a short one: a partial that has not come
+    back by the time the speaker stops talking is worthless, and waiting on it
+    would delay the real translation behind it.
     """
     source_lang = _norm(source_lang)
     target_lang = _norm(target_lang)
@@ -110,7 +116,7 @@ def translate(
 
     if allow_network:
         try:
-            return _translate_public(text, source_lang, target_lang)
+            return _translate_public(text, source_lang, target_lang, timeout=timeout)
         except Exception as exc:  # noqa: BLE001
             errors.append(f"public endpoint: {exc}")
     else:
@@ -207,7 +213,9 @@ def _session():
         return None
 
 
-def _translate_public(text: str, source: str, target: str) -> Translation:
+def _translate_public(
+    text: str, source: str, target: str, *, timeout: Optional[float] = None
+) -> Translation:
     """
     Keyless public endpoint.
 
@@ -223,14 +231,15 @@ def _translate_public(text: str, source: str, target: str) -> Translation:
     }
     url = f"{_PUBLIC_ENDPOINT}?{urllib.parse.urlencode(params)}"
 
+    seconds = _TIMEOUT_S if timeout is None else timeout
     session = _session()
     if session is not None:
-        response = session.get(url, timeout=_TIMEOUT_S)
+        response = session.get(url, timeout=seconds)
         response.raise_for_status()
         raw = response.text
     else:
         request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
-        with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as handle:
+        with urllib.request.urlopen(request, timeout=seconds) as handle:
             raw = handle.read().decode("utf-8", errors="replace")
 
     try:

@@ -23,6 +23,7 @@ from __future__ import annotations
 import sqlite3
 import threading
 import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -50,7 +51,19 @@ from register import codeswitch
 from utils.helpers import PROJECT_ROOT, load_slang_dictionary, normalise_text
 from utils.slang_detection import detect_slang
 
-__all__ = ["ExchangeResult", "Phrasebook", "translate_text", "translate_audio"]
+__all__ = [
+    "ExchangeResult",
+    "Phrasebook",
+    "SpeculativeCache",
+    "translate_text",
+    "translate_audio",
+    "translate_partial",
+]
+
+#: A speculative translation that has not come back by the time the speaker
+#: stops talking is worthless, so it is given a short leash rather than the
+#: full budget.
+SPECULATIVE_TIMEOUT_S = 2.0
 
 PHRASEBOOK_PATH = PROJECT_ROOT / "data" / "phrasebook.sqlite3"
 
@@ -74,6 +87,9 @@ class ExchangeResult:
     cached: bool = False
     ok: bool = True
     message: str = ""
+    #: True when this is a guess at a sentence still being spoken. The client
+    #: shows it greyed out and never speaks it.
+    partial: bool = False
     edits: List[dict] = field(default_factory=list)
     #: What the MT engine returned, before any post-edit. Re-levelling starts
     #: from here, so a Casual rendering's English words never leak into Formal.
@@ -106,6 +122,7 @@ class ExchangeResult:
             "cached": self.cached,
             "ok": self.ok,
             "message": self.message,
+            "partial": self.partial,
             "edits": self.edits,
             "mt_text": self.mt_text,
             "code_switch": self.code_switch,
@@ -227,7 +244,58 @@ class Phrasebook:
             return {"phrases": 0, "hits": 0}
 
 
+class SpeculativeCache:
+    """
+    Translations of half-finished sentences. In memory, small, never persisted.
+
+    Speculative translation (blueprint 5.2) means translating the partial
+    transcript while somebody is still speaking, so the answer is on screen
+    before they stop. Those partials must not go in the phrasebook: it is a
+    durable record of things people said, and filling it with "I am going to
+    the" would both mislead the cache statistics and keep fragments forever.
+
+    They are worth keeping for a few seconds, though, because the last partial
+    is usually *identical* to the final transcript. When it is, the real
+    translation costs nothing and the wait disappears entirely — which is the
+    whole point of doing this.
+    """
+
+    def __init__(self, size: int = 128):
+        self.size = size
+        self._lock = threading.Lock()
+        self._entries: "OrderedDict[tuple, tuple]" = OrderedDict()
+
+    @staticmethod
+    def _key(source_lang: str, target_lang: str, text: str) -> tuple:
+        return (source_lang, target_lang, normalise_text(text))
+
+    def get(self, source_lang: str, target_lang: str, text: str) -> Optional[tuple]:
+        """``(translated, engine)`` if this exact text was guessed at recently."""
+        key = self._key(source_lang, target_lang, text)
+        with self._lock:
+            found = self._entries.get(key)
+            if found is not None:
+                self._entries.move_to_end(key)
+            return found
+
+    def put(self, source_lang: str, target_lang: str, text: str,
+            translated: str, engine: str = "") -> None:
+        if not translated.strip():
+            return
+        key = self._key(source_lang, target_lang, text)
+        with self._lock:
+            self._entries[key] = (translated, engine)
+            self._entries.move_to_end(key)
+            while len(self._entries) > self.size:
+                self._entries.popitem(last=False)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._entries.clear()
+
+
 _phrasebook = Phrasebook()
+_speculative = SpeculativeCache()
 
 
 def translate_text(
@@ -243,6 +311,7 @@ def translate_text(
     with_ladder: bool = True,
     with_audio: bool = False,
     allow_network: bool = True,
+    speculative: bool = False,
     phrasebook: Optional[Phrasebook] = None,
 ) -> ExchangeResult:
     """
@@ -254,6 +323,10 @@ def translate_text(
     ``keep_english`` puts everyday English words back where MT chose a bookish
     native one, at Close and Casual, and keeps whatever the speaker said in
     English at every level (blueprint 13.2 #8, :mod:`register.codeswitch`).
+
+    ``speculative`` marks this as a guess at a sentence somebody is still
+    saying: it uses a short MT timeout and keeps its result out of the durable
+    phrasebook. See :func:`translate_partial`.
     """
     book = phrasebook if phrasebook is not None else _phrasebook
     timings: Dict[str, float] = {}
@@ -308,14 +381,30 @@ def translate_text(
     # --- stage 2: translate ----------------------------------------------
     t0 = time.perf_counter()
     cached = book.get(src, tgt, steered)
+    guessed = None if cached is not None else _speculative.get(src, tgt, steered)
     if cached is not None:
         mt_text, engine, was_cached, mt_ok, mt_msg = cached, "phrasebook", True, True, ""
+    elif guessed is not None:
+        # Already translated while the speaker was still talking, so this
+        # sentence is finished before it was asked for.
+        mt_text, engine = guessed[0], "speculative"
+        was_cached, mt_ok, mt_msg = True, True, ""
+        if not speculative:
+            # It has been said in full now, so it earns a place in the
+            # durable cache under whichever engine actually produced it.
+            book.put(src, tgt, steered, mt_text, guessed[1] or "speculative")
     else:
-        mt = translator.translate(steered, src, tgt, allow_network=allow_network)
+        mt = translator.translate(
+            steered, src, tgt, allow_network=allow_network,
+            timeout=SPECULATIVE_TIMEOUT_S if speculative else None,
+        )
         mt_text, engine, was_cached = mt.text, mt.engine, False
         mt_ok, mt_msg = mt.ok, mt.message
         if mt.ok:
-            book.put(src, tgt, steered, mt.text, mt.engine)
+            if speculative:
+                _speculative.put(src, tgt, steered, mt.text, mt.engine)
+            else:
+                book.put(src, tgt, steered, mt.text, mt.engine)
     timings["translate"] = _ms(t0)
 
     result.engine = engine
@@ -372,6 +461,41 @@ def translate_text(
 
     timings["total"] = round(sum(timings.values()), 2)
     result.timings_ms = timings
+    return result
+
+
+def translate_partial(
+    text: str,
+    target_lang: str,
+    source_lang: Optional[str] = None,
+    register_level=AUTO,
+    **kwargs,
+) -> ExchangeResult:
+    """
+    Translate a sentence somebody has not finished saying yet.
+
+    Browsers hand back interim transcripts within a few hundred milliseconds of
+    someone starting to speak, and this project threw them away until the final
+    arrived. Blueprint 5.2 is explicit that this is an architecture decision
+    rather than an optimisation: "record, upload, wait, translate, wait, speak"
+    feels like eight seconds even when it takes three.
+
+    So the partial is translated as it stands, shown greyed out, and corrected
+    when the real transcript lands — and because the register layer is a string
+    pass costing under a millisecond, the preview is already at the right
+    politeness level rather than being a raw MT dump that changes tone when it
+    settles.
+
+    Same pipeline as :func:`translate_text`, minus the parts that only make
+    sense for a finished sentence: no ladder, no speech, nothing written to the
+    phrasebook.
+    """
+    kwargs.setdefault("with_ladder", False)
+    result = translate_text(
+        text, target_lang, source_lang, register_level,
+        with_audio=False, speculative=True, **kwargs,
+    )
+    result.partial = True
     return result
 
 
