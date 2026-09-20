@@ -154,6 +154,64 @@ def test_an_actual_vocative_still_rises(language, source, expected):
     assert rewrite(source, language, POLITE).text == expected
 
 
+# ------------------------------------- Romance: the imperative and the third
+#
+# Portuguese, Spanish and Italian spell the tu imperative exactly like some
+# third-person present, so the same collision as Hindi's bare stem turns up in
+# three more languages. Agreement with FAME-MT, on somebody else's labels,
+# moved pt 91.3% -> 92.2% and it 92.0% -> 92.1% when these were fixed, while
+# coverage fell — which is the shape of a system that has stopped claiming to
+# read sentences nobody is addressed in.
+
+
+@pytest.mark.parametrize("language, sentence", [
+    ("pt", "Ele fala português."),
+    ("pt", "Ela come pão."),
+    ("pt", "O trem vai para o centro."),      # a named subject, not a pronoun
+    ("pt", "Ele tem um carro."),
+    ("pt", "A loja está aberta."),
+    ("es", "Él habla español."),
+    # Italian rules are `cased`, because Lei and lei are you and she — which
+    # made their guards case-sensitive too, so the lower-case blocklist
+    # exempted the one position a subject actually occupies: the start of a
+    # sentence. Every one of these was mangled while its lower-case twin
+    # was handled correctly.
+    ("it", "Lui è italiano."),
+    ("it", "Lui parla italiano."),
+    ("it", "Lui ha tempo."),
+    ("it", "lui è italiano."),
+    ("it", "Il treno parte adesso."),
+])
+def test_a_third_person_sentence_is_not_addressed_to_anybody(language, sentence):
+    for level in LEVELS:
+        assert rewrite(sentence, language, level).text == sentence
+    reading = detect(sentence, language)
+    assert reading.level is None, (
+        f"{sentence!r} is about somebody else but was read as "
+        f"{reading.level} at {reading.confidence:.0%}"
+    )
+
+
+@pytest.mark.parametrize("language, source, level, expected", [
+    ("es", "Espera un momento.", POLITE, "Espere un momento."),
+    ("es", "Habla más despacio.", POLITE, "Hable más despacio."),
+    ("it", "Aspetta un momento.", POLITE, "Aspetti un momento."),
+    ("it", "Come sta?", CASUAL, "Come stai?"),
+])
+def test_romance_imperatives_still_rise(language, source, level, expected):
+    assert rewrite(source, language, level).text == expected
+
+
+def test_capitalised_lei_is_still_the_polite_pronoun():
+    """
+    The one word on the Italian blocklist that stays case-sensitive. "Lei" is
+    the polite you and "lei" is she, and that distinction is the reason the
+    whole table is cased — so it must survive the fix to the rest of the list.
+    """
+    assert rewrite("Lei parla inglese?", "it", CASUAL).text != "Lei parla inglese?"
+    assert rewrite("lei parla inglese.", "it", CASUAL).text == "lei parla inglese."
+
+
 # ------------------------------------------------------ the systematic sweep
 
 

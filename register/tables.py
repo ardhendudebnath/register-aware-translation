@@ -2501,9 +2501,14 @@ def _es_verb_rules() -> Tuple[Rule, ...]:
     # subject, so an adjacent usted rules the reading out. Without it "¿Habla
     # usted inglés?" parsed as the tú imperative "habla" and read Casual —
     # the one form that is both an imperative and an indicative.
+    # A named third-person subject rules it out for the same reason an adjacent
+    # usted does: "Él habla español" is about him. It was read as Casual at full
+    # confidence off the tú imperative, which in Auto mode mirrors a register
+    # nobody used.
     out += [
         Rule(f"v.{stem}.imp", (tu, tu, usted, usted), gloss,
-             guard_before=(rf"{_ES_USTED}\s+|{_ES_NOT_IMPERATIVE_BEFORE}"),
+             guard_before=(rf"{_ES_USTED}\s+|{_ES_NOT_IMPERATIVE_BEFORE}"
+                           rf"|{_ES_3P_SUBJECT}"),
              guard_after=rf"\s+{_ES_USTED}")
         for stem, tu, usted, gloss in _ES_IMPERATIVES
     ]
@@ -2564,9 +2569,17 @@ SPANISH = LanguageTable(
     ),
 )
 
-# Lowercase third-person subjects. Capitalised "Lei" is the polite pronoun and
-# must NOT appear here.
-_IT_3P_SUBJECT = r"\b(?:lui|lei|egli|ella|esso|essa|chi)\s+"
+# Third-person subjects.
+#
+# Only "lei" is case-sensitive here, and for a real reason: capitalised "Lei"
+# is the polite pronoun, lowercase "lei" is "she". Every other word on this
+# list is third person whatever its case — and because Italian rules are
+# ``cased``, their guards compile case-sensitively too, so writing the whole
+# list in lower case quietly exempted the position these words actually occupy.
+# A subject leads its sentence, which means it is capitalised: "Lui è
+# italiano" was conjugated to "Lui sei italiano" and read as Polite, while the
+# identical "lui è italiano" was handled correctly.
+_IT_3P_SUBJECT = r"\b(?:(?i:lui|egli|ella|esso|essa|chi)|lei)\s+"
 
 # --------------------------------------------------------------------------
 # Italian verbs.
@@ -2647,7 +2660,9 @@ _IT_IMPERATIVES: Tuple[Tuple[str, str, str, str], ...] = (
 
 #: Lowercase third-person subjects. Capitalised "Lei" is the polite pronoun and
 #: must never appear here.
-_IT_3P_SUBJECT_FULL = r"\b(?:lui|lei|egli|ella|esso|essa|chi|che)\s+"
+#: The same list plus "che", and the same rule about case: everything except
+#: "lei" matches capitalised too.
+_IT_3P_SUBJECT_FULL = r"\b(?:(?i:lui|egli|ella|esso|essa|chi|che)|lei)\s+"
 
 # --------------------------------------------------------------------------
 # Italian cannot use the Spanish fix, and the difference is instructive.
@@ -2701,8 +2716,14 @@ def _it_verb_rules() -> Tuple[Rule, ...]:
              form_guards=((lei, _IT_3P_BEFORE, _IT_3P_AFTER, "", ""),))
         for stem, tu, lei, gloss in _IT_REFLEXIVES
     ]
+    # The imperatives had no guards at all, and Italian's tu imperative is
+    # spelled like the third-person present: "Lui parla italiano" (he speaks
+    # Italian) was rewritten to "Lui parli italiano". Both forms need the same
+    # third-person blocklist the indicatives above already carry.
     out += [
-        Rule(f"v.{stem}.imp", (tu, tu, lei, lei), gloss, cased=True)
+        Rule(f"v.{stem}.imp", (tu, tu, lei, lei), gloss, cased=True,
+             form_guards=((tu, _IT_3P_BEFORE, "", "", ""),
+                          (lei, _IT_3P_BEFORE, _IT_3P_AFTER, "", "")))
         for stem, tu, lei, gloss in _IT_IMPERATIVES
     ]
     return tuple(out)
@@ -2855,7 +2876,18 @@ _PT_IMPERATIVES: Tuple[Tuple[str, str, str, str], ...] = (
 #: "é" is both "you are" (você) and "he/she is". Portuguese drops subject
 #: pronouns freely, so this cannot be fully resolved; blocking the clear
 #: third-person subjects removes the common false positives.
-_PT_3P_SUBJECT = r"\b(?:ele|ela|eles|elas|quem|que)\s+"
+#:
+#: Named subjects count as well as pronouns. With pronouns alone, "O trem vai
+#: para o centro" — the train goes to the centre — was conjugated down to "O
+#: trem vais", because nothing said the subject was not the listener. The
+#: exception for "o senhor" is the same one :data:`_PT_IMPERSONAL` carries:
+#: it has exactly the shape of a determiner and a noun, and it is the polite
+#: second person.
+_PT_3P_SUBJECT = (
+    r"\b(?:ele|ela|eles|elas|quem|que|isto|isso|aquilo|tudo|nada)\s+"
+    r"|\b(?:o|a|os|as|um|uma|uns|umas|este|esta|esse|essa|aquele|aquela)\s+"
+    r"(?!senhor(?:a|es|as)?\b)\w+\s+"
+)
 
 #: The syncretic forms of ser and estar are also the third-person forms, and
 #: Portuguese drops subjects freely, so they need far more than a pronoun list:
@@ -2884,6 +2916,21 @@ _PT_IMPERSONAL = (
     r"|(?:^|[.!?…;:,])\s*"
 )
 
+#: A subject in front of the verb means the verb is not a command.
+#:
+#: Every Portuguese tu imperative is spelled like the third-person present —
+#: fala, come, vai, tem, faz — so unguarded, "O trem vai para o centro" was
+#: conjugated to "O trem vais" and "Ele fala português" read as Close at full
+#: confidence. An imperative takes no subject, so any subject sitting in front
+#: of the verb rules the reading out: a third-person pronoun, a determiner
+#: and a noun, or a second-person subject, which takes the indicative too
+#: ("Você fala português" is a statement, not an order).
+_PT_NOT_IMPERATIVE_BEFORE = (
+    r"\b(?:ele|ela|eles|elas|quem|que|isto|isso|aquilo|tudo|nada"
+    r"|eu|nós|você|vocês|tu)\s+"
+    r"|\b(?:o|a|os|as|um|uma|uns|umas|este|esta|esse|essa|aquele|aquela)\s+\w+\s+"
+)
+
 _PT_SYNCRETIC = {"ser": "é", "estar": "está"}
 
 #: Prepositions taking the tonic pronoun rather than the nominative. "a" is
@@ -2902,7 +2949,8 @@ def _pt_verb_rules() -> Tuple[Rule, ...]:
         for stem, tu, polite, gloss in _PT_VERBS
     ]
     out += [
-        Rule(f"v.{stem}.imp", (tu, polite, polite, polite), gloss)
+        Rule(f"v.{stem}.imp", (tu, polite, polite, polite), gloss,
+             guard_before=_PT_NOT_IMPERATIVE_BEFORE)
         for stem, tu, polite, gloss in _PT_IMPERATIVES
     ]
     return tuple(out)

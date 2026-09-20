@@ -206,7 +206,7 @@ old number.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 503 tests. |
+| `tests/` | 556 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -608,11 +608,11 @@ python -m evaluation.external
 de   agreement  99.3%   coverage  88.1%
 fr   agreement  99.1%   coverage  83.4%
 es   agreement  97.3%   coverage  77.4%
-it   agreement  92.0%   coverage  65.2%
-pt   agreement  91.3%   coverage  78.6%
+it   agreement  92.1%   coverage  64.8%
+pt   agreement  92.2%   coverage  77.5%
 en   agreement  68.7%   coverage   9.6%
 
-overall 95.4% over 100,677 sentences (150,203 seen, 33% carried no marker)
+overall 95.6% over 100,313 sentences (150,203 seen, 33% carried no marker)
 ```
 
 It finds bugs, not just a score. `--by-rule` ranks rules by how often their
@@ -757,7 +757,8 @@ commercially — with credit.
 python -m pytest tests/ -q
 ```
 
-503 tests covering the rule tables, round-trip stability, third-person safety,
+556 tests covering the rule tables, round-trip stability, third-person safety,
+rules firing outside the construction they belong to,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
 conversations, learner feedback, code-switching, speculative translation, the
 markup contract that keeps the page usable without a mouse or a screen, the
