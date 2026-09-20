@@ -106,6 +106,12 @@ numbers start meaning something. Every correction is credited in the commit
 that applies it, and the sets are intended for public release — so this is
 work that outlives the app.
 
+To be clear about what you are contributing to: the sets are published under
+**CC BY 4.0**, meaning anyone may use them, including commercially, as long as
+they give credit. Your corrections go in under that same licence, you are
+credited for them unless you would rather not be, and you are not asked to
+sign over anything.
+
 There is no register benchmark for any of these languages. CoCoA-MT gave Hindi
 a yes/no formality benchmark in 2022 and the rest of India got nothing. Bengali
 has 228 million speakers, three grammatical registers, and no test set at all.

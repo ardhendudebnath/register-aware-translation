@@ -115,13 +115,38 @@ def test_status_follows_the_data_rather_than_a_constant(tmp_path, monkeypatch):
     )
 
 
-def test_an_unlicensed_release_says_so_instead_of_implying_one(built):
+def test_the_release_carries_the_data_licence_and_how_to_credit_it(built):
+    """
+    Data and code are licensed separately — CC BY 4.0 and MIT — because
+    conflating them is how a dataset ends up unusable. A release is data, so
+    it ships the data licence.
+    """
     manifest = json.loads((built / "MANIFEST.json").read_text(encoding="utf-8"))
-    if (release.PROJECT_ROOT / "LICENSE").exists():
-        pytest.skip("a licence has been chosen since this was written")
-    assert manifest["licence"] == "not yet chosen"
-    assert not (built / "LICENSE").exists(), "an empty licence file implies a licence"
-    assert (built / "LICENCE-NOT-CHOSEN.md").exists()
+    assert manifest["licence"]["id"] == "CC-BY-4.0"
+    assert "Ardhendu Debnath" in manifest["licence"]["attribution"]
+
+    shipped = (built / "LICENSE").read_text(encoding="utf-8")
+    assert shipped == (release.GOLD_DIR / "LICENSE").read_text(encoding="utf-8")
+    assert "CC-BY-4.0" in shipped
+    assert manifest["licence"]["attribution"] in (
+        built / "README.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_a_release_refuses_to_ship_data_with_no_licence(tmp_path, monkeypatch):
+    """Data nobody may legally use is worse than data nobody has."""
+    monkeypatch.setattr(release, "LICENCE_FILE", tmp_path / "nowhere" / "LICENSE")
+    with pytest.raises(FileNotFoundError, match="must carry one"):
+        release.build(tmp_path / "out", "1.0.0", with_baselines=False)
+
+
+def test_the_repository_licenses_code_and_data_separately():
+    code = (release.PROJECT_ROOT / "LICENSE").read_text(encoding="utf-8")
+    assert "MIT License" in code
+    assert "data/gold/LICENSE" in code, "the code licence should point at the data one"
+    data = (release.GOLD_DIR / "LICENSE").read_text(encoding="utf-8")
+    assert "SPDX-License-Identifier: CC-BY-4.0" in data
+    assert "MIT" in data, "the data licence should point back at the code one"
 
 
 def test_baselines_are_labelled_as_a_consistency_check(tmp_path):

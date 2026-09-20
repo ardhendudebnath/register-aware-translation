@@ -177,10 +177,20 @@ the same.
 schema, SHA-256 checksums per file, and baseline numbers with their method
 stated. Also browsable, one language per page, at the review site.
 
-**Licence.** **Not yet chosen.** Until a `LICENSE` file exists in the
-repository, these files are shared for review and correction only. For a
-dataset, CC BY 4.0 or CC0 are the usual choices; this decision belongs to the
-maintainer and has not been made.
+**Licence.** **CC BY 4.0** — use it, including commercially, as long as you
+credit it and say whether you changed anything. Full terms in `LICENSE`
+beside this file; attribution string:
+
+> Setu register sets, Ardhendu Debnath, CC BY 4.0.
+> https://github.com/ardhendudebnath/register-aware-translation
+
+If you report results, please also state the release version and whether its
+rows were still marked `draft`. The engine that reads this data is separate
+software under the MIT licence.
+
+Corrections contributed by reviewers are incorporated under the same licence,
+and contributors are credited unless they ask not to be. Nobody is asked to
+assign copyright.
 
 **Version.** The release directory is named with a version, and the manifest
 records a SHA-256 per file. Row `id`s are stable within a release but not

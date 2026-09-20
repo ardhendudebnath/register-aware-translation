@@ -63,6 +63,20 @@ DATASET_NAME = "setu-register"
 DEFAULT_OUT = PROJECT_ROOT / "releases"
 DOCS = (GOLD_DIR / "SCHEMA.md", GOLD_DIR / "DATASHEET.md")
 
+#: The data is licensed separately from the code: CC BY 4.0 for the sentences,
+#: MIT for the engine that reads them. A release carries the data licence,
+#: because that is what is in the box.
+DATA_LICENCE = {
+    "id": "CC-BY-4.0",
+    "name": "Creative Commons Attribution 4.0 International",
+    "url": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": (
+        "Setu register sets, Ardhendu Debnath, CC BY 4.0. "
+        "https://github.com/ardhendudebnath/register-aware-translation"
+    ),
+}
+LICENCE_FILE = GOLD_DIR / "LICENSE"
+
 #: Matches ``python -m evaluation.external``'s own default.
 EXTERNAL_ROW_LIMIT = 200_000
 
@@ -293,8 +307,21 @@ covers Hindi only.
     DATASHEET.md         who made it, how, and what it must not be used for
     MANIFEST.json        per-language counts and SHA-256 checksums
     baselines.json       what this project's own engine scores, and the method
+    LICENSE              {manifest['licence']['id']}
 
 Start with `DATASHEET.md`. It is more use than this file.
+
+## Licence and attribution
+
+The data is under **{manifest['licence']['name']}**
+({manifest['licence']['url']}) — use it, including commercially, as long as
+you credit it and say whether you changed anything:
+
+> {manifest['licence']['attribution']}
+
+Please also state the release version and whether its rows were still marked
+draft. The engine that reads this data is separate software under the MIT
+licence.
 
 ## Corrections
 
@@ -368,6 +395,12 @@ def build(
 ) -> Path:
     """Assemble a release directory and return its path."""
     codes = list(codes or available())
+    if not LICENCE_FILE.exists():
+        # Distributing data nobody may legally use is worse than not
+        # distributing it, so this refuses rather than shipping it bare.
+        raise FileNotFoundError(
+            f"no data licence at {LICENCE_FILE} — a release must carry one"
+        )
     summaries = [summarise(code) for code in codes]
     status = (
         "verified"
@@ -393,7 +426,7 @@ def build(
         "built": date.today().isoformat(),
         "repository": "https://github.com/ardhendudebnath/register-aware-translation",
         "review_url": "https://ardhendudebnath.github.io/register-aware-translation/",
-        "licence": _licence_state(),
+        "licence": dict(DATA_LICENCE),
         "levels": {str(k): v for k, v in sorted(LEVEL_NAMES.items())},
         "totals": {
             "languages": len(summaries),
@@ -425,32 +458,8 @@ def build(
             _baselines_markdown(scores, external), encoding="utf-8"
         )
 
-    licence = PROJECT_ROOT / "LICENSE"
-    if licence.exists():
-        shutil.copy2(licence, target / "LICENSE")
-    else:
-        (target / "LICENCE-NOT-CHOSEN.md").write_text(_LICENCE_NOTE, encoding="utf-8")
-
+    shutil.copy2(LICENCE_FILE, target / "LICENSE")
     return target
-
-
-def _licence_state() -> str:
-    return "see LICENSE" if (PROJECT_ROOT / "LICENSE").exists() else "not yet chosen"
-
-
-_LICENCE_NOTE = """# No licence has been chosen yet
-
-This repository carries no licence file, so by default nobody has permission to
-use, copy or redistribute these files — which defeats the purpose of releasing
-them. That decision belongs to the maintainer and has not been made.
-
-For a dataset, the usual choices are **CC BY 4.0** (use it, credit us) or
-**CC0** (use it, no conditions). For the code, a permissive software licence
-such as MIT or Apache-2.0. Datasets and code are normally licensed separately.
-
-Until a `LICENSE` file exists in the repository, treat this directory as
-shared for review and correction only.
-"""
 
 
 def _write_json(path: Path, payload: dict) -> None:
@@ -494,7 +503,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
           f"{totals['ladders']} ladders")
     print(f"  status: {manifest['status']}  "
           f"({totals['verified_rows']} rows verified by a speaker)")
-    print(f"  licence: {manifest['licence']}")
+    print(f"  licence: {manifest['licence']['id']} (data) · MIT (code)")
     if manifest["status"] == "draft":
         print()
         print("  This is not a benchmark yet. Rows become verified as speakers")

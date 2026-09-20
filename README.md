@@ -174,7 +174,7 @@ old number.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 475 tests. |
+| `tests/` | 477 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -712,10 +712,9 @@ claim. Those three things are read from the rows, not written by hand, so the
 day reviews come back the release stops calling itself a draft on its own. A
 test fails if the datasheet's counts ever drift from the data.
 
-Two honest gaps it prints on every build: **no row is verified yet**, and
-**this repository has no licence**, which means nobody may legally use the
-data. CC BY 4.0 or CC0 are the usual choices for a dataset; that decision
-belongs to the maintainer and has not been made.
+The gap it prints on every build is the one that matters: **no row is verified
+yet.** The data ships under CC BY 4.0, so it can be used — including
+commercially — with credit.
 
 ---
 
@@ -725,7 +724,7 @@ belongs to the maintainer and has not been made.
 python -m pytest tests/ -q
 ```
 
-475 tests covering the rule tables, round-trip stability, third-person safety,
+477 tests covering the rule tables, round-trip stability, third-person safety,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
 conversations, learner feedback, code-switching, the dataset release's own
 honesty, the slang-detection regressions, and the pipeline with networking
@@ -779,6 +778,30 @@ curl -s localhost:5000/api/translate -H 'Content-Type: application/json' -d '{"t
   whether a sentence is Polite or Formal, and regional variation is real
   (Kolkata vs Dhaka Bengali). The dial exists precisely because there is no
   single correct answer.
+
+---
+
+## Licence
+
+Two licences, because code and data are different things and conflating them
+is how a dataset ends up unusable.
+
+| | |
+|---|---|
+| **Code** — everything except `data/gold/` | [MIT](LICENSE) |
+| **Data** — the register sets in `data/gold/` | [CC BY 4.0](data/gold/LICENSE) |
+
+The data may be used commercially; it asks only for credit and for changes to
+be indicated:
+
+> Setu register sets, Ardhendu Debnath, CC BY 4.0.
+> <https://github.com/ardhendudebnath/register-aware-translation>
+
+If you report results on it, please also say which release version you used
+and whether its rows were still marked `draft` — the
+[datasheet](data/gold/DATASHEET.md) explains why that distinction matters.
+Corrections from reviewers go in under the same licence, with credit, and
+nobody is asked to assign copyright.
 
 ---
 
