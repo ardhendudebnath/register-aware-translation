@@ -744,15 +744,42 @@ _HI_PLURAL_SUBJECT = rf"{LEFT}(?:हम|वे|ये|हमने|उन्ह�
 #: the third-person one. नहीं is what marks the construction.
 _HI_NEGATIVE_BEFORE = r"नहीं\s+"
 
+#: A vocative is set off by a comma, and nothing else distinguishes it.
+#:
+#: भाई is "brother" and it is also how you hail a stranger, and the rule that
+#: raises the second to साहब was rewriting the first: "मेरा भाई डॉक्टर है" (my
+#: brother is a doctor) came out as "मेरा साहब डॉक्टर है", which is not a
+#: politeness change but a different sentence. Requiring an adjacent comma
+#: gives up the comma-less vocative — "भाई ज़रा सुनो" is left alone — and that
+#: is the right way round to be wrong: failing to add an honorific leaves the
+#: sentence intact, while adding one to a kinship term destroys it.
+_VOCATIVE_COMMA = r"[,،]\s*|\s*[,،]"
+
 #: A bare stem before an auxiliary is not an imperative: Hindi builds its
 #: progressives, modals and compound verbs on the same form the तू imperative
 #: takes, so "कर सकता है" and "चल रही है" look like commands to a matcher that
 #: stops at the word.
+#: The same collision in the imperative. "सो जाओ" is one command — go to
+#: sleep — built from the stem सो and the light verb जाओ, and only the light
+#: verb carries the politeness. Treating both halves as commands produced
+#: "सोइए जाइए", which is not Hindi; the correct Polite form is "सो जाइए".
+#: Listed in every level's imperative, because the compound has to stay
+#: unbroken whichever direction it is being moved in.
+_HI_LIGHT_VERB_AFTER = (
+    r"\s+(?:जा|जाओ|जाइए"                        # go: सो जाओ, बैठ जाओ
+    r"|ले|लो|लीजिए"                             # take: खा लो, कर लो
+    r"|दे|दो|दीजिए"                             # give: कर दो, रख दो
+    r"|आ|आओ|आइए"                                # come: ले आओ
+    r"|डाल|डालो|डालिए|रख|रखो|रखिए)"             # put, keep
+    rf"{RIGHT}"
+)
+
 _HI_AUX_AFTER = (
     r"\s+(?:रहा|रही|रहे"                        # progressive
     r"|सकता|सकती|सकते|सको|सके|सकें"             # modal: can
     r"|पाता|पाती|पाते|चुका|चुकी|चुके"           # manage to, have already
     r"|गया|गयी|गई|गये|गए|लिया|ली|लिए|दिया|दी|दिए)"  # compound verbs
+    rf"|{_HI_LIGHT_VERB_AFTER}"
 )
 
 
@@ -870,7 +897,8 @@ HINDI = LanguageTable(
         # Written-register vocabulary. These are the words that make a sentence
         # Formal when the pronoun has already gone as far as आप can take it:
         # आभारी over शुक्रगुज़ार, खेद over अफ़सोस, महोदय over साहब.
-        Rule("voc.sir", ("", "भाई", "साहब", "महोदय"), "sir"),
+        Rule("voc.sir", ("", "भाई", "साहब", "महोदय"), "sir",
+             require_adjacent=_VOCATIVE_COMMA),
         Rule("lex.grateful", ("खुश", "खुश", "शुक्रगुज़ार", "आभारी"), "grateful"),
         Rule("lex.regret", ("दुख", "दुख", "अफ़सोस", "खेद"), "regret"),
         # The Perso-Arabic/Sanskritic pair again, this time in the register of
@@ -1320,6 +1348,26 @@ _PA_PARADIGMS: Dict[str, Dict[str, Tuple[str, str]]] = {
 
 _PA_TENSE_ORDER = ("cont.m", "future.m", "pres.m", "pres.f", "imp")
 
+#: A bare stem before an auxiliary is not a command.
+#:
+#: Punjabi builds its progressives, modals and compound verbs on exactly the
+#: form the ਤੂੰ imperative takes — the same collision Hindi and Urdu were
+#: guarded against and this table never was. Unguarded it was worse here than
+#: a clumsy rewrite: "ਮੈਂ ਜਾ ਰਿਹਾ ਹਾਂ" (I am going) became "ਮੈਂ ਜਾਓ ਰਿਹਾ ਹਾਂ"
+#: and read as Casual at full confidence — a sentence about the speaker,
+#: addressed to nobody, reported as evidence of how the listener is being
+#: spoken to. In Auto mode that is a confident wrong mirror.
+_PA_AUX_AFTER = (
+    r"\s+(?:ਰਿਹਾ|ਰਹੀ|ਰਹੇ"                       # progressive
+    r"|ਸਕਦਾ|ਸਕਦੀ|ਸਕਦੇ|ਸਕੋ|ਸਕੇ"                  # modal: can
+    r"|ਚੁੱਕਾ|ਚੁੱਕੀ|ਚੁੱਕੇ"                        # have already
+    r"|ਗਿਆ|ਗਈ|ਗਏ|ਲਿਆ|ਲਈ|ਲਏ|ਦਿੱਤਾ|ਦਿੱਤੀ|ਦਿੱਤੇ"    # compound perfectives
+    # …and the light verbs a compound imperative is built on: "ਬੈਠ ਜਾ" is one
+    # command, and only ਜਾ carries the politeness.
+    r"|ਜਾ|ਜਾਓ|ਲੈ|ਲਵੋ|ਦੇ|ਦਿਓ|ਆ|ਆਓ|ਰੱਖ|ਰੱਖੋ)"
+    rf"{RIGHT}"
+)
+
 
 def _pa_verb_rules() -> Tuple[Rule, ...]:
     out = []
@@ -1332,7 +1380,8 @@ def _pa_verb_rules() -> Tuple[Rule, ...]:
             if tu == tusi:
                 continue
             out.append(
-                Rule(f"v.{verb}.{tense}", (tu, tu, tusi, tusi), f"{verb} · {tense}")
+                Rule(f"v.{verb}.{tense}", (tu, tu, tusi, tusi), f"{verb} · {tense}",
+                     guard_after=_PA_AUX_AFTER if tense == "imp" else "")
             )
     return tuple(out)
 
@@ -3335,11 +3384,23 @@ _UR_HO_AUX_AFTER = r"\s+(?:رہا|رہی|رہے|گیا|گئی|گئے|چکا|چک
 #: like commands to a matcher that stops at the word. Unguarded, the first was
 #: rewritten to "کرو سکتے ہو" and the second made "the train is late" read as
 #: Close at full confidence.
+#: Urdu builds compound verbs the same way Hindi does, on the same bare stem:
+#: "سو جاؤ" is one command and only جاؤ carries the politeness.
+_UR_LIGHT_VERB_AFTER = (
+    r"\s+(?:جا|جاؤ|جائیے"                       # go
+    r"|لے|لو|لیجیے"                             # take
+    r"|دے|دو|دیجیے"                             # give
+    r"|آ|آؤ|آئیے"                               # come
+    r"|ڈال|ڈالو|ڈالیے|رکھ|رکھو|رکھیے)"          # put, keep
+    rf"{RIGHT}"
+)
+
 _UR_AUX_AFTER = (
     r"\s+(?:رہا|رہی|رہے"                        # progressive
     r"|سکتا|سکتی|سکتے|سکو|سکے|سکیں"             # modal: can
     r"|پاتا|پاتی|پاتے|چکا|چکی|چکے"              # manage to, have already
     r"|گیا|گئی|گئے|لیا|لی|لیے|دیا|دی|دیے)"      # compound verbs
+    rf"|{_UR_LIGHT_VERB_AFTER}"
 )
 
 
@@ -3438,7 +3499,8 @@ URDU = LanguageTable(
         Rule("polite.particle", ("", "", "", "براہ کرم"), "please"),
         # جناب is a Formal vocative, and "مجھے افسوس ہے" is the register of a
         # written apology rather than a spoken one.
-        Rule("voc.sir", ("", "بھائی", "صاحب", "جناب"), "sir"),
+        Rule("voc.sir", ("", "بھائی", "صاحب", "جناب"), "sir",
+             require_adjacent=_VOCATIVE_COMMA),
         Rule("clause.afsos", ("سوری", "سوری", "معاف کیجیے", "مجھے افسوس ہے"),
              "I am sorry"),
     ),
