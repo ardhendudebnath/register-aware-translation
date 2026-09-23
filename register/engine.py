@@ -822,15 +822,14 @@ def _insert_subject_pronoun(
         (e for e in edits
          if e.rule.startswith("v.")
          and ".imp" not in e.rule
-         and e.after
-         and e.after in text),
+         and e.after),
         None,
     )
     if verb_edit is None:
         return text, None
 
-    index = text.find(verb_edit.after)
-    if index < 0:
+    index = _edit_position(text, verb_edit, edits)
+    if index is None:
         return text, None
 
     if not pronoun:
@@ -884,6 +883,34 @@ def _insert_subject_pronoun(
         from_levels=(),
         to_level=level,
     )
+
+
+def _edit_position(text: str, edit: Edit, edits: Sequence[Edit]) -> Optional[int]:
+    """
+    Where ``edit`` ended up in the rewritten text.
+
+    Each edit records its offset in the text as it was before rewriting, so
+    the only thing that moves it is every earlier replacement that changed
+    length. Adding those up is exact.
+
+    This used to search for the replacement's letters instead —
+    ``text.find(edit.after)`` — which finds the first place they occur
+    *anywhere*, including inside another word. In "Que se dan por vencidos
+    … ¿No ve algo?" the verb is the second "ve", the first is the start of
+    "vencidos", and the subject pronoun went in there: "por ve ustedncidos".
+    The 150,000-sentence misfire sweep surfaced it; no single-clause test
+    sentence could, because it needs the same letters to appear earlier in
+    the sentence than the verb does.
+    """
+    shift = sum(len(e.after) - len(e.before) for e in edits if e.start < edit.start)
+    index = edit.start + shift
+    if text[index:index + len(edit.after)].lower() == edit.after.lower():
+        return index
+    # Something after the edits changed the text's shape. Fall back to a
+    # whole-word search, never a substring one, and give up rather than put a
+    # pronoun somewhere it does not belong.
+    found = re.search(delimited(re.escape(edit.after)), text, re.IGNORECASE)
+    return found.start() if found else None
 
 
 #: Words that front a wh-question in the languages using ``wh_inverted``.

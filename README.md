@@ -206,7 +206,7 @@ old number.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 574 tests. |
+| `tests/` | 586 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -249,7 +249,7 @@ Adding a language means adding a table, not writing code.
 ### Coverage
 
 <!-- coverage:begin -->
-**20 languages, 1,369 rules.** Thirteen of them are Indian, which is the point: CoCoA-MT gave Hindi a *binary* formality benchmark in 2022 and every other Indian language got nothing at all.
+**20 languages, 1,386 rules.** Thirteen of them are Indian, which is the point: CoCoA-MT gave Hindi a *binary* formality benchmark in 2022 and every other Indian language got nothing at all.
 
 | Code | Language | Levels | Rules | Vocatives | Gold | Second person |
 |---|---|:-:|:-:|:-:|:-:|---|
@@ -270,7 +270,7 @@ Adding a language means adding a table, not writing code.
 | `fr` | French | 3 | 39 | — | drafted · high | tu / vous |
 | `es` | Spanish | 3 | 66 | — | drafted · high | tú / usted |
 | `it` | Italian | 3 | 61 | — | drafted · high | tu / Lei |
-| `pt` | Portuguese | 3 | 61 | — | drafted · medium | tu / você / o senhor |
+| `pt` | Portuguese | 3 | 78 | — | drafted · medium | tu / você / o senhor |
 | `ja` | Japanese | 3 | 43 | — | drafted · medium | plain / です・ます / 敬語 |
 | `en` | English | 3 | 31 | — | drafted · high | *(no grammatical T/V)* |
 
@@ -645,10 +645,13 @@ grammar. English "However" → "But" is a real register change on a sentence
 about nothing in particular. The first run flagged 463 English sentences before
 that distinction was drawn, and every one was a lexical rule doing its job.
 
-The second still fails 265 times, almost all Portuguese, and each failure is a
-sentence where one pass changes a pronoun and leaves a verb behind. That is the
-long-range agreement problem the blueprint lists as a known weakness (§3.4),
-measured rather than asserted.
+The second is down from 440 failures to 108 and is how the remaining bugs get
+found: an unstable rewrite is usually a *wrong* rewrite whose output the next
+pass then corrects. Chasing the Portuguese cluster turned up subjunctives being
+rewritten as commands, negative imperatives losing their mood, a clitic hiding
+the subject from every guard — and, in the engine itself, a subject pronoun
+being inserted inside another word. What is left is genuine long-range
+agreement (§3.4), plus sentences FAME-MT itself has already mangled.
 
 It finds bugs, not just a score. `--by-rule` ranks rules by how often their
 firing coincides with being wrong, which points straight at the culprit:
@@ -792,7 +795,7 @@ commercially — with credit.
 python -m pytest tests/ -q
 ```
 
-574 tests covering the rule tables, round-trip stability, third-person safety,
+586 tests covering the rule tables, round-trip stability, third-person safety,
 rules firing outside the construction they belong to,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
 conversations, learner feedback, code-switching, speculative translation, the

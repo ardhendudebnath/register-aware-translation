@@ -265,6 +265,80 @@ def test_capitalised_lei_is_still_the_polite_pronoun():
     assert rewrite("lei parla inglese.", "it", CASUAL).text == "lei parla inglese."
 
 
+# ------------------------------------------- inserting a word into a word
+
+
+def test_the_subject_pronoun_goes_beside_its_own_verb():
+    """
+    Subject insertion located the verb by searching the output for the
+    replacement's letters, which finds the first place they occur anywhere —
+    including inside another word. Here the verb is the second "ve"; the first
+    is the start of "vencidos", and the pronoun went in there:
+
+        Que se dan por ve ustedncidos … ¿No ve algo?
+
+    No single-clause test could catch it: it needs those letters to appear
+    earlier in the sentence than the verb does. The 150,000-sentence sweep did.
+    """
+    out = rewrite(
+        "Que se dan por vencidos, que no me gusta ver. ¿No ves algo?",
+        "es", POLITE,
+    ).text
+    assert "vencidos" in out and "ve usted" not in out.split("¿")[0]
+    assert "¿No ve usted algo?" in out
+
+
+# ------------------------------------ Portuguese: the subjunctive is not a command
+
+
+@pytest.mark.parametrize("sentence, expected", [
+    # "diga" and "dê" here are subjunctives belonging to eu and Ele. They were
+    # rewritten into tu imperatives: "que eu te diz", "Ele te dá".
+    ("O que quer que eu te diga?", "O que quer que eu te diga?"),
+    ("Para que Ele te dê o rei.", "Para que Ele te dê o rei."),
+    # The message's verb, not the listener's.
+    ("Não significa que sua mensagem não tenha sido entregue.",
+     "Não significa que tua mensagem não tenha sido entregue."),
+])
+def test_a_subordinate_subjunctive_is_left_alone(sentence, expected):
+    assert rewrite(sentence, "pt", CLOSE).text == expected
+
+
+@pytest.mark.parametrize("source, level, expected", [
+    # Portuguese builds the negative imperative from the subjunctive in both
+    # registers. Rewriting the verb alone gave "E não faz isso", which is a
+    # statement, and was then conjugated again into "não fazes".
+    ("E não faça isso.", CLOSE, "E não faças isso."),
+    ("Não diga nada.", CLOSE, "Não digas nada."),
+    ("Não digas nada.", POLITE, "Não diga nada."),
+])
+def test_the_negative_imperative_keeps_its_mood(source, level, expected):
+    assert rewrite(source, "pt", level).text == expected
+
+
+@pytest.mark.parametrize("sentence", [
+    # A clitic between the subject and the verb hid the subject from every
+    # guard: "he tells me the truth" came out as "Ele me dizes a verdade".
+    "Ele me diz a verdade.",
+    "O João nos faz rir.",
+    "Ele se vai embora.",
+])
+def test_a_clitic_does_not_hide_the_subject(sentence):
+    for level in LEVELS:
+        assert rewrite(sentence, "pt", level).text == sentence
+    assert detect(sentence, "pt").level is None
+
+
+@pytest.mark.parametrize("source, expected", [
+    ("- Vá.", "- Vai."),                       # a dialogue dash opens a clause
+    ("Então me diga como consertar isso.", "Então me diz como consertar isso."),
+])
+def test_a_command_still_heads_its_clause_behind_a_dash_or_a_clitic(source, expected):
+    once = rewrite(source, "pt", CLOSE).text
+    assert once == expected
+    assert rewrite(once, "pt", CLOSE).text == once, "and it stays put"
+
+
 # ------------------------------------------------------ the systematic sweep
 
 

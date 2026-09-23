@@ -2883,10 +2883,20 @@ _PT_IMPERATIVES: Tuple[Tuple[str, str, str, str], ...] = (
 #: exception for "o senhor" is the same one :data:`_PT_IMPERSONAL` carries:
 #: it has exactly the shape of a determiner and a noun, and it is the polite
 #: second person.
+#: Up to two clitic pronouns between a subject and its verb.
+#:
+#: Brazilian Portuguese puts them in front of the verb — "Ele me diz a
+#: verdade", "O João nos faz rir" — and every subject guard below was anchored
+#: to the word immediately before the verb, so a clitic in between hid the
+#: subject completely. "He tells me the truth" came out as "Ele me dizes a
+#: verdade". Every guard that looks for a subject has to look past these.
+_PT_CLITICS = r"(?:(?:me|te|se|nos|vos|lhe|lhes|o|a|os|as)\s+){0,2}"
+
 _PT_3P_SUBJECT = (
     r"\b(?:ele|ela|eles|elas|quem|que|isto|isso|aquilo|tudo|nada)\s+"
+    rf"{_PT_CLITICS}"
     r"|\b(?:o|a|os|as|um|uma|uns|umas|este|esta|esse|essa|aquele|aquela)\s+"
-    r"(?!senhor(?:a|es|as)?\b)\w+\s+"
+    rf"(?!senhor(?:a|es|as)?\b)\w+\s+{_PT_CLITICS}"
 )
 
 #: The syncretic forms of ser and estar are also the third-person forms, and
@@ -2895,13 +2905,13 @@ _PT_3P_SUBJECT = (
 #: nothing at all ("Está a chover"). Only these two verbs are this ambiguous
 #: — and only in their polite form, which is why this is a per-form guard.
 _PT_IMPERSONAL = (
-    r"\b(?:ele|ela|eles|elas|quem|que|isto|isso|aquilo|tudo|nada)\s+"
+    rf"\b(?:ele|ela|eles|elas|quem|que|isto|isso|aquilo|tudo|nada)\s+{_PT_CLITICS}"
     # A possessive and a noun is a subject like any other — "minha irmã é
     # cabeleireira" is about her sister. Without these, v.ser was the single
     # largest source of disagreement in the corpus: 2,892 firings, 30% wrong,
     # and the examples were overwhelmingly this shape.
     r"|\b(?:meu|minha|meus|minhas|teu|tua|teus|tuas|seu|sua|seus|suas"
-    r"|nosso|nossa|nossos|nossas|dele|dela|deles|delas)\s+\w+\s+"
+    rf"|nosso|nossa|nossos|nossas|dele|dela|deles|delas)\s+\w+\s+{_PT_CLITICS}"
     # A conjunction resets the clause, and the subject of the new one is
     # rarely the listener: "…, e é por isso que…".
     r"|\b(?:e|mas|ou|porque|pois|portanto|então|também)\s+"
@@ -2910,7 +2920,7 @@ _PT_IMPERSONAL = (
     # blocked. Without the exception "O senhor é muito simpático" kept its
     # third-person verb all the way down to "Tu é muito simpático".
     r"|\b(?:o|a|os|as|um|uma|uns|umas|este|esta|esse|essa|aquele|aquela)\s+"
-    r"(?!senhor(?:a|es|as)?\b)\w+\s+"
+    rf"(?!senhor(?:a|es|as)?\b)\w+\s+{_PT_CLITICS}"
     r"|\b(?:hoje|ontem|amanhã|aqui|ali|lá|agora|ainda|já|também)\s*"
     # A clause boundary, not just the start of the string. This was `^\s*`,
     # which covers "É uma péssima ideia" and misses "É, é uma péssima ideia" —
@@ -2936,8 +2946,9 @@ _PT_IMPERSONAL = (
 #: ("Você fala português" is a statement, not an order).
 _PT_NOT_IMPERATIVE_BEFORE = (
     r"\b(?:ele|ela|eles|elas|quem|que|isto|isso|aquilo|tudo|nada"
-    r"|eu|nós|você|vocês|tu)\s+"
+    rf"|eu|nós|você|vocês|tu)\s+{_PT_CLITICS}"
     r"|\b(?:o|a|os|as|um|uma|uns|umas|este|esta|esse|essa|aquele|aquela)\s+\w+\s+"
+    rf"{_PT_CLITICS}"
 )
 
 #: Ten Portuguese verbs spell the tu imperative exactly like the você present:
@@ -2947,8 +2958,41 @@ _PT_NOT_IMPERATIVE_BEFORE = (
 #: agora", which changes the mood rather than the register.
 #:
 #: An imperative heads its clause and an indicative with a dropped subject
-#: does not, so position settles most of it.
-_PT_CLAUSE_INITIAL = r"(?:^|[.!?…;:,])\s*"
+#: does not, so position settles most of it. A dialogue dash opens a clause
+#: as surely as a full stop — "- Vai." is a line of speech, and without the
+#: dash here it read as a statement. A connective and proclitics can sit in
+#: front and the verb still heads its clause: "Então me diz como consertar
+#: isso" is an instruction.
+_PT_CLAUSE_INITIAL = (
+    r"(?:^|[.!?…;:,–—\"“«]|(?:^|\s)-)\s*"
+    r"(?:(?:então|agora|depois|e|mas|só|já|pois)\s+)?"
+    rf"{_PT_CLITICS}"
+)
+
+#: The polite imperative is the present subjunctive — faça, diga, tenha, dê —
+#: so after a subordinator in the same clause it is not a command at all, and
+#: often not even second person. "O que quer que eu te diga?" is "whatever you
+#: want me to say" and "Para que Ele te dê o rei" is "so that He gives you the
+#: king"; both were rewritten into tu imperatives ("que eu te diz", "Ele te
+#: dá"), and "que sua mensagem não tenha sido entregue" — the message's verb —
+#: became "não tem sido". Anything up to the nearest clause boundary counts,
+#: because a subject, a negation or a clitic usually sits in between.
+_PT_SUBJUNCTIVE_BEFORE = (
+    r"\b(?:que|caso|se|embora|quando|talvez|onde|quem|enquanto|contanto"
+    r"|desde|até|conforme|ainda)\b[^.!?;:,–—]*"
+)
+
+#: The negative imperative is built from the subjunctive in both registers:
+#: "não faça" politely and "não faças" to a friend. Rewriting only the verb
+#: turned "E não faça isso" into "E não faz isso", which is Brazilian
+#: colloquial at best and was then read as a statement and conjugated again.
+_PT_NEGATIVE_TU = {
+    "falar": "fales", "comer": "comas", "abrir": "abras", "ir": "vás",
+    "ser": "sejas", "ter": "tenhas", "fazer": "faças", "dizer": "digas",
+    "vir": "venhas", "dar": "dês", "esperar": "esperes",
+    "aguardar": "aguardes", "ouvir": "ouças", "seguir": "sigas",
+    "entrar": "entres", "sentar": "sentes", "olhar": "olhes",
+}
 
 #: …except in a question, where a clause-initial verb with a dropped subject
 #: is asking rather than ordering: "Faz isso?" is "do you do that?". Matched
@@ -2995,15 +3039,32 @@ def _pt_verb_rules() -> Tuple[Rule, ...]:
                  guard_before=_PT_3P_SUBJECT,
                  form_guards=tuple(guards))
         )
+    not_a_command = rf"{_PT_NOT_IMPERATIVE_BEFORE}|{_PT_SUBJUNCTIVE_BEFORE}"
+    indicative_forms = {v[2] for v in _PT_VERBS}
+    # Negatives first and longer, so "não faça" is taken whole before the
+    # affirmative rule can see "faça" inside it.
+    out += [
+        Rule(f"v.{stem}.imp.neg",
+             (f"não {_PT_NEGATIVE_TU[stem]}", f"não {_PT_NEGATIVE_TU[stem]}",
+              f"não {polite}", f"não {polite}"),
+             f"don't {gloss.rstrip('!')}!",
+             guard_before=_PT_SUBJUNCTIVE_BEFORE)
+        for stem, tu, polite, gloss in _PT_IMPERATIVES
+        if stem in _PT_NEGATIVE_TU
+    ]
     out += [
         Rule(f"v.{stem}.imp", (tu, polite, polite, polite), gloss,
              guard_before=_PT_NOT_IMPERATIVE_BEFORE,
-             # …and in a question it is the statement that is meant, so the
-             # ambiguous form hands the span back. Only that form: "faça" is
-             # a command wherever it appears.
-             form_guards=(((tu, "", _PT_QUESTION_AFTER, "", ""),)
-                          if _PT_IMPERATIVE_TU.get(stem) == tu
-                          and tu in {v[2] for v in _PT_VERBS} else ()))
+             form_guards=(
+                 # The polite form is also the subjunctive, so a subordinator
+                 # in its clause means it is not a command. (Repeating the
+                 # rule's own guard: a form guard replaces it, not adds to it.)
+                 ((polite, not_a_command, "", "", ""),)
+                 # …and in a question the ambiguous tu form is the statement,
+                 # so it hands the span back.
+                 + (((tu, "", _PT_QUESTION_AFTER, "", ""),)
+                    if tu in indicative_forms else ())
+             ))
         for stem, tu, polite, gloss in _PT_IMPERATIVES
     ]
     return tuple(out)
