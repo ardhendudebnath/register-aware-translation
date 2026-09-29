@@ -248,7 +248,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 0
 
     print()
-    print("  Rules that fired where nothing should have:")
+    # Both checks feed this tally, so the heading cannot claim the stronger of
+    # the two: a rule can appear here for rewriting a sentence with nobody in
+    # it *or* for a rewrite that moved twice.
+    print("  Rules involved, in either check:")
     for rule, count in offenders.most_common(12):
         print(f"    {rule:<28} {count:>5,}")
 

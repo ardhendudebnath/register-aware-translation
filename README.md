@@ -635,7 +635,7 @@ them runnable over 150,000 sentences labelled for something else entirely:
 | **Nobody in it, nothing to change** | If `detect()` finds no second-person marker, no rule that *votes* may change the sentence |
 | **Rewriting twice changes nothing** | `rewrite(rewrite(s, L), L)` must equal `rewrite(s, L)` |
 
-The first holds everywhere: **0 of 49,828 unaddressed sentences** are touched,
+The first holds everywhere: **0 of 49,878 unaddressed sentences** are touched,
 in all six languages. It did not hold before the rules were fixed — every
 misfire found in this project violated exactly it.
 
@@ -645,7 +645,7 @@ grammar. English "However" → "But" is a real register change on a sentence
 about nothing in particular. The first run flagged 463 English sentences before
 that distinction was drawn, and every one was a lexical rule doing its job.
 
-The second is down from 440 failures to 108 and is how the remaining bugs get
+The second is down from 440 failures to 74 and is how the remaining bugs get
 found: an unstable rewrite is usually a *wrong* rewrite whose output the next
 pass then corrects. Chasing the Portuguese cluster turned up subjunctives being
 rewritten as commands, negative imperatives losing their mood, a clitic hiding
