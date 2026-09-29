@@ -206,7 +206,7 @@ old number.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 586 tests. |
+| `tests/` | 605 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -249,7 +249,7 @@ Adding a language means adding a table, not writing code.
 ### Coverage
 
 <!-- coverage:begin -->
-**20 languages, 1,386 rules.** Thirteen of them are Indian, which is the point: CoCoA-MT gave Hindi a *binary* formality benchmark in 2022 and every other Indian language got nothing at all.
+**20 languages, 1,387 rules.** Thirteen of them are Indian, which is the point: CoCoA-MT gave Hindi a *binary* formality benchmark in 2022 and every other Indian language got nothing at all.
 
 | Code | Language | Levels | Rules | Vocatives | Gold | Second person |
 |---|---|:-:|:-:|:-:|:-:|---|
@@ -267,7 +267,7 @@ Adding a language means adding a table, not writing code.
 | `kn` | Kannada | 3 | 112 | ✓ | drafted · medium | ನೀನು / ನೀವು |
 | `ml` | Malayalam | 3 | 34 | ✓ | drafted · medium | നീ / നിങ്ങൾ / താങ്കൾ |
 | `de` | German | 3 | 124 | — | drafted · high | du / Sie |
-| `fr` | French | 3 | 39 | — | drafted · high | tu / vous |
+| `fr` | French | 3 | 40 | — | drafted · high | tu / vous |
 | `es` | Spanish | 3 | 66 | — | drafted · high | tú / usted |
 | `it` | Italian | 3 | 61 | — | drafted · high | tu / Lei |
 | `pt` | Portuguese | 3 | 78 | — | drafted · medium | tu / você / o senhor |
@@ -606,13 +606,13 @@ python -m evaluation.external
 
 ```
 de   agreement  99.3%   coverage  88.1%
-fr   agreement  99.1%   coverage  83.4%
+fr   agreement  99.1%   coverage  85.2%
 es   agreement  97.3%   coverage  77.4%
-it   agreement  92.1%   coverage  64.8%
-pt   agreement  92.7%   coverage  76.6%
+it   agreement  92.3%   coverage  64.2%
+pt   agreement  92.7%   coverage  76.1%
 en   agreement  68.7%   coverage   9.6%
 
-overall 95.7% over 100,070 sentences (150,203 seen, 33% carried no marker)
+overall 95.8% over 100,264 sentences (150,203 seen, 33% carried no marker)
 ```
 
 ### The sweep that needs no labels
@@ -795,7 +795,7 @@ commercially — with credit.
 python -m pytest tests/ -q
 ```
 
-586 tests covering the rule tables, round-trip stability, third-person safety,
+605 tests covering the rule tables, round-trip stability, third-person safety,
 rules firing outside the construction they belong to,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
 conversations, learner feedback, code-switching, speculative translation, the

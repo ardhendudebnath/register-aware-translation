@@ -2217,6 +2217,14 @@ GERMAN = LanguageTable(
 _FR_CLITIC_CONTEXT = r"\b(?:je|tu|il|elle|on|nous|ils|elles|ne|me|te|se)\s+|\bj'|\bn'"
 _FR_PREP_CONTEXT = r"\b(?:pour|avec|chez|sans|à|de|comme|que|sur|sous|vers|entre|contre)\s+"
 
+#: The same list without "que", for the subject reading. After a preposition
+#: "vous" is tonic; after "que" it may be either, and only what follows says
+#: which — so the subject rule stays available there and the tonic rule steps
+#: aside when a verb comes next.
+_FR_PREP_NOT_QUE = (
+    r"\b(?:pour|avec|chez|sans|à|de|comme|sur|sous|vers|entre|contre)\s+"
+)
+
 # A French verb rule must not fire when the subject is not second person:
 # "je vois" and "tu vois" are spelled identically, so upgrading "je te vois"
 # would otherwise produce "je vous voyez". Clitics may sit between the subject
@@ -2224,6 +2232,19 @@ _FR_PREP_CONTEXT = r"\b(?:pour|avec|chez|sans|à|de|comme|que|sur|sous|vers|entr
 _FR_NON_2P_SUBJECT = (
     r"(?:\bje\b|\bj'|\bil\b|\belle\b|\bon\b|\bnous\b|\bils\b|\belles\b|\bqui\b)"
     r"(?:\s+(?:me|te|se|nous|vous|le|la|les|lui|leur|y|en))*\s+"
+)
+
+#: The same, minus "vous", for the *vous form* of a verb.
+#:
+#: "vous" in front of a tu-form verb is an object — "je vous vois", where vois
+#: is the first person and only looks like the tu form — so the rule-level
+#: pattern above steps over it. In front of a vous *form* it cannot be an
+#: object, because nothing else is left to be the subject: "ni sur qui vous
+#: êtes" is "who you are". Treating it as a clitic there blocked the verb
+#: while the pronoun still went down, leaving "qui tu êtes".
+_FR_NON_2P_SUBJECT_VOUS_FORM = (
+    r"(?:\bje\b|\bj'|\bil\b|\belle\b|\bon\b|\bnous\b|\bils\b|\belles\b|\bqui\b)"
+    r"(?:\s+(?:me|te|se|nous|le|la|les|lui|leur|y|en))*\s+"
 )
 
 _FR_VERBS = (
@@ -2248,10 +2269,26 @@ _FR_VERBS = (
 )
 
 
+#: A conjugated second-person verb immediately after the pronoun, which is
+#: what tells "que vous êtes" (a clause) from "plus grand que vous" (a
+#: comparison). Built from this table's own forms so it cannot drift from
+#: them, plus the -ez ending, which marks a vous form in verbs the table does
+#: not carry.
+_FR_VERB_AFTER = (
+    r"\s+(?:"
+    + "|".join(sorted(
+        {form for _s, tu, vous, _g in _FR_VERBS for form in (tu, vous)},
+        key=len, reverse=True,
+    ))
+    + r"|\w+ez)\b"
+)
+
+
 def _fr_verb_rules() -> Tuple[Rule, ...]:
     return tuple(
         Rule(f"v.{stem}", (tu_form, tu_form, vous_form, vous_form), gloss,
-             guard_before=_FR_NON_2P_SUBJECT)
+             guard_before=_FR_NON_2P_SUBJECT,
+             form_guards=((vous_form, _FR_NON_2P_SUBJECT_VOUS_FORM, "", "", ""),))
         for stem, tu_form, vous_form, gloss in _FR_VERBS
     )
 
@@ -2300,15 +2337,32 @@ FRENCH = LanguageTable(
         # request between people. Nothing matched it, so both formal rows read
         # as no register at all.
         Rule("clause.veuillez", ("", "", "", "Veuillez"), "kindly (formal imperative)"),
-        # Subject "vous": neither in a clitic slot nor after a preposition.
-        Rule("pron.2sg.nom", ("tu", "tu", "vous", "vous"), "you",
-             guard_before=f"(?:{_FR_CLITIC_CONTEXT}|{_FR_PREP_CONTEXT})"),
+        # The two narrow readings are declared first, so each takes the span
+        # where its own context holds and the subject rule gets the rest.
+        #
         # Object "vous": only in a clitic slot, where it becomes "te".
         Rule("pron.2sg.obj", ("te", "te", "vous", "vous"), "you (obj)",
              require_before=_FR_CLITIC_CONTEXT),
-        # Tonic "vous": after a preposition, where it becomes "toi".
+        # After a relative "qui", vous is whichever the verb says it is:
+        # an object in "qui vous a dit cela" (who told you), the subject in
+        # "qui vous êtes" (who you are). Only the first becomes "te", so this
+        # stands aside when a second-person verb follows and lets the subject
+        # rule below take it.
+        Rule("pron.2sg.obj.rel", ("te", "te", "vous", "vous"), "you (obj)",
+             require_before=r"\bqui\s+",
+             guard_after=_FR_VERB_AFTER),
+        # Tonic "vous": after a preposition, where it becomes "toi" — but not
+        # when a verb follows. "que" is on that list for the comparative
+        # ("plus grand que vous"), and it also introduces a subordinate clause,
+        # where vous is the subject: "cela signifie que vous êtes" was coming
+        # out as "que toi es".
         Rule("pron.2sg.tonic", ("toi", "toi", "vous", "vous"), "you (tonic)",
-             require_before=_FR_PREP_CONTEXT),
+             require_before=_FR_PREP_CONTEXT,
+             guard_after=_FR_VERB_AFTER),
+        # Subject "vous": neither in a clitic slot nor after a preposition.
+        # "que" is missing from that list on purpose — see the tonic rule.
+        Rule("pron.2sg.nom", ("tu", "tu", "vous", "vous"), "you",
+             guard_before=f"(?:{_FR_CLITIC_CONTEXT}|{_FR_PREP_NOT_QUE})"),
         # Both singular possessives collapse to "votre" going up. Coming back
         # down, the selector consults the following noun's gender, so
         # "votre maison" -> "ta maison" rather than the wrong "ton maison".
@@ -2696,17 +2750,89 @@ _IT_NP_AFTER = rf"\s+{_IT_DET}\s+"
 #: A gerund after the verb is the progressive: "Sta piovendo" is the weather.
 _IT_GERUND = r"\s+\w+(?:ando|endo)\b"
 
-_IT_3P_BEFORE = f"{_IT_3P_SUBJECT_FULL}|{_IT_NP_BEFORE}|{_IT_DEM_BEFORE}"
+#: The impersonal "si" — "si mangia bene qui", one eats well here. It is not
+#: addressed to anybody, and the verb after it is third person. (A reflexive
+#: rule whose own form starts with "si" is unaffected: the si is inside the
+#: match, so it is never in the prefix this is tested against.)
+_IT_IMPERSONAL_SI = r"\b(?i:si)\s+"
+
+_IT_3P_BEFORE = (
+    f"{_IT_3P_SUBJECT_FULL}|{_IT_NP_BEFORE}|{_IT_DEM_BEFORE}|{_IT_IMPERSONAL_SI}"
+)
 _IT_3P_AFTER = f"{_IT_NP_AFTER}|{_IT_GERUND}"
 
 #: Prepositions that take the tonic pronoun rather than the nominative.
 _IT_PREPOSITION = r"\b(?i:per|con|da|a|di|su|tra|fra|come)\s+"
 
+# --------------------------------------------------------------------------
+# An -are verb's two rules are exact mirror images of each other.
+#
+#     parlare   indicative  tu parli    Lei parla
+#               imperative  tu parla!   Lei parli!
+#
+# So "parli" is the polite command *and* the familiar statement, and "parla"
+# is the familiar command *and* the polite statement — the register runs in
+# opposite directions depending on which reading is meant. The indicative was
+# declared first and took every span, which made a polite imperative come back
+# casual, in the wrong direction, at full confidence:
+#
+#     Aspetti un momento.  ->  Aspetta un momento.   read as Casual (1.00)
+#
+# A command heads its clause and a question is not a command, and between them
+# those settle it. The imperative is declared first now so that it wins the
+# span when both could match, and carries the positional constraints; when the
+# sentence is a question it steps aside and the indicative takes it, which is
+# what "Parli italiano?" needs.
+# --------------------------------------------------------------------------
+
+#: Clitics can sit in front of a command without it ceasing to head its
+#: clause: "Mi dica", "Lo faccia". Not "si": "Si mangia bene qui" is the
+#: impersonal — one eats well here — and no one is being told anything.
+_IT_PROCLITIC = r"(?:(?i:mi|ti|ci|vi|lo|la|li|le|ne|gli|me|te)\s+){0,2}"
+
+_IT_CLAUSE_INITIAL = rf"(?:^|[.!?…;:,–—\"“«»]|(?:^|\s)-)\s*{_IT_PROCLITIC}"
+
+#: A question with a dropped subject is asking, not ordering.
+_IT_QUESTION_AFTER = r"[^.!?]*\?"
+
+#: The stems whose imperative and indicative are mirror images — every -are
+#: verb in the table.
+_IT_MIRRORED = {
+    stem for stem, tu, lei, _g in _IT_IMPERATIVES
+    if any(s == stem and t == lei for s, t, _l, _g2 in _IT_VERBS)
+}
+
 
 def _it_verb_rules() -> Tuple[Rule, ...]:
-    # The guards sit on the Lei form alone. On the rule they also constrained
-    # the tu form, which is unambiguous and needs no constraining.
-    out = [
+    # Imperatives first: where both readings match the same word, the command
+    # is the one carrying the positional constraints, so it must be the one
+    # offered the span first.
+    out = []
+    for stem, tu, lei, gloss in _IT_IMPERATIVES:
+        mirrored = stem in _IT_MIRRORED
+        out.append(
+            Rule(f"v.{stem}.imp", (tu, tu, lei, lei), gloss, cased=True,
+                 # The third-person blocklist the indicatives already carry:
+                 # "Lui parla italiano" is not a command either.
+                 # Not _IT_3P_AFTER on either form: a noun phrase after a
+                 # command is its object — "Aspetti un momento", "Prenda un
+                 # caffè" — where after an indicative it is the subject of a
+                 # question about something else. Borrowing that guard from
+                 # the indicative blocked every imperative that takes an
+                 # object, which is most of them.
+                 form_guards=(
+                     (tu, _IT_3P_BEFORE,
+                      _IT_QUESTION_AFTER if mirrored else "",
+                      _IT_CLAUSE_INITIAL if mirrored else "", ""),
+                     (lei, _IT_3P_BEFORE,
+                      _IT_QUESTION_AFTER if mirrored else "",
+                      _IT_CLAUSE_INITIAL if mirrored else "", ""),
+                 ))
+        )
+    out += [
+        # The guards sit on the Lei form alone. On the rule they also
+        # constrained the tu form, which is unambiguous and needs no
+        # constraining.
         Rule(f"v.{stem}", (tu, tu, lei, lei), gloss, cased=True,
              form_guards=((lei, _IT_3P_BEFORE, _IT_3P_AFTER, "", ""),))
         for stem, tu, lei, gloss in _IT_VERBS
@@ -2715,16 +2841,6 @@ def _it_verb_rules() -> Tuple[Rule, ...]:
         Rule(f"v.{stem}.refl", (tu, tu, lei, lei), gloss, cased=True,
              form_guards=((lei, _IT_3P_BEFORE, _IT_3P_AFTER, "", ""),))
         for stem, tu, lei, gloss in _IT_REFLEXIVES
-    ]
-    # The imperatives had no guards at all, and Italian's tu imperative is
-    # spelled like the third-person present: "Lui parla italiano" (he speaks
-    # Italian) was rewritten to "Lui parli italiano". Both forms need the same
-    # third-person blocklist the indicatives above already carry.
-    out += [
-        Rule(f"v.{stem}.imp", (tu, tu, lei, lei), gloss, cased=True,
-             form_guards=((tu, _IT_3P_BEFORE, "", "", ""),
-                          (lei, _IT_3P_BEFORE, _IT_3P_AFTER, "", "")))
-        for stem, tu, lei, gloss in _IT_IMPERATIVES
     ]
     return tuple(out)
 

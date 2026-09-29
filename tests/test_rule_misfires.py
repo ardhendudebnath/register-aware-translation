@@ -339,6 +339,87 @@ def test_a_command_still_heads_its_clause_behind_a_dash_or_a_clitic(source, expe
     assert rewrite(once, "pt", CLOSE).text == once, "and it stays put"
 
 
+# ------------------------------- Italian: the two rules are mirror images
+
+
+@pytest.mark.parametrize("sentence", [
+    # An -are verb's imperative and indicative are exact mirrors —
+    # tu parli / Lei parla against tu parla! / Lei parli! — so the register
+    # runs in opposite directions depending on which reading is meant. The
+    # indicative took every span, and a polite command came back casual:
+    # "Aspetti un momento" -> "Aspetta un momento", read as Casual at 1.00.
+    "Aspetti un momento.",
+    "Mangi pure.",
+    "Parli più piano.",
+])
+def test_a_polite_command_asked_for_polite_does_not_move(sentence):
+    assert rewrite(sentence, "it", POLITE).text == sentence
+
+
+@pytest.mark.parametrize("source, level, expected", [
+    ("Aspetta un momento.", POLITE, "Aspetti un momento."),
+    ("Aspetti un momento.", CASUAL, "Aspetta un momento."),
+    # A noun phrase after a command is its object, not the subject of a
+    # question about something else — borrowing the indicative's guard here
+    # blocked every imperative that takes one, which is most of them.
+    ("Prenda un caffè.", CASUAL, "Prendi un caffè."),
+    # A question is asking, not ordering, so the statement reading takes it.
+    ("Parli italiano?", POLITE, "Parla italiano?"),
+    ("Parla italiano?", CASUAL, "Parli italiano?"),
+])
+def test_italian_commands_and_questions_go_the_right_way(source, level, expected):
+    assert rewrite(source, "it", level).text == expected
+
+
+@pytest.mark.parametrize("sentence", [
+    "Si mangia bene qui.",          # impersonal: one eats well here
+    "quando si mangia una cena",
+])
+def test_the_impersonal_si_is_not_second_person(sentence):
+    for level in LEVELS:
+        assert rewrite(sentence, "it", level).text == sentence
+    assert detect(sentence, "it").level is None
+
+
+def test_a_reflexive_still_reads_and_moves():
+    """The impersonal guard must not swallow "Come si chiama?"."""
+    assert detect("Come si chiama?", "it").level == POLITE
+    assert rewrite("Come si chiama?", "it", CASUAL).text == "Come ti chiami?"
+
+
+# --------------------------------- French: vous wears three hats, not two
+
+
+@pytest.mark.parametrize("source, expected", [
+    # "que" introduces a comparison *and* a subordinate clause. Treating it
+    # only as a preposition gave the tonic pronoun: "que toi es".
+    ("Cela signifie que vous êtes sexy.", "Cela signifie que tu es sexy."),
+    ("Il est plus grand que vous.", "Il est plus grand que toi."),
+    # After a relative "qui", the verb says which reading is meant.
+    ("ni sur qui vous êtes,", "ni sur qui tu es,"),
+    ("Qui vous a dit cela ?", "Qui t'a dit cela ?"),
+    ("Tu peux écraser qui vous voulez.", "Tu peux écraser qui tu veux."),
+    # And the clitic reading has to survive all of it: "vois" is the first
+    # person here and only looks like the tu form.
+    ("Je vous vois.", "Je te vois."),
+    ("C'est pour vous.", "C'est pour toi."),
+])
+def test_french_picks_the_right_hat(source, expected):
+    got = rewrite(source, "fr", CASUAL).text
+    assert got == expected
+    assert rewrite(got, "fr", CASUAL).text == got, "and stays there"
+
+
+def test_the_object_clitic_is_not_conjugated_as_a_subject():
+    """
+    A regression this caught in the making: dropping "vous" from the clitic
+    list fixed "qui vous êtes" and broke "Je vous vois demain", which came out
+    as "Je vous voyez demain" and read Casual instead of Polite.
+    """
+    assert rewrite("Je vous vois demain.", "fr", POLITE).text == "Je vous vois demain."
+    assert detect("Je vous vois demain.", "fr").level == POLITE
+
+
 # ------------------------------------------------------ the systematic sweep
 
 
