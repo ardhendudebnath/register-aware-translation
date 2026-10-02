@@ -1,0 +1,76 @@
+# Run the suite on every push and pull request.
+#
+# The whole thing takes about thirty seconds and needs no secrets, no corpus
+# and no network: the register layer is pure standard library, the tests that
+# need the 2.3 GB FAME-MT splits skip themselves when the files are absent,
+# and the ones that would otherwise call the translation endpoint are pinned
+# offline. So a green run here means the engine, the API and the markup
+# contract are all intact — not that the external agreement numbers still
+# hold, which needs the corpus and stays a command you run locally.
+
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor is what the project is developed against; the ceiling
+        # catches a deprecation before it becomes a breakage.
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Tests
+        env:
+          # Belt and braces: no test should reach the network, and this makes
+          # a test that tries to fail on the runner rather than quietly
+          # depending on an undocumented endpoint being up.
+          SETU_ALLOW_NETWORK: "0"
+        run: python -m pytest -q
+
+      - name: The four metrics
+        # These read the gold sets, which are in the repository, so they run
+        # here. A rule change that costs a language its score fails the build
+        # rather than waiting to be noticed.
+        run: |
+          python - <<'PY'
+          from evaluation.gold_sets import available_gold_sets, load_gold_set
+          from evaluation.metrics import evaluate
+
+          failed = []
+          for code in available_gold_sets():
+              report = evaluate(load_gold_set(code), code)
+              scores = [report.register.score, report.detection.score,
+                        report.semantic.score]
+              if report.exactness and report.exactness.total:
+                  scores.append(report.exactness.score)
+              # Bengali exactness sits at 98.5% on an ambiguity its own hard
+              # rows document — খাও and করিস are genuinely two readings — so
+              # the floor is per language rather than a flat 100%.
+              floor = 0.98 if code == "bn" else 1.0
+              if min(scores) < floor:
+                  failed.append(report.summary())
+
+          for line in failed:
+              print("BELOW FLOOR:", line)
+          print(f"{len(available_gold_sets())} languages checked, {len(failed)} below floor")
+          raise SystemExit(1 if failed else 0)
+          PY

@@ -32,6 +32,7 @@ from pipeline import (
 )
 from pipeline import core
 from pipeline.core import Phrasebook, _phrasebook
+from pipeline.corrections import CorrectionLog
 from register import (
     AUTO,
     CORNERS,
@@ -97,6 +98,11 @@ _relationships = RelationshipBook()
 #: call rather than swapped into pipeline.core, which would reach into another
 #: module's state and could not be undone.
 _phrasebook = Phrasebook(None) if SHARED else core._phrasebook
+
+
+#: What the engine got wrong, as noticed by whoever was using it. Off on a
+#: shared server: other people's sentences are not yours to collect.
+_corrections = CorrectionLog()
 
 
 def _private_feature(name: str):
@@ -471,6 +477,46 @@ def api_relationships_delete(name):
     if SHARED:
         return _private_feature("Relationship memory")
     return jsonify({"deleted": _relationships.forget(name)})
+
+
+# --- corrections: the week of use, written down ----------------------------
+
+
+@app.route("/api/corrections", methods=["POST"])
+def api_corrections_record():
+    """
+    One press while the wrong answer is still on screen.
+
+    Not a gold row. A gold row is a claim the project stands behind; this is
+    one person noticing something in the middle of a conversation, which is
+    exactly the evidence that otherwise evaporates by the evening.
+    """
+    if SHARED:
+        return _private_feature("Reporting a mistake")
+
+    payload = _json_body()
+    try:
+        saved = _corrections.record(
+            text=payload.get("text") or "",
+            language=payload.get("language") or "",
+            expected=payload.get("expected"),
+            detected=payload.get("detected"),
+            rules=payload.get("rules") or [],
+            note=payload.get("note") or "",
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"recorded": saved.as_dict(), **_corrections.summary()})
+
+
+@app.route("/api/corrections", methods=["GET"])
+def api_corrections_list():
+    if SHARED:
+        return _private_feature("Reporting a mistake")
+    return jsonify({
+        "corrections": [c.as_dict() for c in _corrections.all()],
+        **_corrections.summary(),
+    })
 
 
 @app.errorhandler(404)

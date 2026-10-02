@@ -129,6 +129,24 @@
       <summary>Show the rules that fired <span id="traceCount" class="count"></span></summary>
       <ul class="trace" id="trace"></ul>
     </details>
+
+    <!-- The week of use, written down while it is still in front of you. -->
+    <details class="extras" id="wrongWrap">
+      <summary>Got the register wrong?</summary>
+      <p class="note">
+        Say what it should have been. It keeps the sentence, what the engine
+        read, and the rules that fired — the start of a gold row, and the
+        thing that otherwise evaporates by the evening. Stays on this device.
+      </p>
+      <div class="chips small" id="wrongChips" role="radiogroup"
+           aria-label="What the register should have been"></div>
+      <div class="remember">
+        <input id="wrongNote" type="text" placeholder="anything worth adding (optional)"
+               aria-label="Note about the mistake">
+        <button id="wrongSave" class="ghost">Note it</button>
+      </div>
+      <p class="note small" id="wrongStatus" role="status"></p>
+    </details>
   </section>
 
   <!-- the ladder: the five-second demo -->

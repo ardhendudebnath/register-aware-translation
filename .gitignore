@@ -51,3 +51,8 @@ desktop.ini
 # Built dataset releases. Derived from data/gold/ — rebuild with:
 #     python -m evaluation.release
 releases/
+
+# What the engine got wrong, as noticed during real use. Sentences somebody
+# typed, on their machine — the same reasoning as the relationship book.
+# Read them with: python -m pipeline.corrections
+data/corrections.jsonl

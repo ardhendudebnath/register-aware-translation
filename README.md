@@ -206,7 +206,7 @@ old number.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 626 tests. |
+| `tests/` | 637 tests, run in CI on every push. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -762,6 +762,34 @@ ambiguities.
 **[REVIEWING.md](REVIEWING.md) is written for a speaker to be handed
 directly** — no programming knowledge assumed.
 
+### Recording what it gets wrong
+
+The blueprint's advice for the week after this ships is to use it for real and
+note every time the register comes out wrong, because that list is the actual
+roadmap. The hard part is the noting: it happens mid-conversation and is gone
+by the evening.
+
+So the app takes the report while the wrong answer is still on screen — one
+chip for what it should have been, and it keeps the sentence, what the engine
+read, and **the rules that fired**, which is the difference between a feeling
+and a place to start.
+
+```bash
+python -m pipeline.corrections
+```
+
+```
+hi  आप कैसे हैं?
+    read as Polite, should have been Casual
+    rules: pron.2sg.nom, cop.pres
+    note: my brother, not a stranger
+```
+
+They are not gold rows and the file is deliberately outside `data/gold/`: a
+gold row is a claim the project stands behind, a report is one person in a
+hurry. Nothing promotes one automatically. Device-local, gitignored, and off
+on a shared server for the same reason relationship memory is.
+
 This is the highest-leverage work left. CoCoA-MT gave Hindi a *binary*
 formality benchmark in 2022; Bengali — 228 million speakers, three grammatical
 registers — has nothing, and nor does Tamil, Telugu, Kannada, Malayalam,
@@ -800,7 +828,12 @@ commercially — with credit.
 python -m pytest tests/ -q
 ```
 
-626 tests covering the rule tables, round-trip stability, third-person safety,
+Every push runs them on Python 3.11 and 3.12, along with the four metrics —
+a rule change that costs a language its score fails the build rather than
+waiting to be noticed. The tests that need the 2.3 GB corpus skip themselves
+there, so the external agreement figures stay a command you run locally.
+
+637 tests covering the rule tables, round-trip stability, third-person safety,
 rules firing outside the construction they belong to,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
 conversations, learner feedback, code-switching, speculative translation, the
@@ -835,6 +868,7 @@ pipeline with networking disabled.
 | `POST /api/conversation/<id>/say` | One turn, translated at the *speaker's* register. |
 | `POST /api/learner/assess` | Judge a learner's sentence against who they are addressing. |
 | `GET/POST /api/relationships` | Per-contact register memory (on-device). |
+| `GET/POST /api/corrections` | Report a register the engine got wrong (on-device). |
 
 Over the socket, for speech as it happens:
 

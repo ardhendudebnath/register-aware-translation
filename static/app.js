@@ -54,6 +54,11 @@
     learnSuggestionWrap: $("learnSuggestionWrap"),
     learnSuggestion: $("learnSuggestion"),
     learnEvidence: $("learnEvidence"),
+    wrongWrap: $("wrongWrap"),
+    wrongChips: $("wrongChips"),
+    wrongNote: $("wrongNote"),
+    wrongSave: $("wrongSave"),
+    wrongStatus: $("wrongStatus"),
     peoplePanel: $("peoplePanel"),
     peopleList: $("peopleList"),
     peopleHint: $("peopleHint"),
@@ -89,6 +94,8 @@
     //: True when several people share this server, so the device-local
     //: features are not available. See applyServerMode.
     shared: false,
+    //: The register the user says the last translation should have been.
+    wrongExpected: "",
     // Speculative translation of what is being said right now. `seq` rises
     // with every partial sent; a result whose seq is not the current one has
     // been overtaken and is dropped.
@@ -132,6 +139,7 @@
     buildConversation();
     ui.pad.addEventListener("click", padClick);
     buildLearner();
+    buildCorrections();
     wireEvents();
 
     try {
@@ -150,6 +158,74 @@
     setupSpeechRecognition();
     updateLevelHint();
     registerServiceWorker();
+  }
+
+  /*
+   * Report a register the engine got wrong (blueprint 14: "note every time it
+   * gets the register wrong — that list is your actual roadmap").
+   *
+   * The sentence, what it read, and the rules that fired go together, because
+   * a complaint without the rules is a feeling and a complaint with them is a
+   * place to start. Device-local, like the rest of what the app remembers.
+   */
+  function buildCorrections() {
+    if (state.shared) {
+      if (ui.wrongWrap) ui.wrongWrap.hidden = true;
+      return;
+    }
+    const levels = [
+      ["close", "Close"], ["casual", "Casual"],
+      ["polite", "Polite"], ["formal", "Formal"],
+    ];
+    ui.wrongChips.innerHTML = levels
+      .map(([slug, label]) =>
+        `<button class="chip" role="radio" data-expected="${slug}"
+           aria-checked="false">${label}</button>`)
+      .join("");
+
+    ui.wrongChips.addEventListener("click", (e) => {
+      const chip = e.target.closest(".chip");
+      if (!chip) return;
+      state.wrongExpected = chip.dataset.expected;
+      syncChecked(ui.wrongChips, "expected", state.wrongExpected);
+    });
+    ui.wrongSave.addEventListener("click", reportWrongRegister);
+  }
+
+  async function reportWrongRegister() {
+    const last = state.lastResult;
+    if (!last || !last.translated_text) {
+      ui.wrongStatus.textContent = "Translate something first.";
+      return;
+    }
+    if (!state.wrongExpected) {
+      ui.wrongStatus.textContent = "Which register should it have been?";
+      return;
+    }
+    try {
+      const res = await fetch("/api/corrections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: last.translated_text,
+          language: last.target_language,
+          detected: last.register_name,
+          expected: state.wrongExpected,
+          rules: (last.edits || []).map((e) => e.rule),
+          note: ui.wrongNote.value,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        ui.wrongStatus.textContent = data.error;
+        return;
+      }
+      ui.wrongNote.value = "";
+      ui.wrongStatus.textContent =
+        `Noted — ${data.count} so far. Read them with: python -m pipeline.corrections`;
+    } catch (err) {
+      ui.wrongStatus.textContent = "Could not save that.";
+    }
   }
 
   /*
