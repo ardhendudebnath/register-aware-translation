@@ -43,6 +43,39 @@ __all__ = [
 
 
 @dataclass(frozen=True)
+class FormGuard:
+    """
+    Constraints for one surface form of a rule.
+
+    The plain tuple form — ``(form, guard_before, guard_after, require_before,
+    require_after[, require_adjacent])`` — still works and means the same
+    thing. This spells the fields out, and adds the one thing a tuple cannot
+    say: that this form wants a *weaker* blocker than its rule rather than an
+    additional one.
+    """
+
+    form: str
+    guard_before: str = ""
+    guard_after: str = ""
+    require_before: str = ""
+    require_after: str = ""
+    require_adjacent: str = ""
+    #: Use this form's blocking guards *instead of* the rule's, not as well as.
+    #:
+    #: Rare, and it needs a reason. French is the case it exists for: a verb
+    #: rule blocks on a non-second-person subject and steps over the clitics
+    #: that can sit between, "vous" among them — because "je vous vois" has
+    #: vois in the first person. In front of a vous *form* that cannot happen,
+    #: so the vous form needs the same guard minus one alternative, which is
+    #: less than the rule's rather than more.
+    replace: bool = False
+
+    def as_spec(self) -> Tuple[str, ...]:
+        return (self.form, self.guard_before, self.guard_after,
+                self.require_before, self.require_after, self.require_adjacent)
+
+
+@dataclass(frozen=True)
 class Rule:
     """One variant set: the same thing said at four levels of politeness."""
 
@@ -106,7 +139,24 @@ class Rule:
     #:
     #: A rule-level guard cannot express any of these: constraining the whole
     #: rule would also constrain the unambiguous form.
-    form_guards: Tuple[Tuple[str, ...], ...] = ()
+    #:
+    #: **Blocking guards accumulate; requirements do not.** A ``guard_before``
+    #: or ``guard_after`` here is added to the rule's own — both say "never
+    #: here", and both go on applying. A ``require_*`` replaces the rule's,
+    #: because a requirement is a licence and the form's own is the precise
+    #: one.
+    #:
+    #: That asymmetry is here because the other arrangement cost real bugs.
+    #: When a form guard replaced the rule's blocker, giving one Portuguese
+    #: form a positional guard silently dropped its third-person guard, and
+    #: "Ele fala português" came back as "Ele falas português". The repair was
+    #: to paste the rule's guard into the form's — in thirty places, each one
+    #: a copy that could drift.
+    #:
+    #: Where a form genuinely needs a *weaker* blocker than its rule, say so
+    #: with :class:`FormGuard` and ``replace=True``; French is the one case,
+    #: and it is marked.
+    form_guards: Tuple[object, ...] = ()
     #: Use this rule when rewriting, but never as evidence when detecting.
     #:
     #: For words that are register-*neutral* in themselves but have a polite
@@ -2168,8 +2218,9 @@ GERMAN = LanguageTable(
         # "Das ist für Sie" stuck at every level.
         Rule("pron.2sg.nom", ("du", "du", "Sie", "Sie"), "you", cased=True,
              detect_only=True, guard_before=_DE_OBJECT_CONTEXT,
-             form_guards=(("Sie", _DE_OBJECT_CONTEXT, _DE_THIRD_SINGULAR,
-                           "", "", ""),)),
+             # Only the extra guard here: the rule's own applies to this form
+             # as well, since blocking guards accumulate.
+             form_guards=(("Sie", "", _DE_THIRD_SINGULAR, "", "", ""),)),
         Rule("pron.2sg.acc", ("dich", "dich", "Sie", "Sie"), "you (acc)",
              cased=True, require_before=_DE_OBJECT_CONTEXT),
         Rule("pron.2sg.dat", ("dir", "dir", "Ihnen", "Ihnen"), "you (dat)", cased=True),
@@ -2288,7 +2339,13 @@ def _fr_verb_rules() -> Tuple[Rule, ...]:
     return tuple(
         Rule(f"v.{stem}", (tu_form, tu_form, vous_form, vous_form), gloss,
              guard_before=_FR_NON_2P_SUBJECT,
-             form_guards=((vous_form, _FR_NON_2P_SUBJECT_VOUS_FORM, "", "", ""),))
+             # The one place in the project where a form wants a *weaker*
+             # guard than its rule, so it has to say so: the rule steps over
+             # "vous" as a clitic, and in front of a vous form it cannot be
+             # one. Accumulating the two would put the clitic back.
+             form_guards=(FormGuard(vous_form,
+                                    guard_before=_FR_NON_2P_SUBJECT_VOUS_FORM,
+                                    replace=True),))
         for stem, tu_form, vous_form, gloss in _FR_VERBS
     )
 
@@ -3142,20 +3199,14 @@ def _pt_verb_rules() -> Tuple[Rule, ...]:
             # Leading its clause, this form is a command, not a statement.
             # The imperative rule below picks it up instead — a guarded-out
             # pattern leaves the span free rather than consuming it.
-            #
-            # The third-person guard has to be repeated here: a form guard
-            # *replaces* the rule's own for that slot rather than adding to
-            # it, and dropping it let "Ele fala português" through as
-            # "Ele falas português".
-            guards.append(
-                (polite, rf"{_PT_3P_SUBJECT}|{_PT_CLAUSE_INITIAL}", "", "", "")
-            )
+            # The rule's third-person guard still applies here; blocking
+            # guards accumulate.
+            guards.append((polite, _PT_CLAUSE_INITIAL, "", "", ""))
         out.append(
             Rule(f"v.{stem}", (tu, polite, polite, polite), gloss,
                  guard_before=_PT_3P_SUBJECT,
                  form_guards=tuple(guards))
         )
-    not_a_command = rf"{_PT_NOT_IMPERATIVE_BEFORE}|{_PT_SUBJUNCTIVE_BEFORE}"
     indicative_forms = {v[2] for v in _PT_VERBS}
     # Negatives first and longer, so "não faça" is taken whole before the
     # affirmative rule can see "faça" inside it.
@@ -3173,9 +3224,9 @@ def _pt_verb_rules() -> Tuple[Rule, ...]:
              guard_before=_PT_NOT_IMPERATIVE_BEFORE,
              form_guards=(
                  # The polite form is also the subjunctive, so a subordinator
-                 # in its clause means it is not a command. (Repeating the
-                 # rule's own guard: a form guard replaces it, not adds to it.)
-                 ((polite, not_a_command, "", "", ""),)
+                 # in its clause means it is not a command. The rule's own
+                 # "a subject in front of it" guard still applies as well.
+                 ((polite, _PT_SUBJUNCTIVE_BEFORE, "", "", ""),)
                  # …and in a question the ambiguous tu form is the statement,
                  # so it hands the span back.
                  + (((tu, "", _PT_QUESTION_AFTER, "", ""),)

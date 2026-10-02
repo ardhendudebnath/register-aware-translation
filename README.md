@@ -206,7 +206,7 @@ old number.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 605 tests. |
+| `tests/` | 613 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -795,7 +795,7 @@ commercially — with credit.
 python -m pytest tests/ -q
 ```
 
-605 tests covering the rule tables, round-trip stability, third-person safety,
+613 tests covering the rule tables, round-trip stability, third-person safety,
 rules firing outside the construction they belong to,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
 conversations, learner feedback, code-switching, speculative translation, the

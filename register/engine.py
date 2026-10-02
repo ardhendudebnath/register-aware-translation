@@ -52,7 +52,14 @@ from .levels import (
     formality_percent,
     level_name,
 )
-from .tables import LanguageTable, Rule, get_table, has_table, supported_languages
+from .tables import (
+    FormGuard,
+    LanguageTable,
+    Rule,
+    get_table,
+    has_table,
+    supported_languages,
+)
 
 __all__ = [
     "Edit",
@@ -216,15 +223,12 @@ class _Matcher:
         for rule in table.rules:
             guards = self._guards(rule)
             overrides = {
-                spec[0]: self._guards(
-                    rule,
-                    guard_before=spec[1] or None,
-                    guard_after=spec[2] or None,
-                    require_before=spec[3] or None,
-                    require_after=spec[4] or None,
-                    require_adjacent=(spec[5] if len(spec) > 5 else "") or None,
+                spec[0]: self._form_guards(rule, spec, replace=replace)
+                for spec, replace in (
+                    (g.as_spec(), g.replace) if isinstance(g, FormGuard)
+                    else (g, False)
+                    for g in rule.form_guards
                 )
-                for spec in rule.form_guards
             }
             seen_forms = set()
             for form in rule.forms:
@@ -279,6 +283,48 @@ class _Matcher:
         if form[:1].islower():
             variants.append((form[0].upper() + form[1:], True))
         return variants
+
+    @classmethod
+    def _form_guards(cls, rule: Rule, spec: Sequence[str], *,
+                     replace: bool) -> "_Guards":
+        """
+        Constraints for one form: the rule's, plus this form's own.
+
+        Blocking guards accumulate. Both the rule's and the form's say "never
+        here", so both go on applying, and a form that needs its own does not
+        have to restate the rule's to keep it. Getting this backwards cost a
+        real bug — a positional guard on one Portuguese form silently dropped
+        that form's third-person guard, and "Ele fala português" came back as
+        "Ele falas português" — and then cost thirty hand-copied patterns to
+        paper over.
+
+        Requirements do not accumulate. A requirement is a licence rather than
+        a veto, and the form's own is the precise one; ANDing it with the
+        rule's would demand both licences at once, which is not what any
+        caller means by it.
+
+        ``replace`` turns the blocking guards back into an override, for the
+        one case that genuinely needs a weaker guard than its rule. See
+        :class:`~register.tables.FormGuard`.
+        """
+        def slot(index: int) -> str:
+            return spec[index] if len(spec) > index else ""
+
+        def combine(form_pattern: str, rule_pattern: str) -> Optional[str]:
+            if not form_pattern:
+                return None                       # keep the rule's
+            if replace or not rule_pattern:
+                return form_pattern
+            return f"(?:{rule_pattern})|(?:{form_pattern})"
+
+        return cls._guards(
+            rule,
+            guard_before=combine(slot(1), rule.guard_before),
+            guard_after=combine(slot(2), rule.guard_after),
+            require_before=slot(3) or None,
+            require_after=slot(4) or None,
+            require_adjacent=slot(5) or None,
+        )
 
     @staticmethod
     def _guards(rule: Rule, guard_before: Optional[str] = None,
