@@ -225,7 +225,7 @@ old number.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 637 tests, run in CI on every push. |
+| `tests/` | 645 tests, run in CI on every push. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -852,7 +852,7 @@ a rule change that costs a language its score fails the build rather than
 waiting to be noticed. The tests that need the 2.3 GB corpus skip themselves
 there, so the external agreement figures stay a command you run locally.
 
-637 tests covering the rule tables, round-trip stability, third-person safety,
+645 tests covering the rule tables, round-trip stability, third-person safety,
 rules firing outside the construction they belong to,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
 conversations, learner feedback, code-switching, speculative translation, the

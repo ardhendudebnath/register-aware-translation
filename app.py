@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 from typing import Any, Dict, Optional
 
@@ -103,6 +104,85 @@ _phrasebook = Phrasebook(None) if SHARED else core._phrasebook
 #: What the engine got wrong, as noticed by whoever was using it. Off on a
 #: shared server: other people's sentences are not yours to collect.
 _corrections = CorrectionLog()
+
+
+class RateLimiter:
+    """
+    A fixed window of requests per caller, for the paths that cost money.
+
+    Only the MT-backed endpoints are counted. Re-levelling, detection and the
+    register pad are pure local string work and nobody needs protecting from
+    them; the translation endpoints reach an undocumented public endpoint that
+    rate-limits *this server*, so one person scripting a corpus through a demo
+    takes the demo down for everybody else.
+
+    Deliberately crude. A fixed window lets a burst through on a boundary,
+    which is the right failure for a limit whose job is to stop a script
+    rather than to shape traffic — and it costs one dict entry per caller
+    instead of a queue.
+    """
+
+    def __init__(self, limit: int, window_s: float = 60.0):
+        self.limit = limit
+        self.window_s = window_s
+        self._lock = threading.Lock()
+        self._hits: Dict[str, list] = {}
+
+    def check(self, key: str) -> Optional[float]:
+        """None when allowed; seconds until the window resets when not."""
+        now = time.monotonic()
+        with self._lock:
+            if len(self._hits) > 2048:
+                self._hits = {
+                    k: v for k, v in self._hits.items()
+                    if now - v[0] < self.window_s
+                }
+            started, count = self._hits.get(key, (now, 0))
+            if now - started >= self.window_s:
+                started, count = now, 0
+            if count >= self.limit:
+                return round(self.window_s - (now - started), 1)
+            self._hits[key] = (started, count + 1)
+            return None
+
+
+#: A person speaking continuously produces a few finished sentences a minute.
+#: Forty is room to be enthusiastic; a script wanting a corpus translated
+#: wants thousands.
+_finals = RateLimiter(limit=40)
+
+#: Speculative partials arrive while somebody is still talking, already capped
+#: at one per quarter second per connection — this is the ceiling across all
+#: connections from one address.
+_partials = RateLimiter(limit=300)
+
+
+def _caller() -> str:
+    """
+    Who to count against.
+
+    Behind a host's proxy the socket address is the proxy, so the forwarded
+    header is the only thing that distinguishes callers. It is trivially
+    forgeable by anyone talking to this server directly, which is why this is
+    a limit on accidental and casual abuse rather than a security control.
+    """
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
+
+def _rate_limited(limiter: RateLimiter) -> Optional[tuple]:
+    """The 429 to return, or None to carry on. Never limits a local run."""
+    if not SHARED:
+        return None
+    retry_after = limiter.check(_caller())
+    if retry_after is None:
+        return None
+    return jsonify({
+        "error": "too many translations from this address",
+        "retry_after_s": retry_after,
+    }), 429, {"Retry-After": str(int(retry_after) + 1)}
 
 
 def _private_feature(name: str):
@@ -202,6 +282,10 @@ def api_translate():
     text = (payload.get("text") or "").strip()
     if not text:
         return jsonify({"error": "text is required"}), 400
+
+    limited = _rate_limited(_finals)
+    if limited is not None:
+        return limited
 
     target = payload.get("target_lang") or payload.get("target") or "en"
     source = payload.get("source_lang") or payload.get("source") or None
@@ -313,6 +397,10 @@ def api_conversation_say(conversation_id):
     conversation = _conversations.get(conversation_id)
     if conversation is None:
         return jsonify({"error": "no such conversation"}), 404
+
+    limited = _rate_limited(_finals)
+    if limited is not None:
+        return limited
 
     payload = _json_body()
     text = (payload.get("text") or "").strip()
@@ -548,6 +636,11 @@ def handle_translate(data):
     if not text:
         emit("translation_error", {"message": "Nothing to translate."})
         return
+    if SHARED and _finals.check(_caller()) is not None:
+        emit("translation_error", {
+            "message": "Too many translations from this address. Wait a moment.",
+        })
+        return
 
     try:
         result = translate_text(
@@ -604,6 +697,12 @@ def handle_translate_partial(data):
     sid = getattr(request, "sid", "")
 
     if len(text) < PARTIAL_MIN_CHARS:
+        return
+
+    # A guess nobody will see is not worth an MT call, so this one drops
+    # rather than telling the user anything: the real translation is a moment
+    # behind it and will report whatever matters.
+    if SHARED and _partials.check(_caller()) is not None:
         return
 
     now = time.monotonic()

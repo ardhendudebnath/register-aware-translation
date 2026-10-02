@@ -118,6 +118,15 @@ under a crowd. The app degrades to "here's what I heard" rather than failing,
 but the translations stop being translations. If that happens, a Sarvam or
 Bhashini key is the fix, and that means a paid account.
 
+Shared mode therefore limits the paths that reach it: forty finished
+translations a minute per address, and three hundred speculative partials,
+which is generous for a person and useless to a script wanting a corpus
+translated. Local work — re-levelling, detection, the register pad — is never
+limited, because none of it leaves the machine. It is not a security control:
+the forwarded header it counts by is forgeable by anyone talking to the server
+directly. It stops accidents and casual abuse, which is what a demo shown to
+twenty people actually faces.
+
 **Register mistakes are the actual signal.** Every time the app gets the
 register wrong for somebody, that is a row for a gold set, which is the asset
 this project is really building. Write them down.
