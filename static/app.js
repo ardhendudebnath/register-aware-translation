@@ -1107,21 +1107,90 @@
    * slower and slightly lower. The browser's own voices are already installed
    * on every phone and cost nothing, so they are the default.
    */
+  /*
+   * Sentence terminators, including the ones a Latin-only regex misses: the
+   * Devanagari danda, the Urdu full stop, CJK marks. A clause boundary is
+   * weaker and only used when the first piece would otherwise be long.
+   */
+  const SENTENCE_END = /([.!?…।॥۔。！？]+)/;
+  const CLAUSE_END = /([,;:—–、]+)/;
+
+  //: Below this a piece is not worth its own utterance — the gap between two
+  //: utterances is audible, and "Yes" followed by a pause sounds like a fault.
+  const MIN_PIECE = 12;
+  //: Above this, the first piece is long enough that splitting it further
+  //: buys more than the seam costs. Sixty characters is roughly four seconds
+  //: of speech: long enough that waiting for all of it is the thing being
+  //: fixed, short enough that the seam is not worth it below.
+  const LONG_PIECE = 60;
+
+  /*
+   * Break text into the pieces speech synthesis should receive.
+   *
+   * The engine starts speaking when it has synthesised the utterance it was
+   * given, so one long utterance means silence until the whole thing is
+   * ready. Handing it the first clause first starts the audio sooner and the
+   * rest queues behind it (blueprint 5.2: "start speaking the first clause
+   * while the rest is still being synthesised").
+   *
+   * Pure, and exported on the module for the browser check: no DOM, no state.
+   */
+  function speechPieces(text) {
+    const trimmed = (text || "").trim();
+    if (!trimmed) return [];
+
+    const sentences = splitKeeping(trimmed, SENTENCE_END);
+    const out = [];
+    sentences.forEach((sentence, index) => {
+      // Only the first one is worth cutting finer: it is the only piece
+      // anybody is waiting on.
+      if (index === 0 && sentence.length > LONG_PIECE) {
+        out.push(...splitKeeping(sentence, CLAUSE_END));
+      } else {
+        out.push(sentence);
+      }
+    });
+    return merge(out);
+  }
+
+  function splitKeeping(text, pattern) {
+    const parts = text.split(pattern);
+    const pieces = [];
+    for (let i = 0; i < parts.length; i += 2) {
+      const piece = (parts[i] + (parts[i + 1] || "")).trim();
+      if (piece) pieces.push(piece);
+    }
+    return pieces.length ? pieces : [text];
+  }
+
+  function merge(pieces) {
+    // Glue the scraps onto their neighbour rather than speaking them alone.
+    const out = [];
+    pieces.forEach((piece) => {
+      if (out.length && piece.length < MIN_PIECE) out[out.length - 1] += " " + piece;
+      else out.push(piece);
+    });
+    return out;
+  }
+
   function speak(text, result) {
     if (!text || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
 
-    const utter = new SpeechSynthesisUtterance(text);
-    const lang = (result && result.target_language) || ui.targetLang.value;
-    utter.lang = bcp47(lang);
-
+    const lang = bcp47((result && result.target_language) || ui.targetLang.value);
     const p = (result && result.prosody) || {};
-    utter.rate = p.rate || 1;
-    utter.pitch = p.pitch || 1;
+    const voice = pickVoice(lang);
 
-    const voice = pickVoice(utter.lang);
-    if (voice) utter.voice = voice;
-    window.speechSynthesis.speak(utter);
+    speechPieces(text).forEach((piece) => {
+      const utter = new SpeechSynthesisUtterance(piece);
+      utter.lang = lang;
+      utter.rate = p.rate || 1;
+      utter.pitch = p.pitch || 1;
+      if (voice) utter.voice = voice;
+      // Queued, not raced: the browser plays them in the order given, and the
+      // first is short enough to start almost immediately.
+      window.speechSynthesis.speak(utter);
+    });
   }
 
   function pickVoice(tag) {

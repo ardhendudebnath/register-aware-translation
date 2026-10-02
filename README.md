@@ -119,9 +119,28 @@ sentence about to be corrected is worse than silence. They travel over the
 socket, because a persistent connection is the blueprint's single biggest
 real-world latency win: a cold TLS handshake costs more than the translation.
 
-Not done: voice-activity detection to cut the utterance on a pause, and
-streaming TTS that starts on the first clause. Both are in the blueprint's
-latency plan and neither is built.
+### Speaking before the sentence is finished
+
+The same idea at the other end. Speech synthesis starts when it has
+synthesised *the utterance it was given*, so handing it a paragraph means
+silence until the whole paragraph is ready. It now gets the first sentence
+first and the rest queues behind it:
+
+```
+आप कैसे हैं? मैं ठीक हूँ, धन्यवाद। आज मौसम बहुत अच्छा है।
+  →  "आप कैसे हैं?" · "मैं ठीक हूँ, धन्यवाद।" · "आज मौसम बहुत अच्छा है।"
+```
+
+The split knows the terminators a Latin-only regex misses — the Devanagari
+danda, the Urdu full stop, the CJK marks. A long first sentence is cut again
+at its commas, because sixty characters is about four seconds of waiting; a
+short one is left whole, because the seam between two utterances is audible
+and "Yes" followed by a pause sounds like a fault.
+
+Not done: **voice-activity detection**, to end the utterance on a pause rather
+than on the browser's own timer. It is the last item in the blueprint's latency
+plan, and the one thing here that cannot be checked without a working
+microphone — which is why it is still a gap rather than an unverified feature.
 
 ### Module structure
 
