@@ -339,6 +339,25 @@ def test_a_command_still_heads_its_clause_behind_a_dash_or_a_clitic(source, expe
     assert rewrite(once, "pt", CLOSE).text == once, "and it stays put"
 
 
+@pytest.mark.parametrize("source, level, expected", [
+    # "ter que" and "ter de" are the obligation modal: "tem que largar essa
+    # arma" is *you have to* drop that gun. There is no command reading, and
+    # the polite rewrite was asking the listener to possess an obligation.
+    ("Tem que largar essa arma.", POLITE, "Tem que largar essa arma."),
+    ("Tem de ir agora.", POLITE, "Tem de ir agora."),
+    ("Tenha que largar essa arma.", CLOSE, "Tenha que largar essa arma."),
+    # The plain imperative of the same verb still moves.
+    ("Tenha paciência.", CLOSE, "Tem paciência."),
+    ("Tem paciência.", POLITE, "Tenha paciência."),
+    # "Por favor" opens a clause, so what follows it still heads one.
+    ("Por favor tenha certeza disso.", CLOSE, "Por favor tem certeza disso."),
+])
+def test_an_obligation_is_not_an_order(source, level, expected):
+    got = rewrite(source, "pt", level).text
+    assert got == expected
+    assert rewrite(got, "pt", level).text == got, "and it stays put"
+
+
 # ------------------------------- Italian: the two rules are mirror images
 
 

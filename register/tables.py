@@ -3138,9 +3138,15 @@ _PT_NOT_IMPERATIVE_BEFORE = (
 #: isso" is an instruction.
 _PT_CLAUSE_INITIAL = (
     r"(?:^|[.!?…;:,–—\"“«]|(?:^|\s)-)\s*"
-    r"(?:(?:então|agora|depois|e|mas|só|já|pois)\s+)?"
+    r"(?:(?:então|agora|depois|e|mas|só|já|pois|por favor|faz favor)\s+)?"
     rf"{_PT_CLITICS}"
 )
+
+#: "ter que" and "ter de" are the obligation modal — "tem que largar essa
+#: arma" is *you have to* drop that gun. There is no command reading, and
+#: without this one the polite rewrite produced "Tenha que largar essa arma",
+#: which asks the listener to possess an obligation.
+_PT_OBLIGATION_AFTER = r"\s+(?:que|de)\s+\w"
 
 #: The polite imperative is the present subjunctive — faça, diga, tenha, dê —
 #: so after a subordinator in the same clause it is not a command at all, and
@@ -3222,6 +3228,7 @@ def _pt_verb_rules() -> Tuple[Rule, ...]:
     out += [
         Rule(f"v.{stem}.imp", (tu, polite, polite, polite), gloss,
              guard_before=_PT_NOT_IMPERATIVE_BEFORE,
+             guard_after=_PT_OBLIGATION_AFTER if stem == "ter" else "",
              form_guards=(
                  # The polite form is also the subjunctive, so a subordinator
                  # in its clause means it is not a command. The rule's own

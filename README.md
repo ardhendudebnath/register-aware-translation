@@ -206,7 +206,7 @@ old number.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 613 tests. |
+| `tests/` | 626 tests. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -614,7 +614,7 @@ de   agreement  99.3%   coverage  88.1%
 fr   agreement  99.1%   coverage  85.2%
 es   agreement  97.3%   coverage  77.4%
 it   agreement  92.3%   coverage  64.2%
-pt   agreement  92.7%   coverage  76.1%
+pt   agreement  92.8%   coverage  76.1%
 en   agreement  68.7%   coverage   9.6%
 
 overall 95.8% over 100,264 sentences (150,203 seen, 33% carried no marker)
@@ -650,7 +650,7 @@ grammar. English "However" → "But" is a real register change on a sentence
 about nothing in particular. The first run flagged 463 English sentences before
 that distinction was drawn, and every one was a lexical rule doing its job.
 
-The second is down from 440 failures to 74 and is how the remaining bugs get
+The second is down from 440 failures to 56 and is how the remaining bugs get
 found: an unstable rewrite is usually a *wrong* rewrite whose output the next
 pass then corrects. Chasing the Portuguese cluster turned up subjunctives being
 rewritten as commands, negative imperatives losing their mood, a clitic hiding
@@ -800,7 +800,7 @@ commercially — with credit.
 python -m pytest tests/ -q
 ```
 
-613 tests covering the rule tables, round-trip stability, third-person safety,
+626 tests covering the rule tables, round-trip stability, third-person safety,
 rules firing outside the construction they belong to,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
 conversations, learner feedback, code-switching, speculative translation, the
