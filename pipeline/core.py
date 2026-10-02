@@ -147,12 +147,24 @@ class Phrasebook:
     be re-levelled to any of the four registers with no network at all.
     """
 
-    def __init__(self, path: Path = PHRASEBOOK_PATH):
-        self.path = Path(path)
+    def __init__(self, path: Optional[Path] = PHRASEBOOK_PATH):
+        #: None means keep it in memory and write nothing.
+        #:
+        #: On one person's machine the cache is theirs, and keeping it is the
+        #: point. On a server several people share it is a durable record of
+        #: every sentence any of them typed, sitting in a file nobody agreed
+        #: to — so a shared deployment runs ephemeral and loses the cache when
+        #: the process ends, which is the right trade for somebody else's
+        #: sentences.
+        self.path = Path(path) if path is not None else None
         self._lock = threading.Lock()
         self._conn: Optional[sqlite3.Connection] = None
         #: Set once the path proves unusable, so we stop retrying on every call.
         self._broken = False
+
+    @property
+    def ephemeral(self) -> bool:
+        return self.path is None
 
     def _connect(self) -> Optional[sqlite3.Connection]:
         if self._conn is not None:
@@ -160,8 +172,11 @@ class Phrasebook:
         if self._broken:
             return None
         try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            conn = sqlite3.connect(self.path, check_same_thread=False)
+            if self.path is None:
+                conn = sqlite3.connect(":memory:", check_same_thread=False)
+            else:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                conn = sqlite3.connect(self.path, check_same_thread=False)
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS phrases (

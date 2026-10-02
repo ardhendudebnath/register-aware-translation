@@ -357,6 +357,11 @@ because it is hard, but because you cannot attach a register to a contact until
 register is a first-class object. This data never leaves the device: local
 SQLite, no sync, no export endpoint.
 
+"Never leaves the device" is enforced by there being one device. On a server
+several people share, the same endpoint would hand the first visitor's
+contacts to the second — so `SETU_SHARED=1` closes it there and the panel
+disappears. See [DEPLOY.md](DEPLOY.md), which is mostly about this.
+
 ### Learner mode — the pipeline run backwards
 
 Duolingo teaches vocabulary and grammar. None of them teach *register*, which
@@ -813,6 +818,7 @@ pipeline with networking disabled.
 | `SETU_PORT` | `5000` | Port |
 | `SETU_DEBUG` | off | Reloader and verbose errors |
 | `SETU_ALLOW_NETWORK` | `1` | Set `0` to forbid outbound calls |
+| `SETU_SHARED` | off | **Set this if more than one person can reach the server.** Closes relationship memory and stops writing anybody's sentences to disk — see [DEPLOY.md](DEPLOY.md) |
 | `SETU_WHISPER_MODEL` | `base` | Whisper size when server-side ASR is installed |
 | `SETU_MT_TIMEOUT` | `6` | Seconds before the MT endpoint is abandoned |
 

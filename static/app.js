@@ -54,6 +54,7 @@
     learnSuggestionWrap: $("learnSuggestionWrap"),
     learnSuggestion: $("learnSuggestion"),
     learnEvidence: $("learnEvidence"),
+    peoplePanel: $("peoplePanel"),
     peopleList: $("peopleList"),
     peopleHint: $("peopleHint"),
     personName: $("personName"),
@@ -85,6 +86,9 @@
     lastResult: null,
     listening: false,
     busy: false,
+    //: True when several people share this server, so the device-local
+    //: features are not available. See applyServerMode.
+    shared: false,
     // Speculative translation of what is being said right now. `seq` rises
     // with every partial sent; a result whose seq is not the current one has
     // been overtaken and is dropped.
@@ -120,6 +124,9 @@
   // ------------------------------------------------------------ bootstrap
 
   async function boot() {
+    // First, so nothing later asks the server for something it has already
+    // said it will refuse.
+    await applyServerMode();
     buildRegisterChips();
     buildAddresseeChips();
     buildConversation();
@@ -143,6 +150,26 @@
     setupSpeechRecognition();
     updateLevelHint();
     registerServiceWorker();
+  }
+
+  /*
+   * Hide what this server cannot honestly offer.
+   *
+   * Relationship memory keeps who you defer to on one device, and there is no
+   * login here — so on a shared server it would be everybody's, and the API
+   * refuses it. Showing the panel anyway would be offering a feature that
+   * answers 403, which is worse than not offering it.
+   */
+  async function applyServerMode() {
+    try {
+      const res = await fetch("/api/health");
+      const data = await res.json();
+      if (!data.shared) return;
+      state.shared = true;
+      if (ui.peoplePanel) ui.peoplePanel.hidden = true;
+    } catch (_) {
+      /* offline, or no server: leave the page as it is */
+    }
   }
 
   function fillLanguageSelects(languages) {
@@ -681,6 +708,9 @@
    */
 
   function buildPeople() {
+    // The panel is hidden on a shared server and the endpoints refuse, so
+    // wiring it up would only produce 403s in somebody's console.
+    if (state.shared) return;
     ui.personSave.addEventListener("click", rememberPerson);
     ui.personName.addEventListener("keydown", (e) => {
       if (e.key === "Enter") rememberPerson();

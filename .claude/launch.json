@@ -6,6 +6,13 @@
       "runtimeExecutable": ".venv/Scripts/python.exe",
       "runtimeArgs": ["app.py"],
       "port": 5000
+    },
+    {
+      "name": "setu-shared",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["app.py"],
+      "port": 5001,
+      "env": { "SETU_SHARED": "1", "SETU_PORT": "5001" }
     }
   ]
 }

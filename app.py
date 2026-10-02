@@ -30,7 +30,8 @@ from pipeline import (
     translate_partial,
     translate_text,
 )
-from pipeline.core import _phrasebook
+from pipeline import core
+from pipeline.core import Phrasebook, _phrasebook
 from register import (
     AUTO,
     CORNERS,
@@ -58,6 +59,24 @@ PORT = int(os.environ.get("SETU_PORT", "5000"))
 #: an operator running an offline demo can disable it entirely.
 ALLOW_NETWORK = os.environ.get("SETU_ALLOW_NETWORK", "1").lower() not in ("0", "false", "no")
 
+#: More than one person is using this server.
+#:
+#: Two features are device-local by design and quietly stop being so the
+#: moment the app has a public URL:
+#:
+#: *Relationship memory.* Who you are deferential to is about as sensitive as
+#: a contact list gets. There is no login here, so on a shared server one
+#: visitor's "Rahul's father — আপনি" is readable by the next one. The
+#: endpoints are closed rather than shared.
+#:
+#: *The phrasebook.* It is a durable record of every sentence anybody typed.
+#: Shared, it runs in memory and is lost with the process, which is the right
+#: trade for somebody else's sentences.
+#:
+#: Nothing here is a substitute for authentication. It is the difference
+#: between a demo that cannot leak these and one that does.
+SHARED = os.environ.get("SETU_SHARED", "").lower() in ("1", "true", "yes")
+
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
 # Jinja compiles a template once and holds it, so editing index.html changes
@@ -69,8 +88,27 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 #: On-device only. Who you are deferential to is about as sensitive as a
-#: contact list gets, so there is no sync and no export endpoint.
+#: contact list gets, so there is no sync and no export endpoint — and on a
+#: shared server, no endpoints at all. See SHARED.
 _relationships = RelationshipBook()
+
+#: The cache this server uses. Ephemeral when shared, so nothing anybody types
+#: is written to disk on a machine they do not own. Passed explicitly to every
+#: call rather than swapped into pipeline.core, which would reach into another
+#: module's state and could not be undone.
+_phrasebook = Phrasebook(None) if SHARED else core._phrasebook
+
+
+def _private_feature(name: str):
+    """The 403 a device-local feature returns when the server is shared."""
+    return jsonify({
+        "error": f"{name} is disabled on a shared server",
+        "why": (
+            "This feature keeps data on one device and there is no login "
+            "here, so on a shared server it would be everybody's. Run Setu "
+            "locally to use it."
+        ),
+    }), 403
 
 
 # --------------------------------------------------------------------------
@@ -111,7 +149,9 @@ def health():
         "status": "ok",
         "backends": backend_report(),
         "allow_network": ALLOW_NETWORK,
-        "phrasebook": _phrasebook.stats(),
+        # The client reads this to hide the panels that cannot work here.
+        "shared": SHARED,
+        "phrasebook": {**_phrasebook.stats(), "ephemeral": _phrasebook.ephemeral},
     })
 
 
@@ -173,6 +213,7 @@ def api_translate():
             with_ladder=payload.get("ladder", True),
             with_audio=bool(payload.get("audio")),
             allow_network=ALLOW_NETWORK,
+            phrasebook=_phrasebook,
         )
     except Exception as exc:  # noqa: BLE001
         log.exception("translate failed")
@@ -399,11 +440,15 @@ def api_learner_assess():
 
 @app.route("/api/relationships", methods=["GET"])
 def api_relationships_list():
+    if SHARED:
+        return _private_feature("Relationship memory")
     return jsonify({"relationships": [r.as_dict() for r in _relationships.all()]})
 
 
 @app.route("/api/relationships", methods=["POST"])
 def api_relationships_upsert():
+    if SHARED:
+        return _private_feature("Relationship memory")
     payload = _json_body()
     name = (payload.get("name") or "").strip()
     if not name:
@@ -423,6 +468,8 @@ def api_relationships_upsert():
 
 @app.route("/api/relationships/<path:name>", methods=["DELETE"])
 def api_relationships_delete(name):
+    if SHARED:
+        return _private_feature("Relationship memory")
     return jsonify({"deleted": _relationships.forget(name)})
 
 
@@ -467,6 +514,7 @@ def handle_translate(data):
             keep_english=_flag(data, "keep_english", True),
             with_audio=bool(data.get("audio")),
             allow_network=ALLOW_NETWORK,
+            phrasebook=_phrasebook,
         )
     except Exception as exc:  # noqa: BLE001
         log.exception("socket translate failed")
@@ -529,6 +577,7 @@ def handle_translate_partial(data):
             soften=bool(data.get("soften")),
             keep_english=_flag(data, "keep_english", True),
             allow_network=ALLOW_NETWORK,
+            phrasebook=_phrasebook,
         )
     except Exception:  # noqa: BLE001
         # A guess that fails is not an error the user needs to see: the real
@@ -583,6 +632,7 @@ def handle_audio_chunk(data):
             addressee=data.get("addressee") or None,
             with_audio=bool(data.get("audio_out")),
             allow_network=ALLOW_NETWORK,
+            phrasebook=_phrasebook,
         )
     except Exception as exc:  # noqa: BLE001
         log.exception("socket audio failed")

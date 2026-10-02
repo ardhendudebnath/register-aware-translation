@@ -1,0 +1,26 @@
+# The corpus and the splits are gigabytes and the image needs neither.
+data/dataset/
+data/splits/
+data/phrasebook.sqlite3
+data/relationships.sqlite3
+
+# Trained weights are optional and large; the app falls back to rules without
+# them, and an image that carries half a gigabyte to print one status line is
+# the mistake this project already made once.
+models/formality-classifier/
+
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+.git/
+.github/
+releases/
+docs/review/
+scratchpad/
+*.md
+!README.md
