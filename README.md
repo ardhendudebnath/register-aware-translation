@@ -151,7 +151,7 @@ flowchart TD
     end
 
     subgraph REG["register/ — the IP · zero dependencies"]
-        TAB["tables.py<br/>20 rule tables"]
+        TAB["tables/<br/>20 tables, by family"]
         ENG["engine.py<br/>rewrite · detect · ladder"]
         BOUND["boundaries.py<br/>Indic-safe word edges"]
         CS["codeswitch.py<br/>English kept, and counted"]
@@ -199,7 +199,7 @@ old number.
 
 | Path | What it is |
 |---|---|
-| `register/` | **The register engine.** Rule tables for 20 languages, plus rewrite / detect / ladder, noun gender, speaker agreement, code-switching. Zero dependencies, works offline, ~1 ms. |
+| `register/` | **The register engine.** Rule tables for 20 languages (`tables/`, one module per language family), plus rewrite / detect / ladder, noun gender, speaker agreement, code-switching. Zero dependencies, works offline, ~1 ms. |
 | `pipeline/` | Three-stage pipeline, phrasebook cache, asymmetric conversations, relationship memory, learner mode. |
 | `models/` | Swappable backends: STT, language ID, formality classification, MT, TTS. |
 | `data/gold/` | The register sets: 1,606 annotated sentences across 20 languages, with a [schema](data/gold/SCHEMA.md) and a [datasheet](data/gold/DATASHEET.md). |

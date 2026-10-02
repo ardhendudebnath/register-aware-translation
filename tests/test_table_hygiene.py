@@ -1,10 +1,11 @@
 """
 Structural checks on the table source itself, not on what it evaluates to.
 
-``tables.py`` is three thousand lines of hand-written data, and a duplicate key
-in a dict literal is silently legal Python: the later entry wins and the
-earlier one vanishes. That is invisible at runtime, so no test that imports the
-module can see it — by then the evidence is gone. These read the source.
+``register/tables/`` is thousands of lines of hand-written data, and a
+duplicate key in a dict literal is silently legal Python: the later entry wins
+and the earlier one vanishes. That is invisible at runtime, so no test that
+imports the module can see it — by then the evidence is gone. These read the
+source, every module of it.
 
 It has bitten twice. Both times a verb was given new tenses, both times a
 second entry for the same verb further down the dict quietly discarded them,
@@ -19,7 +20,12 @@ import ast
 from pathlib import Path
 from typing import Iterator, List, Tuple
 
-TABLES = Path(__file__).resolve().parent.parent / "register" / "tables.py"
+#: Every module the tables are written across. Reading the package rather than
+#: one file, so splitting it up again cannot quietly take a language out of
+#: this check's reach.
+TABLE_SOURCES = sorted(
+    (Path(__file__).resolve().parent.parent / "register" / "tables").glob("*.py")
+)
 
 
 def _dict_literals(tree: ast.AST) -> Iterator[Tuple[str, ast.Dict]]:
@@ -49,21 +55,23 @@ def _duplicate_keys(node: ast.Dict) -> List[Tuple[str, int]]:
 
 
 def test_no_duplicate_keys_in_table_dicts():
-    tree = ast.parse(TABLES.read_text(encoding="utf-8"))
+    assert TABLE_SOURCES, "no table modules found — has the package moved?"
     problems = []
-    for name, node in _dict_literals(tree):
-        for key, line in _duplicate_keys(node):
-            problems.append(f"{name}[{key!r}] redefined at tables.py:{line}")
-        # Paradigms are dicts of dicts; the inner ones hold the tenses, and a
-        # repeated tense loses forms the same way a repeated verb does.
-        for outer_key, value in zip(node.keys, node.values):
-            if not isinstance(value, ast.Dict):
-                continue
-            label = getattr(outer_key, "value", "?")
-            for key, line in _duplicate_keys(value):
-                problems.append(
-                    f"{name}[{label!r}][{key!r}] redefined at tables.py:{line}"
-                )
+    for source in TABLE_SOURCES:
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        for name, node in _dict_literals(tree):
+            for key, line in _duplicate_keys(node):
+                problems.append(f"{name}[{key!r}] redefined at {source.name}:{line}")
+            # Paradigms are dicts of dicts; the inner ones hold the tenses, and
+            # a repeated tense loses forms the same way a repeated verb does.
+            for outer_key, value in zip(node.keys, node.values):
+                if not isinstance(value, ast.Dict):
+                    continue
+                label = getattr(outer_key, "value", "?")
+                for key, line in _duplicate_keys(value):
+                    problems.append(
+                        f"{name}[{label!r}][{key!r}] redefined at {source.name}:{line}"
+                    )
     assert not problems, "duplicate keys silently discard entries:\n  " + \
         "\n  ".join(problems)
 
