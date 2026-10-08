@@ -137,10 +137,26 @@ at its commas, because sixty characters is about four seconds of waiting; a
 short one is left whole, because the seam between two utterances is audible
 and "Yes" followed by a pause sounds like a fault.
 
-Not done: **voice-activity detection**, to end the utterance on a pause rather
-than on the browser's own timer. It is the last item in the blueprint's latency
-plan, and the one thing here that cannot be checked without a working
-microphone — which is why it is still a gap rather than an unverified feature.
+### Ending the recording when you stop talking
+
+The last item in the blueprint's latency plan, and the only thing in this
+project that **has not been tested by the person who wrote it**.
+
+The browser ends an utterance on its own schedule, which is deliberately
+patient — it waits to be sure you have finished, and that wait is dead time at
+the front of every translation. Listening to the microphone level directly
+lets the sentence be cut the moment you stop: quiet for 700 ms, after speech,
+ends the recording and says "Heard you" rather than switching off silently.
+
+It is **off by default**, under *Who are you speaking to?* → *End the
+recording when you stop speaking*. Checking it would have meant opening a
+microphone on somebody else's machine to verify my own work, so the honest
+state is: written, defensive about every failure it can see — no permission,
+no device, no `AudioContext` all fall back to the browser's own endpointing —
+and unproven until you turn it on and speak to it.
+
+If it cuts you off mid-sentence, `VAD.SILENCE_MS` in `static/app.js` is the
+number to raise.
 
 ### Module structure
 

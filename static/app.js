@@ -21,6 +21,7 @@
     addresseeChips: $("addresseeChips"),
     soften: $("soften"),
     keepEnglish: $("keepEnglish"),
+    endOnPause: $("endOnPause"),
     levelHint: $("levelHint"),
     asrHint: $("asrHint"),
     sourceText: $("sourceText"),
@@ -1255,6 +1256,93 @@
     ui.asrHint.textContent = "Ctrl/⌘ + Enter to translate";
   }
 
+  /*
+   * Voice activity detection — end the utterance on a pause (blueprint 5.2).
+   *
+   * The browser ends an utterance on its own schedule, which is deliberately
+   * patient: it waits long enough to be sure you have finished, and that wait
+   * is dead time at the front of every translation. Listening to the level
+   * directly lets the sentence be cut the moment you stop talking.
+   *
+   * Off unless asked for, and the reason is honest rather than cautious: the
+   * only way to check this is to speak into a microphone, which cannot be
+   * done by whoever wrote it on somebody else's machine. Default on would be
+   * shipping an audio path nobody has heard.
+   */
+  const VAD = {
+    //: Quiet for this long, after speech, means the sentence is over. Shorter
+    //: cuts people off mid-thought; longer is the dead time being removed.
+    SILENCE_MS: 700,
+    //: Root-mean-square above this counts as speech. Room noise sits well
+    //: below it; a voice at arm's length sits well above.
+    SPEECH_RMS: 0.015,
+    POLL_MS: 50,
+  };
+
+  let listener = null;        // the running detector, if any
+
+  async function startVoiceActivity(onSilence) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      return null;
+    }
+
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (_) {
+      // Refused, or no device. The browser's own endpointing still applies,
+      // so this degrades to how the app behaved before.
+      return null;
+    }
+
+    const context = new Ctx();
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 1024;
+    context.createMediaStreamSource(stream).connect(analyser);
+
+    const samples = new Float32Array(analyser.fftSize);
+    let heardSpeech = false;
+    let quietSince = 0;
+
+    const timer = setInterval(() => {
+      analyser.getFloatTimeDomainData(samples);
+      let sum = 0;
+      for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
+      const rms = Math.sqrt(sum / samples.length);
+      const now = Date.now();
+
+      if (rms >= VAD.SPEECH_RMS) {
+        heardSpeech = true;
+        quietSince = 0;
+        return;
+      }
+      // Quiet before anything was said is somebody deciding what to say, not
+      // somebody who has finished.
+      if (!heardSpeech) return;
+      if (!quietSince) {
+        quietSince = now;
+      } else if (now - quietSince >= VAD.SILENCE_MS) {
+        stop();
+        onSilence();
+      }
+    }, VAD.POLL_MS);
+
+    function stop() {
+      clearInterval(timer);
+      stream.getTracks().forEach((track) => track.stop());
+      context.close().catch(() => {});
+    }
+
+    return { stop };
+  }
+
+  function stopVoiceActivity() {
+    if (!listener) return;
+    listener.stop();
+    listener = null;
+  }
+
   function toggleMic() {
     if (!recognition) return;
     if (state.listening) {
@@ -1267,6 +1355,18 @@
       setListening(true);
     } catch (_) {
       /* already started */
+      return;
+    }
+    if (ui.endOnPause && ui.endOnPause.checked) {
+      startVoiceActivity(() => {
+        // Said out loud, because a microphone that switches itself off
+        // without explanation reads as a fault.
+        ui.micLabel.textContent = "Heard you";
+        recognition.stop();
+      }).then((running) => {
+        if (state.listening) listener = running;
+        else if (running) running.stop();   // ended while we were starting
+      });
     }
   }
 
@@ -1274,6 +1374,7 @@
     state.listening = on;
     ui.micBtn.dataset.listening = String(on);
     ui.micLabel.textContent = on ? "Listening…" : "Speak";
+    if (!on) stopVoiceActivity();
   }
 
   // ---------------------------------------------------------------- socket
