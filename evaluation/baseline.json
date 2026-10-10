@@ -1,0 +1,144 @@
+{
+  "gold": {
+    "as": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 44,
+      "semantic": 1.0
+    },
+    "bn": {
+      "detection": 1.0,
+      "exactness": 0.9846,
+      "register": 1.0,
+      "rows": 494,
+      "semantic": 1.0
+    },
+    "de": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 55,
+      "semantic": 1.0
+    },
+    "en": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 44,
+      "semantic": 1.0
+    },
+    "es": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 45,
+      "semantic": 1.0
+    },
+    "fr": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 56,
+      "semantic": 1.0
+    },
+    "gu": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 52,
+      "semantic": 1.0
+    },
+    "hi": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 249,
+      "semantic": 1.0
+    },
+    "it": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 36,
+      "semantic": 1.0
+    },
+    "ja": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 41,
+      "semantic": 1.0
+    },
+    "kn": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 39,
+      "semantic": 1.0
+    },
+    "ml": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 51,
+      "semantic": 1.0
+    },
+    "mr": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 67,
+      "semantic": 1.0
+    },
+    "ne": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 45,
+      "semantic": 1.0
+    },
+    "or": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 44,
+      "semantic": 1.0
+    },
+    "pa": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 36,
+      "semantic": 1.0
+    },
+    "pt": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 43,
+      "semantic": 1.0
+    },
+    "ta": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 51,
+      "semantic": 1.0
+    },
+    "te": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 41,
+      "semantic": 1.0
+    },
+    "ur": {
+      "detection": 1.0,
+      "exactness": 1.0,
+      "register": 1.0,
+      "rows": 73,
+      "semantic": 1.0
+    }
+  }
+}

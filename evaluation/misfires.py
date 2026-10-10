@@ -57,7 +57,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from register import LEVELS, detect, get_table, has_table, level_name, rewrite
 
-from .external import DEFAULT_SPLIT, SPLIT_DIR, rows
+from .external import DEFAULT_SPLIT, ROW_LIMIT, SPLIT_DIR, rows
 
 __all__ = ["Misfire", "Tally", "sweep", "main"]
 
@@ -207,7 +207,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--lang", action="append", dest="langs",
                         help="restrict to a language (repeatable)")
     parser.add_argument("--split", default=DEFAULT_SPLIT)
-    parser.add_argument("--limit", type=int, default=200_000,
+    parser.add_argument("--limit", type=int, default=ROW_LIMIT,
                         help="rows to read from the file; 0 for all")
     parser.add_argument("--per-language", type=int, default=None)
     parser.add_argument("--show", type=int, default=3,

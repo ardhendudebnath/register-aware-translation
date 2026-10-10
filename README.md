@@ -241,7 +241,7 @@ old number.
 | `data_preprocessing/` | Builds train/val/test splits from the FAME-MT corpus. |
 | `classifier/` | Fine-tunes a formality classifier on those splits. |
 | `evaluation/` | The four metrics that make the claim defensible, and the review pages that make them mean something. |
-| `tests/` | 645 tests, run in CI on every push. |
+| `tests/` | 655 tests, run in CI on every push. |
 | `app.py` | Flask + SocketIO server and REST API. |
 
 ---
@@ -655,6 +655,31 @@ en   agreement  68.7%   coverage   9.6%
 overall 95.8% over 100,264 sentences (150,203 seen, 33% carried no marker)
 ```
 
+### What a change actually did
+
+```bash
+python -m evaluation.impact --save     # before touching a rule
+python -m evaluation.impact            # after
+```
+
+Every idea in this project gets the same treatment: the four metrics over the
+gold sets, the agreement against FAME-MT, the misfire sweep, and a comparison
+with what those were before. That was four commands and a person comparing
+numbers by eye — which is exactly where a small regression hides. The
+honorific nouns above moved Bengali exactness by two tenths of a point.
+
+```
+  2 changes (gold)
+
+  ↓ gold.bn.exactness  0.9846 → 0.9829
+  ↓ gold.bn.register   1.0000 → 0.9985
+```
+
+Nothing moved is one line, because a tool that reprints the whole table gets
+run once. `--no-corpus` is the seconds-long version for when you are mid-edit;
+the baseline is committed, so a rule change that moves a number shows up as a
+change to a file in the diff.
+
 ### The sweep that needs no labels
 
 ```bash
@@ -890,7 +915,7 @@ a rule change that costs a language its score fails the build rather than
 waiting to be noticed. The tests that need the 2.3 GB corpus skip themselves
 there, so the external agreement figures stay a command you run locally.
 
-645 tests covering the rule tables, round-trip stability, third-person safety,
+655 tests covering the rule tables, round-trip stability, third-person safety,
 rules firing outside the construction they belong to,
 Indic boundary handling, French noun gender, speaker agreement, asymmetric
 conversations, learner feedback, code-switching, speculative translation, the

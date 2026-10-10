@@ -77,9 +77,6 @@ DATA_LICENCE = {
 }
 LICENCE_FILE = GOLD_DIR / "LICENSE"
 
-#: Matches ``python -m evaluation.external``'s own default.
-EXTERNAL_ROW_LIMIT = 200_000
-
 #: The datasheet's counts are generated, so they cannot drift from the data.
 COUNTS_BEGIN = "<!-- counts:begin -->"
 COUNTS_END = "<!-- counts:end -->"
@@ -199,13 +196,13 @@ def external_agreement() -> Optional[Dict[str, dict]]:
     none of the Indian ones, which is the entire reason the rest of this
     release needs to exist.
     """
-    from .external import DEFAULT_SPLIT, SPLIT_DIR, score_language
+    from .external import DEFAULT_SPLIT, ROW_LIMIT, SPLIT_DIR, score_language
 
     if not (SPLIT_DIR / DEFAULT_SPLIT).exists():
         return None
-    # The same 200,000-row default the documented command uses, so a number in
-    # a release and a number in the README cannot disagree about the method.
-    scored = score_language(limit=EXTERNAL_ROW_LIMIT)
+    # The same row limit the documented command uses, so a number in a release
+    # and a number in the README cannot disagree about the method.
+    scored = score_language(limit=ROW_LIMIT)
     return {
         code: {
             "agreement": round(agreement.accuracy, 4),

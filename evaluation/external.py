@@ -89,6 +89,15 @@ FORMAL_FROM: Dict[str, int] = {
 }
 DEFAULT_FORMAL_FROM = POLITE
 
+#: Rows read from the split unless a caller says otherwise.
+#:
+#: Lives here so that every number quoted anywhere in this project — the
+#: README's table, a dataset release's baselines, the impact report — comes
+#: from the same amount of corpus. Two of those had their own copy of it,
+#: which is one edit away from two figures that silently disagree about the
+#: method behind them.
+ROW_LIMIT = 200_000
+
 
 def _binary(level: int, language: str) -> str:
     cut = FORMAL_FROM.get(language, DEFAULT_FORMAL_FROM)
@@ -207,7 +216,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         help="restrict to a language (repeatable)")
     parser.add_argument("--split", default=DEFAULT_SPLIT,
                         help="test.tsv (default), val.tsv or train.tsv")
-    parser.add_argument("--limit", type=int, default=200_000,
+    parser.add_argument("--limit", type=int, default=ROW_LIMIT,
                         help="rows to read from the file; 0 for all")
     parser.add_argument("--per-language", type=int, default=None,
                         help="stop after this many scored rows per language")
