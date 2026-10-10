@@ -253,6 +253,33 @@ def _bn_verb_rules() -> Tuple[Rule, ...]:
             )
     return tuple(out)
 
+# --------------------------------------------------------------------------
+# Honorific nouns are not this scale, and the gold set is why.
+#
+# Blueprint 3.4 lists them as unmodelled — "Formal Bengali/Hindi often changes
+# the noun too — বাবা→পিতৃদেব, आदमी→सज्जन" — so they were built: the ordinary
+# তদ্ভব/তৎসম pairs, বাবা→পিতা, চিঠি→পত্র, বই→পুস্তক, at level 3 only, with a
+# possessive required in front of the kinship terms so that "ছেলে" meaning
+# "boy" and "মা" addressed to a daughter were left alone.
+#
+# The Bengali gold set rejected it on the first run, and that set is the one
+# written by somebody who speaks the language:
+#
+#     bn-0139  আপনি কি আমাকে আপনার বই দিতে পারেন?    (Formal)
+#     built    আপনি কি আমাকে আপনার পুস্তক দিতে পারেন?
+#
+# Nobody asking politely to borrow a book says পুস্তক. The four levels here
+# are *spoken deference* — আপনি and the verb endings that agree with it — and
+# পিতা, পুস্তক and পত্র belong to written Bengali, which is a different axis
+# that happens to share the word "formal". A sentence can be written and
+# intimate (a letter to a brother) or spoken and deferential (asking a
+# stranger for directions), and collapsing the two onto one dial is the thing
+# this project exists to argue against.
+#
+# So: not built, deliberately. Modelling it properly means a second axis, not
+# more rules on this one.
+# --------------------------------------------------------------------------
+
 BENGALI = LanguageTable(
     code="bn",
     name="Bengali",

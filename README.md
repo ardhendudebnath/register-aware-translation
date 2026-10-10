@@ -797,6 +797,28 @@ ambiguities.
 **[REVIEWING.md](REVIEWING.md) is written for a speaker to be handed
 directly** — no programming knowledge assumed.
 
+### One thing the gold set has already decided
+
+Formal Bengali changes nouns as well as pronouns — বাবা becomes পিতা, বই
+becomes পুস্তক — and the blueprint lists that as unmodelled (§3.4). It was
+built, and the Bengali gold set threw it out on the first run:
+
+```
+bn-0139   আপনি কি আমাকে আপনার বই দিতে পারেন?        the set
+          আপনি কি আমাকে আপনার পুস্তক দিতে পারেন?     what the rules produced
+```
+
+Nobody asking politely to borrow a book says পুস্তক. These four levels are
+**spoken deference** — আপনি and the verb endings that agree with it — and
+পুস্তক belongs to *written* Bengali, which is a different axis wearing the
+same word. A sentence can be written and intimate (a letter to a brother) or
+spoken and deferential (asking a stranger for directions).
+
+Modelling it properly needs a second axis, not more rules on this one. That is
+recorded in `register/tables/indo_aryan.py` next to where the next person will
+think of it, and it is the clearest return the gold sets have paid so far —
+from the one set written by somebody who speaks the language.
+
 ### Recording what it gets wrong
 
 The blueprint's advice for the week after this ships is to use it for real and
